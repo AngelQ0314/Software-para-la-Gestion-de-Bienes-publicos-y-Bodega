@@ -78,11 +78,11 @@ export class User {
   updatedAt: Date;
 
   @Column('simple-array', { nullable: true })
-  areas: string[];
+  areas: string[] | null;
 
   @Column('simple-array', { nullable: true })
-  jornadas: string[];
+  jornadas: string[] | null;
 
-  @Column({ name: 'horario_ingles', nullable: true })
-  horarioIngles: string;
+  @Column({ type: 'varchar', name: 'horario_ingles', nullable: true })
+  horarioIngles: string | null;
 }

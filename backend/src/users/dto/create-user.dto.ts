@@ -24,9 +24,17 @@ export class CreateUserDto {
   @IsEnum(UserRole, { message: 'El rol debe ser ADMINISTRADOR o DOCENTE' })
   rol: UserRole;
 
-  @IsNotEmpty({ message: 'Debe asignar al menos un área de clases' })
+  @IsOptional()
+  @IsString({ message: 'Los nombres deben ser texto' })
+  nombres?: string;
+
+  @IsOptional()
+  @IsString({ message: 'Los apellidos deben ser texto' })
+  apellidos?: string;
+
+  @IsOptional()
   @IsString({ each: true, message: 'Cada área debe ser un texto válido' })
-  areas: string[];
+  areas?: string[];
 
   @IsOptional()
   @IsString({ each: true, message: 'Cada jornada debe ser un texto válido' })

@@ -26,6 +26,8 @@ Permite al administrador agregar una nueva cuenta al sistema. La contraseña tem
   {
     "cedula": "1723456789",
     "correoInstitucional": "docente.yavirac@yavirac.edu.ec",
+    "nombres": "JUAN CARLOS",
+    "apellidos": "PEREZ",
     "rol": "DOCENTE",
     "areas": ["DESARROLLO DE SOFTWARE", "INGLES"],
     "jornadas": ["MATUTINA"],
@@ -40,6 +42,8 @@ Permite al administrador agregar una nueva cuenta al sistema. La contraseña tem
       "id": "e4a2f8b1-3c9d-4c6e-8d9e-1f2a3b4c5d6e",
       "cedula": "1723456789",
       "correoInstitucional": "docente.yavirac@yavirac.edu.ec",
+      "nombres": "JUAN CARLOS",
+      "apellidos": "PEREZ",
       "rol": "DOCENTE",
       "estado": "PENDIENTE",
       "isFirstLogin": true,
@@ -117,9 +121,47 @@ Obtiene toda la información almacenada en el perfil de un usuario por medio de 
   }
   ```
 
+  ```
+
 ---
 
-### 4. Cambiar Rol de un Usuario
+### 4. Editar Datos del Usuario
+Permite al administrador o responsable de bienes modificar los datos personales, de contacto y de docencia de cualquier usuario del sistema.
+* **Restricción de Docencia:** Los campos de clase (`areas`, `jornadas`, `horarioIngles`) solo son permitidos y validados si el usuario cuenta con el rol de `DOCENTE`. Si se intentan enviar para un `ADMINISTRADOR` o `RESPONSABLE_DE_BIENES`, el backend los rechazará con error `400 Bad Request`.
+* **Método:** `PATCH`
+* **Ruta:** `/users/:id` (ej. `/users/e4a2f8b1-3c9d-4c6e-8d9e-1f2a3b4c5d6e`)
+* **Cuerpo de la Petición (todos los campos son opcionales):**
+  ```json
+  {
+    "nombres": "NUEVOS NOMBRES",
+    "apellidos": "NUEVOS APELLIDOS",
+    "correoSecundario": "nuevo.personal@gmail.com",
+    "telefono": "0991112223",
+    "areas": ["INGLES"],
+    "jornadas": [],
+    "horarioIngles": "De 10 a 12"
+  }
+  ```
+* **Respuesta (200 OK):**
+  ```json
+  {
+    "message": "Usuario actualizado correctamente",
+    "user": {
+      "id": "e4a2f8b1-3c9d-4c6e-8d9e-1f2a3b4c5d6e",
+      "cedula": "1723456789",
+      "correoInstitucional": "docente.yavirac@yavirac.edu.ec",
+      "nombres": "NUEVOS NOMBRES",
+      "apellidos": "NUEVOS APELLIDOS",
+      "areas": ["INGLES"],
+      "horarioIngles": "De 10 a 12",
+      "updatedAt": "2026-07-01T..."
+    }
+  }
+  ```
+
+---
+
+### 5. Cambiar Rol de un Usuario
 Actualiza el nivel de acceso (rol) asignado a un usuario en el sistema.
 * **Método:** `PATCH`
 * **Ruta:** `/users/:id/rol`
@@ -138,7 +180,7 @@ Actualiza el nivel de acceso (rol) asignado a un usuario en el sistema.
 
 ---
 
-### 5. Cambiar Estado de un Usuario
+### 6. Cambiar Estado de un Usuario
 Permite cambiar el estado de la cuenta de un usuario (`ACTIVO`, `INACTIVO`, `DADO_DE_BAJA`). Es obligatorio registrar una justificación/observación si se deshabilita la cuenta.
 * **Método:** `PATCH`
 * **Ruta:** `/users/:id/estado`
@@ -158,7 +200,7 @@ Permite cambiar el estado de la cuenta de un usuario (`ACTIVO`, `INACTIVO`, `DAD
 
 ---
 
-### 6. Reset Administrativo de Contraseña
+### 7. Reset Administrativo de Contraseña
 Permite al administrador enviar un enlace de cambio de contraseña a un usuario cuando este ha perdido el acceso por completo.
 * **Método:** `POST`
 * **Ruta:** `/users/:id/reset-password`
@@ -171,7 +213,7 @@ Permite al administrador enviar un enlace de cambio de contraseña a un usuario 
 
 ---
 
-### 7. Consultar Historial de Cambios (Auditoría)
+### 8. Consultar Historial de Cambios (Auditoría)
 Muestra una bitácora de todas las modificaciones críticas de roles, estados y reinicios realizados sobre el usuario, indicando el administrador responsable.
 * **Método:** `GET`
 * **Ruta:** `/users/:id/logs`

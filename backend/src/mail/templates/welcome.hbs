@@ -24,6 +24,7 @@
 <body>
   <div class="wrapper">
     <div class="header">
+      <img src="{{logoUrl}}" alt="Logo Yavirac" style="max-height: 55px; display: block; margin: 0 auto 12px auto;" />
       <h1>Instituto Superior Tecnológico Yavirac</h1>
       <p>Sistema de Gestión de Bienes Públicos y Bodega</p>
     </div>
@@ -42,7 +43,11 @@
       <a href="{{loginUrl}}" class="btn">Ir al Sistema</a>
 
       <div class="warning">
-        <strong>Importante:</strong> Al ingresar por primera vez deberás cambiar tu contraseña temporal y completar tu información personal antes de acceder al sistema.
+        {{#if esDocente}}
+          <strong>Importante:</strong> Al ingresar por primera vez deberás cambiar tu contraseña temporal y completar tu información personal antes de acceder al sistema.
+        {{else}}
+          <strong>Importante:</strong> Al ingresar por primera vez deberás cambiar tu contraseña temporal obligatoriamente antes de poder acceder al panel de administración.
+        {{/if}}
       </div>
     </div>
     <div class="footer">

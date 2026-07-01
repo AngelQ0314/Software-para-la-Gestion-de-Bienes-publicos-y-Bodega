@@ -49,8 +49,11 @@ export class MailService {
     cedula: string;
     correoInstitucional: string;
     passwordTemporal: string;
+    esDocente: boolean;
   }): Promise<void> {
     const loginUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:4200');
+    const backendUrl = this.configService.get<string>('BACKEND_URL', 'http://localhost:3000');
+    const logoUrl = this.configService.get<string>('LOGO_URL') || `${backendUrl}/public/logo.jpg`;
     const anio = new Date().getFullYear();
 
     try {
@@ -59,7 +62,9 @@ export class MailService {
         cedula: params.cedula,
         correoInstitucional: params.correoInstitucional,
         passwordTemporal: params.passwordTemporal,
+        esDocente: params.esDocente,
         loginUrl,
+        logoUrl,
         anio,
       });
 
@@ -81,13 +86,16 @@ export class MailService {
     nombres: string;
     resetUrl: string;
   }): Promise<void> {
+    const backendUrl = this.configService.get<string>('BACKEND_URL', 'http://localhost:3000');
+    const logoUrl = this.configService.get<string>('LOGO_URL') || `${backendUrl}/public/logo.jpg`;
     const anio = new Date().getFullYear();
 
     try {
       const html = this.renderTemplate('reset-password', {
         nombres: params.nombres || 'Usuario',
         resetUrl: params.resetUrl,
-        expiraEn: '30 minutos',
+        expiraEn: '5 minutos',
+        logoUrl,
         anio,
       });
 

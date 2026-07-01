@@ -12,6 +12,7 @@ import {
 } from '@nestjs/common';
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { FilterUsersDto } from './dto/filter-users.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -39,6 +40,16 @@ export class UsersController {
   @Get()
   findAll(@Query() filters: FilterUsersDto) {
     return this.usersService.findAll(filters);
+  }
+
+  // Editar perfil de usuario por el Admin
+  @Patch(':id')
+  update(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateUserDto,
+    @Request() req,
+  ) {
+    return this.usersService.updateAdminUser(id, dto, req.user.id);
   }
 
   // Detalle de un usuario

@@ -108,7 +108,7 @@ Permite al cliente obtener los detalles del token actual sin descodificarlo manu
 ---
 
 ### 5. Solicitar Recuperación de Contraseña (Olvidó Contraseña)
-Envía un enlace con un token seguro de 30 minutos de vigencia al correo electrónico.
+Envía un enlace con un token seguro de 5 minutos de vigencia al correo electrónico.
 * **Método:** `POST`
 * **Ruta:** `/auth/forgot-password`
 * **Acceso:** Público

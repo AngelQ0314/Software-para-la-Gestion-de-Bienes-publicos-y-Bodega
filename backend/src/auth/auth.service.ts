@@ -109,9 +109,18 @@ export class AuthService {
       isFirstLogin: false,
     });
 
+    if (user.profileCompleted) {
+      await this.usersService.updateUser(userId, {
+        estado: UserStatus.ACTIVO,
+      });
+      return {
+        message: 'Contraseña actualizada correctamente. Bienvenido al sistema.',
+        nextStep: null,
+      };
+    }
+
     return {
-      message:
-        'Contraseña actualizada. Por favor completa tu información personal.',
+      message: 'Contraseña actualizada. Por favor completa tu información personal.',
       nextStep: 'MUST_COMPLETE_PROFILE',
     };
   }
@@ -172,7 +181,7 @@ export class AuthService {
 
     const token = crypto.randomBytes(32).toString('hex');
     const expires = new Date();
-    expires.setMinutes(expires.getMinutes() + 30);
+    expires.setMinutes(expires.getMinutes() + 5);
 
     await this.usersService.updateUser(user.id, {
       resetToken: token,

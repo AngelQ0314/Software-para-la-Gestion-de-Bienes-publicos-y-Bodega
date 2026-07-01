@@ -52,55 +52,76 @@ export class UsersService {
       }
     }
 
-    // Validar áreas permitidas
-    const areasPermitidas = [
-      'DESARROLLO DE SOFTWARE',
-      'DISEÑO DE MODAS',
-      'GUIA NACIONAL DE TURISMO',
-      'ARTE CULINARIO ECUATORIANO',
-      'MARKETING DIGITAL',
-      'INGLES',
-    ];
+    let areasUpper: string[] | undefined = undefined;
+    let jornadasUpper: string[] | undefined = undefined;
+    let horarioIngles: string | undefined = undefined;
 
-    const areasInvalidas = dto.areas.filter(
-      (area) => !areasPermitidas.includes(area.toUpperCase()),
-    );
-    if (areasInvalidas.length > 0) {
-      throw new BadRequestException(
-        `Las siguientes áreas no son válidas: ${areasInvalidas.join(', ')}. Las áreas válidas son: ${areasPermitidas.join(', ')}`,
+    // Solo si es DOCENTE validamos áreas, jornadas y horarios
+    if (dto.rol === UserRole.DOCENTE) {
+      if (!dto.areas || dto.areas.length === 0) {
+        throw new BadRequestException('Debe asignar al menos un área de clases para el docente.');
+      }
+
+      // Validar áreas permitidas
+      const areasPermitidas = [
+        'DESARROLLO DE SOFTWARE',
+        'DISEÑO DE MODAS',
+        'GUIA NACIONAL DE TURISMO',
+        'ARTE CULINARIO ECUATORIANO',
+        'MARKETING DIGITAL',
+        'INGLES',
+      ];
+
+      const areasInvalidas = dto.areas.filter(
+        (area) => !areasPermitidas.includes(area.toUpperCase()),
       );
-    }
-
-    const areasUpper = dto.areas.map((a) => a.toUpperCase());
-
-    // Si tiene INGLÉS, el horario es obligatorio
-    if (areasUpper.includes('INGLES') && !dto.horarioIngles?.trim()) {
-      throw new BadRequestException(
-        'El horario es obligatorio cuando el área asignada incluye INGLES.',
-      );
-    }
-
-    // Si tiene áreas diferentes de INGLÉS, las jornadas son obligatorias
-    const tieneOtrasAreas = areasUpper.some((a) => a !== 'INGLES');
-    if (tieneOtrasAreas && (!dto.jornadas || dto.jornadas.length === 0)) {
-      throw new BadRequestException(
-        'Debe seleccionar al menos una jornada académica para las áreas que no sean Ingles.',
-      );
-    }
-
-    // Validar que las jornadas sean correctas (Matutina, Vespertina, Nocturna)
-    if (dto.jornadas && dto.jornadas.length > 0) {
-      const jornadasPermitidas = ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
-      const jornadasUpper = dto.jornadas.map((j) => j.toUpperCase());
-      const jornadasInvalidas = jornadasUpper.filter(
-        (j) => !jornadasPermitidas.includes(j),
-      );
-      if (jornadasInvalidas.length > 0) {
+      if (areasInvalidas.length > 0) {
         throw new BadRequestException(
-          `Las jornadas ingresadas no son válidas. Deben ser: ${jornadasPermitidas.join(', ')}`,
+          `Las siguientes áreas no son válidas: ${areasInvalidas.join(', ')}. Las áreas válidas son: ${areasPermitidas.join(', ')}`,
         );
       }
+
+      areasUpper = dto.areas.map((a) => a.toUpperCase());
+
+      // Si tiene INGLÉS, el horario es obligatorio
+      if (areasUpper.includes('INGLES') && !dto.horarioIngles?.trim()) {
+        throw new BadRequestException(
+          'El horario es obligatorio cuando el área asignada incluye INGLES.',
+        );
+      }
+
+      // Si tiene áreas diferentes de INGLÉS, las jornadas son obligatorias
+      const tieneOtrasAreas = areasUpper.some((a) => a !== 'INGLES');
+      if (tieneOtrasAreas && (!dto.jornadas || dto.jornadas.length === 0)) {
+        throw new BadRequestException(
+          'Debe seleccionar al menos una jornada académica para las áreas que no sean Ingles.',
+        );
+      }
+
+      // Validar que las jornadas sean correctas (Matutina, Vespertina, Nocturna)
+      if (dto.jornadas && dto.jornadas.length > 0) {
+        const jornadasPermitidas = ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
+        jornadasUpper = dto.jornadas.map((j) => j.toUpperCase());
+        const jornadasInvalidas = jornadasUpper.filter(
+          (j) => !jornadasPermitidas.includes(j),
+        );
+        if (jornadasInvalidas.length > 0) {
+          throw new BadRequestException(
+            `Las jornadas ingresadas no son válidas. Deben ser: ${jornadasPermitidas.join(', ')}`,
+          );
+        }
+      }
+
+      horarioIngles = areasUpper.includes('INGLES') ? dto.horarioIngles : undefined;
     }
+
+    const nombresUpper = dto.nombres ? dto.nombres.toUpperCase() : undefined;
+    const apellidosUpper = dto.apellidos ? dto.apellidos.toUpperCase() : undefined;
+
+    // Si es ADMIN o RESPONSABLE, el perfil se marca completo de fábrica.
+    // Si es docente y le ingresaron nombres/apellidos al registrarlo, también se marca como completo.
+    const esAdminRol = dto.rol === UserRole.ADMINISTRADOR || dto.rol === UserRole.RESPONSABLE_DE_BIENES;
+    const profileCompleted = esAdminRol || (!!nombresUpper && !!apellidosUpper);
 
     //La contraseña temporal es la cédula hasheada
     const passwordTemporal = dto.cedula;
@@ -109,14 +130,16 @@ export class UsersService {
     const user = this.userRepo.create({
       cedula: dto.cedula,
       correoInstitucional: dto.correoInstitucional,
+      nombres: nombresUpper,
+      apellidos: apellidosUpper,
       rol: dto.rol,
       password: hashedPassword,
       estado: UserStatus.PENDIENTE,
       isFirstLogin: true,
-      profileCompleted: false,
+      profileCompleted: profileCompleted,
       areas: areasUpper,
-      jornadas: dto.jornadas ? dto.jornadas.map((j) => j.toUpperCase()) : undefined,
-      horarioIngles: areasUpper.includes('INGLES') ? dto.horarioIngles : undefined,
+      jornadas: jornadasUpper,
+      horarioIngles: horarioIngles,
     });
 
     const saved = await this.userRepo.save(user);
@@ -124,10 +147,11 @@ export class UsersService {
     //Enviar correo con credenciales
     await this.mailService.sendWelcomeCredentials({
       to: dto.correoInstitucional,
-      nombres: dto.cedula,
+      nombres: nombresUpper ? `${nombresUpper} ${apellidosUpper || ''}`.trim() : dto.cedula,
       cedula: dto.cedula,
       correoInstitucional: dto.correoInstitucional,
       passwordTemporal,
+      esDocente: dto.rol === UserRole.DOCENTE,
     });
 
     const { password, resetToken, resetTokenExpires, ...result } = saved;
@@ -220,6 +244,14 @@ export class UsersService {
     const valorAnterior = user.rol;
 
     user.rol = newRol;
+
+    // Si el nuevo rol no es DOCENTE, limpiamos sus campos de docencia
+    if (newRol !== UserRole.DOCENTE) {
+      user.areas = null;
+      user.jornadas = null;
+      user.horarioIngles = null;
+    }
+
     await this.userRepo.save(user);
 
     await this.registrarLog({
@@ -284,7 +316,7 @@ export class UsersService {
 
     const token = require('crypto').randomBytes(32).toString('hex');
     const expires = new Date();
-    expires.setMinutes(expires.getMinutes() + 30); // 30 min de vigencia
+    expires.setMinutes(expires.getMinutes() + 5); // 5 min de vigencia
 
     user.resetToken = token;
     user.resetTokenExpires = expires;
@@ -356,5 +388,110 @@ export class UsersService {
   async updateUser(id: string, data: Partial<User>): Promise<User> {
     await this.userRepo.update(id, data);
     return this.findOne(id);
+  }
+
+  // Modificación de datos por parte del administrador
+  async updateAdminUser(
+    userId: string,
+    dto: any,
+    adminId: string,
+  ): Promise<{ message: string; user: User }> {
+    const user = await this.findOne(userId);
+
+    // Si no es docente, rechazamos cualquier intento de meter campos de clase
+    if (user.rol !== UserRole.DOCENTE && (dto.areas || dto.jornadas || dto.horarioIngles)) {
+      throw new BadRequestException(
+        'Los usuarios con roles administrativos (ADMINISTRADOR o RESPONSABLE_DE_BIENES) no pueden tener asignadas áreas, jornadas o horarios de clases.',
+      );
+    }
+
+    // Si es docente y le están actualizando áreas, validamos
+    if (user.rol === UserRole.DOCENTE && dto.areas) {
+      if (dto.areas.length === 0) {
+        throw new BadRequestException('Un docente debe tener al menos un área de clases asignada.');
+      }
+
+      const areasPermitidas = [
+        'DESARROLLO DE SOFTWARE',
+        'DISEÑO DE MODAS',
+        'GUIA NACIONAL DE TURISMO',
+        'ARTE CULINARIO ECUATORIANO',
+        'MARKETING DIGITAL',
+        'INGLES',
+      ];
+
+      const areasInvalidas = dto.areas.filter(
+        (area) => !areasPermitidas.includes(area.toUpperCase()),
+      );
+      if (areasInvalidas.length > 0) {
+        throw new BadRequestException(
+          `Las siguientes áreas no son válidas: ${areasInvalidas.join(', ')}`,
+        );
+      }
+
+      dto.areas = dto.areas.map((a) => a.toUpperCase());
+
+      if (dto.areas.includes('INGLES') && !dto.horarioIngles?.trim() && !user.horarioIngles) {
+        throw new BadRequestException(
+          'El horario es obligatorio cuando el área asignada incluye INGLES.',
+        );
+      }
+
+      const tieneOtrasAreas = dto.areas.some((a) => a !== 'INGLES');
+      if (tieneOtrasAreas && (!dto.jornadas || dto.jornadas.length === 0) && (!user.jornadas || user.jornadas.length === 0)) {
+        throw new BadRequestException(
+          'Debe seleccionar al menos una jornada académica para las áreas que no sean Ingles.',
+        );
+      }
+
+      if (dto.jornadas && dto.jornadas.length > 0) {
+        const jornadasPermitidas = ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
+        dto.jornadas = dto.jornadas.map((j) => j.toUpperCase());
+        const jornadasInvalidas = dto.jornadas.filter(
+          (j) => !jornadasPermitidas.includes(j),
+        );
+        if (jornadasInvalidas.length > 0) {
+          throw new BadRequestException(
+            `Las jornadas ingresadas no son válidas.`,
+          );
+        }
+      }
+    }
+
+    // Validación de unicidad de correo secundario si se está actualizando
+    if (dto.correoSecundario) {
+      if (dto.correoSecundario.toLowerCase() === user.correoInstitucional.toLowerCase()) {
+        throw new BadRequestException(
+          'El correo secundario no puede ser igual al correo institucional.',
+        );
+      }
+      const existeCorreo = await this.findByEmailAnywhere(dto.correoSecundario);
+      if (existeCorreo && existeCorreo.id !== userId) {
+        throw new BadRequestException(
+          'El correo secundario ya está registrado en el sistema por otro usuario.',
+        );
+      }
+    }
+
+    // Si envía nombres/apellidos, formatear a mayúsculas
+    if (dto.nombres) dto.nombres = dto.nombres.toUpperCase();
+    if (dto.apellidos) dto.apellidos = dto.apellidos.toUpperCase();
+
+    // Actualizar usuario
+    Object.assign(user, dto);
+    const updated = await this.userRepo.save(user);
+
+    // Registro de logs de auditoría
+    await this.registrarLog({
+      userId,
+      adminId,
+      tipoCambio: LogType.CAMBIO_ESTADO, // Usamos LogType genérico para registrar ediciones
+      observacion: 'Datos de perfil modificados por el administrador',
+    });
+
+    return {
+      message: 'Usuario actualizado correctamente',
+      user: updated,
+    };
   }
 }
