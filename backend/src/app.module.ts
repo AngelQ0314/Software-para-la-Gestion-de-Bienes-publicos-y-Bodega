@@ -7,6 +7,7 @@ import { getDatabaseConfig } from './config/database.config';
 import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { MailModule } from './mail/mail.module';
     MailModule,
     UsersModule,
     AuthModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],
