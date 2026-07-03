@@ -1,0 +1,187 @@
+<div class="dashboard-container animate-fade">
+  <!-- Encabezado de bienvenida -->
+  <div class="welcome-header">
+    <h2 class="welcome-title">Panel de administración</h2>
+    <p class="welcome-subtitle">Resumen del sistema - Período 2025-A</p>
+  </div>
+
+  <!-- TARJETAS DE ESTADÍSTICAS -->
+  <div class="stats-grid">
+    <!-- Bienes Públicos -->
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper color-cyan">
+          <span class="stat-icon">🏛️</span>
+        </div>
+        <span class="trend-indicator up">+12 este mes</span>
+      </div>
+      <div class="stat-body">
+        <h3 class="stat-value">559</h3>
+        <p class="stat-label">Bienes Públicos</p>
+      </div>
+    </div>
+
+    <!-- Insumos -->
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper color-pink">
+          <span class="stat-icon">📦</span>
+        </div>
+        <span class="trend-indicator up">+5 este mes</span>
+      </div>
+      <div class="stat-body">
+        <h3 class="stat-value">143</h3>
+        <p class="stat-label">Insumos y Bodega</p>
+      </div>
+    </div>
+
+    <!-- Solicitudes Pendientes -->
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper color-amber">
+          <span class="stat-icon">📄</span>
+        </div>
+        <span class="badge badge-pending">Pendientes</span>
+      </div>
+      <div class="stat-body">
+        <h3 class="stat-value">2</h3>
+        <p class="stat-label">Solicitudes de Traspaso</p>
+      </div>
+    </div>
+
+    <!-- Periodo Académico -->
+    <div class="stat-card glass-card">
+      <div class="stat-header">
+        <div class="stat-icon-wrapper color-purple">
+          <span class="stat-icon">📅</span>
+        </div>
+        <span class="trend-indicator text-muted">Quedan 108 días</span>
+      </div>
+      <div class="stat-body">
+        <h3 class="stat-value">2025-A</h3>
+        <p class="stat-label">01/05/2025 – 30/09/2025</p>
+        <div class="progress-bar-wrapper">
+          <div class="progress-bar-fill" style="width: 60%"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- VISTAS Y REPORTES INFERIORES -->
+  <div class="dashboard-panels-grid">
+    <!-- Distribución por categoría (Gráfico Personalizado Premium) -->
+    <div class="glass-panel panel-chart">
+      <h3 class="panel-section-title">Distribución por categoría</h3>
+      
+      <div class="custom-chart-container">
+        <div class="chart-y-axis">
+          <span>240</span>
+          <span>180</span>
+          <span>120</span>
+          <span>60</span>
+          <span>0</span>
+        </div>
+        
+        <div class="chart-bars-area">
+          <!-- Barra TIC -->
+          <div class="chart-bar-col">
+            <div class="bar-wrapper">
+              <div class="bar-fill" style="height: 60%" title="TIC (145 items)"></div>
+            </div>
+            <span class="bar-label">TIC</span>
+          </div>
+
+          <!-- Barra Mobiliario -->
+          <div class="chart-bar-col">
+            <div class="bar-wrapper">
+              <div class="bar-fill" style="height: 40%" title="Mobiliario (95 items)"></div>
+            </div>
+            <span class="bar-label">Mobiliario</span>
+          </div>
+
+          <!-- Barra Biblioteca -->
+          <div class="chart-bar-col">
+            <div class="bar-wrapper">
+              <div class="bar-fill" style="height: 90%" title="Biblioteca (216 items)"></div>
+            </div>
+            <span class="bar-label">Biblioteca</span>
+          </div>
+
+          <!-- Barra Insumos -->
+          <div class="chart-bar-col">
+            <div class="bar-wrapper">
+              <div class="bar-fill" style="height: 25%" title="Insumos (60 items)"></div>
+            </div>
+            <span class="bar-label">Insumos</span>
+          </div>
+
+          <!-- Barra Audiovisual -->
+          <div class="chart-bar-col">
+            <div class="bar-wrapper">
+              <div class="bar-fill" style="height: 20%" title="Audiovisual (48 items)"></div>
+            </div>
+            <span class="bar-label">Audiovisual</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Últimas solicitudes -->
+    <div class="glass-panel panel-requests">
+      <div class="panel-section-header">
+        <h3 class="panel-section-title">Últimas solicitudes</h3>
+        <a class="view-all-link">Ver todas</a>
+      </div>
+
+      <div class="requests-list">
+        <!-- Fila 1 -->
+        <div class="request-item">
+          <div class="request-icon-box transfer-icon">
+            <span>➡️</span>
+          </div>
+          <div class="request-details">
+            <h4 class="request-user">María García</h4>
+            <p class="request-meta">Transferencia – 15/06/2025</p>
+          </div>
+          <span class="badge badge-pending">Pendiente</span>
+        </div>
+
+        <!-- Fila 2 -->
+        <div class="request-item">
+          <div class="request-icon-box new-icon">
+            <span>➕</span>
+          </div>
+          <div class="request-details">
+            <h4 class="request-user">Carlos Mendoza</h4>
+            <p class="request-meta">Nuevo Inventario – 14/06/2025</p>
+          </div>
+          <span class="badge badge-active">Aprobada</span>
+        </div>
+
+        <!-- Fila 3 -->
+        <div class="request-item">
+          <div class="request-icon-box transfer-icon">
+            <span>➡️</span>
+          </div>
+          <div class="request-details">
+            <h4 class="request-user">Ana Torres</h4>
+            <p class="request-meta">Transferencia – 13/06/2025</p>
+          </div>
+          <span class="badge badge-inactive">Rechazada</span>
+        </div>
+
+        <!-- Fila 4 -->
+        <div class="request-item">
+          <div class="request-icon-box new-icon">
+            <span>➕</span>
+          </div>
+          <div class="request-details">
+            <h4 class="request-user">Luis Herrera</h4>
+            <p class="request-meta">Nuevo Inventario – 12/06/2025</p>
+          </div>
+          <span class="badge badge-pending">Pendiente</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

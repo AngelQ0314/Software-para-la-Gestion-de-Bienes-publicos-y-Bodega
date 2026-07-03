@@ -15,3 +15,8 @@ npm-debug.log*
 # OS
 .DS_Store
 Thumbs.db
+
+# Base de datos y scripts de inicialización locales
+init-db.js
+seed-admin.js
+

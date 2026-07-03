@@ -1,0 +1,178 @@
+<div class="admin-layout">
+  <!-- SIDEBAR IZQUIERDA -->
+  <aside class="sidebar glass-panel">
+    <div class="sidebar-header">
+      <div class="brand-logo-small">
+        <span class="logo-icon-small">🎓</span>
+      </div>
+      <div class="brand-meta">
+        <h1 class="brand-name">IST Yavirac</h1>
+        <p class="brand-tagline">Gestión de Inventario</p>
+      </div>
+    </div>
+
+    <nav class="sidebar-nav">
+      <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
+        Dashboard
+      </a>
+      
+      <a routerLink="/admin/users" routerLinkActive="active" class="nav-item">
+        Usuarios
+      </a>
+      
+      <div class="nav-dropdown-wrapper">
+        <a routerLink="/admin/inventory/config" routerLinkActive="active" class="nav-item">
+          Configuración
+        </a>
+      </div>
+
+      <a routerLink="/admin/inventory" [queryParams]="{view: 'BIENES_PUBLICOS'}" routerLinkActive="active" class="nav-item">
+        Bienes Públicos
+      </a>
+
+      <a routerLink="/admin/inventory" [queryParams]="{view: 'INSUMOS'}" routerLinkActive="active" class="nav-item">
+        Insumos
+      </a>
+
+      <a routerLink="/admin/inventory" [queryParams]="{view: 'BIBLIOTECA'}" routerLinkActive="active" class="nav-item">
+        Biblioteca
+      </a>
+
+      <a class="nav-item disabled-item">
+        Espacios físicos
+      </a>
+
+      <a class="nav-item disabled-item">
+        Período académico
+      </a>
+
+      <a class="nav-item disabled-item">
+        Solicitudes
+      </a>
+
+      <a class="nav-item disabled-item">
+        Reportes
+      </a>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="user-profile-row" (click)="openProfileModal()" style="cursor: pointer;" title="Editar mi perfil">
+        <div class="user-avatar">
+          {{ userInitials() }}
+        </div>
+        <div class="user-info-text">
+          <h4 class="profile-name">{{ userFullName() }}</h4>
+          <p class="profile-role">{{ userRole() }}</p>
+        </div>
+      </div>
+      
+      <button class="btn-profile" (click)="openProfileModal()">
+        Mi Perfil
+      </button>
+
+      <button class="btn-logout" (click)="onLogout()">
+        Cerrar sesión
+      </button>
+    </div>
+  </aside>
+
+  <!-- SECCIÓN PRINCIPAL -->
+  <div class="main-layout-area">
+    <!-- BARRA SUPERIOR DE ENCABEZADO -->
+    <header class="top-header glass-panel">
+      <div class="breadcrumb-area">
+        <span class="home-icon">🏠</span>
+        <span class="breadcrumb-separator">/</span>
+        <span class="breadcrumb-active">{{ activeRouteTitle() }}</span>
+      </div>
+
+      <div class="header-right-side">
+        <div class="search-bar-wrapper">
+          <span class="search-icon">🔍</span>
+          <input type="text" class="search-input" placeholder="Buscar en el sistema..." />
+        </div>
+
+        <div class="notification-bell">
+          <span class="bell-icon">🔔</span>
+          <span class="notification-badge">2</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- ÁREA DE CONTENIDO DINÁMICO (ROUTER OUTLET) -->
+    <main class="content-outlet">
+      <router-outlet></router-outlet>
+    </main>
+  </div>
+
+  <!-- MODAL EDITAR MI PERFIL -->
+  @if (showProfileModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Mi Perfil de Usuario</h3>
+          <button class="close-btn" (click)="closeProfileModal()">×</button>
+        </div>
+        <form [formGroup]="profileForm" (ngSubmit)="onProfileSubmit()" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">Cédula (No editable)</label>
+            <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Correo Institucional (No editable)</label>
+            <input type="text" class="form-input readonly-input" [value]="currentUser()?.correoInstitucional" readonly />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profNombres">Nombres</label>
+            <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
+            @if (isProfileFieldInvalid('nombres')) {
+              <span class="error-text">Los nombres son obligatorios</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profApellidos">Apellidos</label>
+            <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
+            @if (isProfileFieldInvalid('apellidos')) {
+              <span class="error-text">Los apellidos son obligatorios</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
+            <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
+            @if (isProfileFieldInvalid('correoSecundario')) {
+              <span class="error-text">Ingresa un correo secundario válido</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profTel">Teléfono (Opcional)</label>
+            <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
+          </div>
+
+          <!-- Alertas -->
+          @if (profileErrorMessage()) {
+            <div class="alert-box error-alert">
+              <span>⚠️</span> {{ profileErrorMessage() }}
+            </div>
+          }
+          @if (profileSuccessMessage()) {
+            <div class="alert-box success-alert">
+              <span>✅</span> {{ profileSuccessMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeProfileModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || profileLoading()">
+              Guardar Cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

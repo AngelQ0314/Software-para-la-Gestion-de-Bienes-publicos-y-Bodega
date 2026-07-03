@@ -5,7 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { ILike, Repository } from 'typeorm';
+import { ILike, Repository, Not } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole, UserStatus } from './entities/user.entity';
 import { UserLog, LogType } from './entities/user-log.entity';
@@ -57,10 +57,7 @@ export class UsersService {
     let horarioIngles: string | undefined = undefined;
 
     // Solo si es DOCENTE validamos áreas, jornadas y horarios
-    if (dto.rol === UserRole.DOCENTE) {
-      if (!dto.areas || dto.areas.length === 0) {
-        throw new BadRequestException('Debe asignar al menos un área de clases para el docente.');
-      }
+    if (dto.rol === UserRole.DOCENTE && dto.areas && dto.areas.length > 0) {
 
       // Validar áreas permitidas
       const areasPermitidas = [
@@ -167,17 +164,25 @@ export class UsersService {
     const limit = parseInt(filters.limit || '10', 10);
     const skip = (page - 1) * limit;
 
-    const where: any[] = [{}];
+    const baseConditions: any = {};
+    if (filters.cedula) baseConditions.cedula = ILike(`%${filters.cedula}%`);
+    if (filters.correo) baseConditions.correoInstitucional = ILike(`%${filters.correo}%`);
+    if (filters.estado) baseConditions.estado = filters.estado;
+    
+    if (filters.rol) {
+      baseConditions.rol = filters.rol;
+    } else {
+      baseConditions.rol = Not(UserRole.ADMINISTRADOR);
+    }
 
-    if (filters.cedula) where[0].cedula = ILike(`%${filters.cedula}%`);
-    if (filters.correo) where[0].correoInstitucional = ILike(`%${filters.correo}%`);
-    if (filters.rol) where[0].rol = filters.rol;
-    if (filters.estado) where[0].estado = filters.estado;
+    let where: any[];
     if (filters.nombre) {
-      where[0] = { ...where[0] };
-      // Busca por nombre o apellido
-      where.push({ ...where[0], nombres: ILike(`%${filters.nombre}%`) });
-      where.push({ ...where[0], apellidos: ILike(`%${filters.nombre}%`) });
+      where = [
+        { ...baseConditions, nombres: ILike(`%${filters.nombre}%`) },
+        { ...baseConditions, apellidos: ILike(`%${filters.nombre}%`) }
+      ];
+    } else {
+      where = [baseConditions];
     }
 
     const [users, total] = await this.userRepo.findAndCount({

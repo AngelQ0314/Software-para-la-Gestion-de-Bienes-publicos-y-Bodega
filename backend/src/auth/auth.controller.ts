@@ -3,6 +3,7 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
   UseGuards,
   Request,
   HttpCode,
@@ -45,7 +46,7 @@ export class AuthController {
   @Get('me')
   @UseGuards(JwtAuthGuard)
   getMe(@Request() req) {
-    return req.user;
+    return this.authService.getFreshUser(req.user.id);
   }
 
   //Solicitar recuperación de contraseña por correo
@@ -76,6 +77,13 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   updatePassword(@Body() dto: ChangePasswordDto, @Request() req) {
     return this.authService.updatePassword(req.user.id, dto);
+  }
+
+  //Actualizar perfil voluntariamente
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  updateProfile(@Body() dto: CompleteProfileDto, @Request() req) {
+    return this.authService.updateProfile(req.user.id, dto);
   }
 
   //Validar validez de un token de recuperación (sin autenticación)

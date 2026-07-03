@@ -1,0 +1,153 @@
+<div class="auth-container animate-fade">
+  <div class="glass-panel auth-card animate-slide" [class.wide-card]="isDocente()">
+    <div class="brand-section">
+      <div class="brand-logo">
+        <span class="logo-icon">👤</span>
+      </div>
+      <h1 class="brand-title">Completar Información</h1>
+      <p class="brand-subtitle">Por favor ingresa tus datos personales y de contacto para activar tu cuenta.</p>
+    </div>
+
+    <form [formGroup]="profileForm" (ngSubmit)="onSubmit()" class="auth-form">
+      <div class="profile-grid">
+        <!-- Sección de Datos Básicos (Común para todos) -->
+        <div class="section-column">
+          <h3 class="section-title">Datos Básicos</h3>
+          
+          <div class="form-group">
+            <label class="form-label" for="nombres">Nombres completos</label>
+            <input
+              id="nombres"
+              type="text"
+              class="form-input"
+              placeholder="Ej. JUAN CARLOS"
+              formControlName="nombres"
+              [class.input-error]="isFieldInvalid('nombres')"
+            />
+            <span class="error-text" *ngIf="isFieldInvalid('nombres')">
+              Los nombres son obligatorios
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="apellidos">Apellidos completos</label>
+            <input
+              id="apellidos"
+              type="text"
+              class="form-input"
+              placeholder="Ej. PEREZ GUERRERO"
+              formControlName="apellidos"
+              [class.input-error]="isFieldInvalid('apellidos')"
+            />
+            <span class="error-text" *ngIf="isFieldInvalid('apellidos')">
+              Los apellidos son obligatorios
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="correoSecundario">Correo Secundario (Opcional)</label>
+            <input
+              id="correoSecundario"
+              type="email"
+              class="form-input"
+              placeholder="correo.personal@gmail.com"
+              formControlName="correoSecundario"
+              [class.input-error]="isFieldInvalid('correoSecundario')"
+            />
+            <span class="error-text" *ngIf="isFieldInvalid('correoSecundario')">
+              Ingresa un correo secundario válido
+            </span>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="telefono">Teléfono / Contacto (Opcional)</label>
+            <input
+              id="telefono"
+              type="text"
+              class="form-input"
+              placeholder="Ej. 0998765432"
+              formControlName="telefono"
+              [class.input-error]="isFieldInvalid('telefono')"
+            />
+          </div>
+        </div>
+
+        <!-- Sección de Docencia (Sólo si es DOCENTE) -->
+        <div class="section-column" *ngIf="isDocente()">
+          <h3 class="section-title">Información Docente</h3>
+
+          <!-- Áreas Académicas -->
+          <div class="form-group">
+            <label class="form-label">Áreas Académicas (Carreras donde dicta clases)</label>
+            <div class="checkbox-group">
+              <label class="checkbox-label" *ngFor="let area of availableAreas; let i = index">
+                <input
+                  type="checkbox"
+                  [checked]="isAreaChecked(area.value)"
+                  (change)="onAreaChange($event, area.value)"
+                />
+                <span class="checkbox-custom"></span>
+                {{ area.label }}
+              </label>
+            </div>
+            <span class="error-text" *ngIf="areasError()">
+              Debes seleccionar al menos un área académica.
+            </span>
+          </div>
+
+          <!-- Horario de Inglés (Condicional) -->
+          <div class="form-group animate-fade" *ngIf="showEnglishSchedule()">
+            <label class="form-label" for="horarioIngles">Horario de Inglés</label>
+            <input
+              id="horarioIngles"
+              type="text"
+              class="form-input"
+              placeholder="Ej. Lunes a Viernes de 8:00 a 10:00"
+              formControlName="horarioIngles"
+              [class.input-error]="isFieldInvalid('horarioIngles')"
+            />
+            <span class="error-text" *ngIf="isFieldInvalid('horarioIngles')">
+              El horario es obligatorio cuando dictas Inglés.
+            </span>
+          </div>
+
+          <!-- Jornadas Académicas -->
+          <div class="form-group" *ngIf="showJornadas()">
+            <label class="form-label">Jornadas (Para áreas distintas a Inglés)</label>
+            <div class="checkbox-group">
+              <label class="checkbox-label" *ngFor="let jornada of availableJornadas">
+                <input
+                  type="checkbox"
+                  [checked]="isJornadaChecked(jornada.value)"
+                  (change)="onJornadaChange($event, jornada.value)"
+                />
+                <span class="checkbox-custom"></span>
+                {{ jornada.label }}
+              </label>
+            </div>
+            <span class="error-text" *ngIf="jornadasError()">
+              Debes seleccionar al menos una jornada.
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Mensaje de error general -->
+      <div class="alert-box error-alert" *ngIf="errorMessage()">
+        <span class="alert-icon">⚠️</span>
+        <span class="alert-message">{{ errorMessage() }}</span>
+      </div>
+
+      <!-- Mensaje de éxito -->
+      <div class="alert-box success-alert" *ngIf="successMessage()">
+        <span class="alert-icon">✓</span>
+        <span class="alert-message">{{ successMessage() }}</span>
+      </div>
+
+      <button type="submit" class="btn btn-primary btn-block" [disabled]="isLoading() || profileForm.invalid || hasDocenteErrors()">
+        <span class="spinner" *ngIf="isLoading()"></span>
+        <span *ngIf="!isLoading()">Completar Registro</span>
+      </button>
+    </form>
+  </div>
+</div>

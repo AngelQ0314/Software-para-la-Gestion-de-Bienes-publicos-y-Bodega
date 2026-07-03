@@ -1,0 +1,267 @@
+<div class="config-container animate-fade">
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Configuración del Motor de Inventario</h2>
+      <p>Define categorías, crea campos personalizados dinámicos y asócialos a tipos de código.</p>
+    </div>
+  </div>
+
+  <!-- TABS DE NAVEGACIÓN INTERNA -->
+  <div class="tabs-wrapper glass-panel">
+    <button class="tab-btn" [class.active-tab]="activeTab() === 'categories'" (click)="setTab('categories')">
+      Categorías / Subcategorías
+    </button>
+    <button class="tab-btn" [class.active-tab]="activeTab() === 'fields'" (click)="setTab('fields')">
+      Campos Personalizados
+    </button>
+    <button class="tab-btn" [class.active-tab]="activeTab() === 'codetypes'" (click)="setTab('codetypes')">
+      Tipos de Código
+    </button>
+  </div>
+
+  <!-- ====================================================================
+       TAB 1: CATEGORÍAS Y SUBCATEGORÍAS
+       ==================================================================== -->
+  @if (activeTab() === 'categories') {
+    <div class="tab-content grid-2 animate-fade">
+      <!-- Gestión de Categorías -->
+      <div class="glass-panel panel-card">
+        <h3 class="panel-title">Categorías Base</h3>
+        
+        <form [formGroup]="categoryForm" (ngSubmit)="onCategorySubmit()" class="panel-form inline-form">
+          <input type="text" class="form-input" placeholder="Nombre Categoría..." formControlName="nombre" />
+          <select class="form-select" formControlName="baseView">
+            <option value="BIENES_PUBLICOS">Bienes Públicos</option>
+            <option value="INSUMOS">Insumos y Bodega</option>
+            <option value="BIBLIOTECA">Biblioteca</option>
+          </select>
+          <button type="submit" class="btn btn-primary" [disabled]="categoryForm.invalid">
+            {{ editingCategoryId() ? 'Editar' : 'Agregar' }}
+          </button>
+        </form>
+
+        <div class="list-container">
+          @for (cat of categories(); track cat.id) {
+            <div class="list-item">
+              <div class="item-info">
+                <strong>{{ cat.nombre }}</strong>
+                <span class="sub-label">{{ formatView(cat.baseView) }}</span>
+              </div>
+              <div class="item-actions">
+                <button class="action-btn btn-edit" (click)="editCategory(cat)">Editar</button>
+                <button class="action-btn btn-reset" (click)="deleteCategory(cat.id)">Borrar</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Gestión de Subcategorías -->
+      <div class="glass-panel panel-card">
+        <h3 class="panel-title">Subcategorías</h3>
+        
+        <form [formGroup]="subcategoryForm" (ngSubmit)="onSubcategorySubmit()" class="panel-form inline-form">
+          <input type="text" class="form-input" placeholder="Nombre Subcategoría..." formControlName="nombre" />
+          <select class="form-select" formControlName="categoriaId">
+            <option value="">Selecciona Categoría...</option>
+            @for (cat of categories(); track cat.id) {
+              <option [value]="cat.id">{{ cat.nombre }}</option>
+            }
+          </select>
+          <button type="submit" class="btn btn-primary" [disabled]="subcategoryForm.invalid">
+            {{ editingSubcategoryId() ? 'Editar' : 'Agregar' }}
+          </button>
+        </form>
+
+        <div class="list-container">
+          @for (sub of subcategories(); track sub.id) {
+            <div class="list-item">
+              <div class="item-info">
+                <strong>{{ sub.nombre }}</strong>
+                <span class="sub-label">Categoría: {{ sub.categoria?.nombre || 'Desconocida' }}</span>
+              </div>
+              <div class="item-actions">
+                <button class="action-btn btn-edit" (click)="editSubcategory(sub)">Editar</button>
+                <button class="action-btn btn-reset" (click)="deleteSubcategory(sub.id)">Borrar</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ====================================================================
+       TAB 2: CAMPOS PERSONALIZADOS
+       ==================================================================== -->
+  @if (activeTab() === 'fields') {
+    <div class="tab-content grid-2 animate-fade">
+      <!-- Formulario Campos -->
+      <div class="glass-panel panel-card">
+        <h3 class="panel-title">{{ editingFieldId() ? 'Editar Campo' : 'Registrar Nuevo Campo Personalizado' }}</h3>
+        
+        <form [formGroup]="fieldForm" (ngSubmit)="onFieldSubmit()" class="panel-form flex-form">
+          <div class="form-group">
+            <label class="form-label">Nombre del Campo</label>
+            <input type="text" class="form-input" placeholder="Ej. Marca, Número de Páginas" formControlName="nombre" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Tipo de Dato</label>
+            <select class="form-select" formControlName="tipo" (change)="onFieldTypeChange()">
+              <option value="TEXT">Cadena de Texto (String)</option>
+              <option value="NUMBER_INT">Numérico Entero</option>
+              <option value="NUMBER_DECIMAL">Numérico Decimal</option>
+              <option value="DATE">Fecha</option>
+              <option value="OPTIONS_LIST">Lista de Opciones</option>
+            </select>
+          </div>
+
+          <!-- Sección de Opciones para OPTIONS_LIST -->
+          @if (fieldForm.get('tipo')?.value === 'OPTIONS_LIST') {
+            <div class="form-group animate-fade">
+              <label class="form-label">Opciones de la Lista</label>
+              <div class="options-input-wrapper">
+                <input type="text" class="form-input" placeholder="Escribe opción y presiona +" [(ngModel)]="newOption" [ngModelOptions]="{standalone: true}" />
+                <button type="button" class="btn btn-secondary" (click)="addOption()">+</button>
+              </div>
+              <div class="options-tag-cloud">
+                @for (opt of tempOptions(); track opt; let idx = $index) {
+                  <span class="option-tag">
+                    {{ opt }} <span class="remove-tag" (click)="removeOption(idx)">×</span>
+                  </span>
+                }
+              </div>
+              @if (tempOptions().length === 0) {
+                <span class="error-text">
+                  Debes agregar al menos una opción
+                </span>
+              }
+            </div>
+          }
+
+          <div class="form-actions">
+            @if (editingFieldId()) {
+              <button type="button" class="btn btn-secondary" (click)="cancelFieldEdit()">Cancelar</button>
+            }
+            <button type="submit" class="btn btn-primary" [disabled]="fieldForm.invalid || (fieldForm.get('tipo')?.value === 'OPTIONS_LIST' && tempOptions().length === 0)">
+              Guardar Campo
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Listado de Campos -->
+      <div class="glass-panel panel-card">
+        <h3 class="panel-title">Campos Existentes</h3>
+        
+        <div class="list-container">
+          @for (f of customFields(); track f.id) {
+            <div class="list-item">
+              <div class="item-info">
+                <strong>{{ f.nombre }}</strong>
+                <span class="sub-label">Tipo: {{ f.tipo }}</span>
+                @if (f.opciones) {
+                  <span class="sub-label italic">Opciones: {{ f.opciones.join(', ') }}</span>
+                }
+              </div>
+              <div class="item-actions">
+                <button class="action-btn btn-edit" (click)="editField(f)">Editar</button>
+                <button class="action-btn btn-reset" (click)="deleteField(f.id)">Borrar</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ====================================================================
+       TAB 3: TIPOS DE CÓDIGO Y ASOCIACIONES
+       ==================================================================== -->
+  @if (activeTab() === 'codetypes') {
+    <div class="tab-content grid-2 animate-fade">
+      <!-- Gestión Tipos de Código -->
+      <div class="glass-panel panel-card">
+        <h3 class="panel-title">Tipos de Código</h3>
+        
+        <form [formGroup]="codeTypeForm" (ngSubmit)="onCodeTypeSubmit()" class="panel-form inline-form">
+          <input type="text" class="form-input" placeholder="Nombre Tipo..." formControlName="nombre" />
+          <button type="submit" class="btn btn-primary" [disabled]="codeTypeForm.invalid">
+            {{ editingCodeTypeId() ? 'Editar' : 'Agregar' }}
+          </button>
+        </form>
+
+        <div class="list-container">
+          @for (ct of codeTypes(); track ct.id) {
+            <div class="list-item" [class.selected-item]="selectedCodeType()?.id === ct.id" (click)="selectCodeType(ct)">
+              <div class="item-info">
+                <strong>{{ ct.nombre }}</strong>
+                <span class="sub-label clickable">Configurar campos</span>
+              </div>
+              <div class="item-actions" (click)="$event.stopPropagation()">
+                <button class="action-btn btn-edit" (click)="editCodeType(ct)">Editar</button>
+                <button class="action-btn btn-reset" (click)="deleteCodeType(ct.id)">Borrar</button>
+              </div>
+            </div>
+          }
+        </div>
+      </div>
+
+      <!-- Configuración de Asociación de Campos -->
+      <div class="glass-panel panel-card">
+        <h3 class="panel-title">
+          Campos Asignados a: <span class="active-code-name">{{ selectedCodeType()?.nombre || 'Ninguno seleccionado' }}</span>
+        </h3>
+
+        @if (selectedCodeType()) {
+          <div class="association-body">
+            <p class="section-desc">Selecciona qué campos se solicitarán para este tipo de código, define su orden de aparición y si son obligatorios.</p>
+
+            <div class="fields-association-list">
+              @for (assoc of tempAssociations(); track assoc.field.id; let idx = $index) {
+                <div class="assoc-item">
+                  <div class="assoc-checkbox">
+                    <label class="checkbox-label-compact">
+                      <input type="checkbox" [checked]="assoc.selected" (change)="onAssocToggle(idx, $event)" />
+                      <span class="checkbox-custom"></span>
+                      <strong>{{ assoc.field.nombre }}</strong>
+                    </label>
+                    <span class="field-type-tag">{{ assoc.field.tipo }}</span>
+                  </div>
+
+                  @if (assoc.selected) {
+                    <div class="assoc-details animate-fade">
+                      <div class="assoc-group">
+                        <label class="compact-label">Orden</label>
+                        <input type="number" class="form-input compact-input" [(ngModel)]="assoc.orden" />
+                      </div>
+                      <div class="assoc-group">
+                        <label class="checkbox-label-compact mt-2">
+                          <input type="checkbox" [(ngModel)]="assoc.isMandatory" />
+                          <span class="checkbox-custom"></span>
+                          Obligatorio
+                        </label>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+
+            <div class="modal-actions">
+              <button class="btn btn-primary" (click)="saveAssociations()">
+                Guardar Configuración
+              </button>
+            </div>
+          </div>
+        } @else {
+          <div class="no-selection-card text-center">
+            <span class="no-select-icon">👈</span>
+            <p>Selecciona un tipo de código de la lista para configurar e hilvanar sus campos dinámicos.</p>
+          </div>
+        }
+      </div>
+    </div>
+  }
+</div>

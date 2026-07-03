@@ -1,0 +1,204 @@
+.login-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Efectos de luces cálidas de fondo para quitar la sensación fría */
+.login-container::before {
+  content: '';
+  position: absolute;
+  top: -10%;
+  left: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(circle, rgba(244, 63, 94, 0.15) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.login-container::after {
+  content: '';
+  position: absolute;
+  bottom: -10%;
+  right: -10%;
+  width: 50%;
+  height: 50%;
+  background: radial-gradient(circle, rgba(251, 113, 133, 0.1) 0%, transparent 70%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+.login-card {
+  width: 100%;
+  max-width: 450px;
+  padding: 45px 40px;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  position: relative;
+  z-index: 10;
+  border-radius: var(--border-radius-lg);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+  background: rgba(13, 20, 38, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.brand-section {
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.brand-logo {
+  width: 72px;
+  height: 72px;
+  background: radial-gradient(135deg, rgba(244, 63, 94, 0.25) 0%, rgba(244, 63, 94, 0.05) 100%);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  margin-bottom: 5px;
+  box-shadow: 0 8px 20px rgba(244, 63, 94, 0.15);
+}
+
+.logo-icon {
+  font-size: 2.2rem;
+  filter: drop-shadow(0 2px 8px rgba(244, 63, 94, 0.4));
+}
+
+.brand-title {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  background: linear-gradient(135deg, #ffffff 30%, #fda4af 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.brand-subtitle {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.02em;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.label-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.forgot-link {
+  font-size: 0.78rem;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 600;
+  transition: all var(--transition-fast);
+  letter-spacing: 0.02em;
+}
+
+.forgot-link:hover {
+  color: var(--color-secondary);
+  text-shadow: 0 0 8px rgba(251, 113, 133, 0.4);
+}
+
+.input-error {
+  border-color: rgba(244, 63, 94, 0.5) !important;
+  box-shadow: 0 0 0 3px rgba(244, 63, 94, 0.1) !important;
+}
+
+.error-text {
+  font-size: 0.75rem;
+  color: var(--color-primary);
+  margin-top: 5px;
+  font-weight: 500;
+}
+
+.btn-block {
+  width: 100%;
+  height: 50px;
+  font-size: 1rem;
+}
+
+.alert-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 16px;
+  border-radius: var(--border-radius-md);
+  font-size: 0.85rem;
+}
+
+.error-alert {
+  background: var(--color-danger-light);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  color: #fda4af;
+}
+
+.spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.login-footer {
+  text-align: center;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  padding-top: 20px;
+  margin-top: 5px;
+}
+
+/* Sección de Acceso Demo estilizada */
+.demo-access-box {
+  margin-top: 5px;
+  padding: 15px;
+  border-radius: var(--border-radius-md);
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
+  text-align: center;
+  font-size: 0.78rem;
+}
+
+.demo-title {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-secondary);
+  margin-bottom: 8px;
+}
+
+.demo-desc {
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.demo-code {
+  font-family: monospace;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+}

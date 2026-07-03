@@ -60,10 +60,10 @@ export class AuthService {
 
     //Determinar el siguiente paso del usuario
     let nextStep: string | null = null;
-    if (user.estado === UserStatus.PENDIENTE) {
-      nextStep = user.isFirstLogin
-        ? 'MUST_CHANGE_PASSWORD'
-        : 'MUST_COMPLETE_PROFILE';
+    if (user.isFirstLogin) {
+      nextStep = 'MUST_CHANGE_PASSWORD';
+    } else if (!user.profileCompleted && user.rol === 'DOCENTE') {
+      nextStep = 'MUST_COMPLETE_PROFILE';
     }
 
     return {
@@ -152,11 +152,72 @@ export class AuthService {
       }
     }
 
+    let areasUpper: string[] | undefined = undefined;
+    let jornadasUpper: string[] | undefined = undefined;
+    let horarioIngles: string | undefined = undefined;
+
+    if (user.rol === 'DOCENTE') {
+      if (!dto.areas || dto.areas.length === 0) {
+        throw new BadRequestException('Debe seleccionar al menos un área de clases.');
+      }
+
+      const areasPermitidas = [
+        'DESARROLLO DE SOFTWARE',
+        'DISEÑO DE MODAS',
+        'GUIA NACIONAL DE TURISMO',
+        'ARTE CULINARIO ECUATORIANO',
+        'MARKETING DIGITAL',
+        'INGLES',
+      ];
+
+      const areasInvalidas = dto.areas.filter(
+        (area) => !areasPermitidas.includes(area.toUpperCase()),
+      );
+      if (areasInvalidas.length > 0) {
+        throw new BadRequestException(
+          `Las siguientes áreas no son válidas: ${areasInvalidas.join(', ')}`,
+        );
+      }
+
+      areasUpper = dto.areas.map((a) => a.toUpperCase());
+
+      if (areasUpper.includes('INGLES') && !dto.horarioIngles?.trim()) {
+        throw new BadRequestException(
+          'El horario es obligatorio cuando el área asignada incluye INGLES.',
+        );
+      }
+
+      const tieneOtrasAreas = areasUpper.some((a) => a !== 'INGLES');
+      if (tieneOtrasAreas && (!dto.jornadas || dto.jornadas.length === 0)) {
+        throw new BadRequestException(
+          'Debe seleccionar al menos una jornada académica para las áreas que no sean Ingles.',
+        );
+      }
+
+      if (dto.jornadas && dto.jornadas.length > 0) {
+        const jornadasPermitidas = ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
+        jornadasUpper = dto.jornadas.map((j) => j.toUpperCase());
+        const jornadasInvalidas = jornadasUpper.filter(
+          (j) => !jornadasPermitidas.includes(j),
+        );
+        if (jornadasInvalidas.length > 0) {
+          throw new BadRequestException(
+            `Las jornadas ingresadas no son válidas.`,
+          );
+        }
+      }
+
+      horarioIngles = areasUpper.includes('INGLES') ? dto.horarioIngles : undefined;
+    }
+
     await this.usersService.updateUser(userId, {
       nombres: dto.nombres.toUpperCase(),
       apellidos: dto.apellidos.toUpperCase(),
       correoSecundario: dto.correoSecundario,
       telefono: dto.telefono,
+      areas: areasUpper || null,
+      jornadas: jornadasUpper || null,
+      horarioIngles: horarioIngles || null,
       profileCompleted: true,
       estado: UserStatus.ACTIVO, // La cuenta se activa al completar el perfil
     });
@@ -165,6 +226,100 @@ export class AuthService {
       message: 'Perfil completado. Bienvenido al sistema.',
       redirectTo: user.rol, // el frontend redirige según el rol
     };
+  }
+
+  // Actualizar perfil voluntariamente posterior a completarlo
+  async updateProfile(userId: string, dto: CompleteProfileDto) {
+    const user = await this.usersService.findOne(userId);
+
+    // Evitar que el correo secundario sea igual al institucional propio
+    if (dto.correoSecundario && dto.correoSecundario.toLowerCase() === user.correoInstitucional.toLowerCase()) {
+      throw new BadRequestException(
+        'El correo secundario no puede ser igual al correo institucional.',
+      );
+    }
+
+    // Evitar que el correo secundario ya esté registrado en otra cuenta
+    if (dto.correoSecundario) {
+      const existeCorreoSec = await this.usersService.findByEmailAnywhere(dto.correoSecundario);
+      if (existeCorreoSec && existeCorreoSec.id !== userId) {
+        throw new BadRequestException(
+          'El correo secundario ya está registrado en el sistema por otro usuario.',
+        );
+      }
+    }
+
+    let areasUpper: string[] | undefined = undefined;
+    let jornadasUpper: string[] | undefined = undefined;
+    let horarioIngles: string | undefined = undefined;
+
+    if (user.rol === 'DOCENTE') {
+      if (dto.areas) {
+        if (dto.areas.length === 0) {
+          throw new BadRequestException('Debe seleccionar al menos un área de clases.');
+        }
+
+        const areasPermitidas = [
+          'DESARROLLO DE SOFTWARE',
+          'DISEÑO DE MODAS',
+          'GUIA NACIONAL DE TURISMO',
+          'ARTE CULINARIO ECUATORIANO',
+          'MARKETING DIGITAL',
+          'INGLES',
+        ];
+
+        const areasInvalidas = dto.areas.filter(
+          (area) => !areasPermitidas.includes(area.toUpperCase()),
+        );
+        if (areasInvalidas.length > 0) {
+          throw new BadRequestException(
+            `Las siguientes áreas no son válidas: ${areasInvalidas.join(', ')}`,
+          );
+        }
+
+        areasUpper = dto.areas.map((a) => a.toUpperCase());
+
+        if (areasUpper.includes('INGLES') && !dto.horarioIngles?.trim()) {
+          throw new BadRequestException(
+            'El horario es obligatorio cuando el área asignada incluye INGLES.',
+          );
+        }
+
+        const tieneOtrasAreas = areasUpper.some((a) => a !== 'INGLES');
+        if (tieneOtrasAreas && (!dto.jornadas || dto.jornadas.length === 0)) {
+          throw new BadRequestException(
+            'Debe seleccionar al menos una jornada académica para las áreas que no sean Ingles.',
+          );
+        }
+
+        if (dto.jornadas && dto.jornadas.length > 0) {
+          const jornadasPermitidas = ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
+          jornadasUpper = dto.jornadas.map((j) => j.toUpperCase());
+          const jornadasInvalidas = jornadasUpper.filter(
+            (j) => !jornadasPermitidas.includes(j),
+          );
+          if (jornadasInvalidas.length > 0) {
+            throw new BadRequestException(
+              `Las jornadas ingresadas no son válidas.`,
+            );
+          }
+        }
+
+        horarioIngles = areasUpper.includes('INGLES') ? dto.horarioIngles : undefined;
+      }
+    }
+
+    await this.usersService.updateUser(userId, {
+      nombres: dto.nombres.toUpperCase(),
+      apellidos: dto.apellidos.toUpperCase(),
+      correoSecundario: dto.correoSecundario || undefined,
+      telefono: dto.telefono || undefined,
+      ...(areasUpper !== undefined && { areas: areasUpper }),
+      ...(jornadasUpper !== undefined && { jornadas: jornadasUpper }),
+      ...(horarioIngles !== undefined && { horarioIngles }),
+    });
+
+    return this.usersService.findOne(userId);
   }
 
   // Solicitar recuperación de contraseña 
@@ -293,5 +448,26 @@ export class AuthService {
     });
 
     return { message: 'Contraseña actualizada correctamente' };
+  }
+
+  // Obtener la información del usuario fresca de la base de datos para /me
+  async getFreshUser(userId: string) {
+    const user = await this.usersService.findOne(userId);
+    return {
+      id: user.id,
+      cedula: user.cedula,
+      nombres: user.nombres,
+      apellidos: user.apellidos,
+      rol: user.rol,
+      estado: user.estado,
+      isFirstLogin: user.isFirstLogin,
+      profileCompleted: user.profileCompleted,
+      areas: user.areas,
+      jornadas: user.jornadas,
+      horarioIngles: user.horarioIngles,
+      correoInstitucional: user.correoInstitucional,
+      correoSecundario: user.correoSecundario,
+      telefono: user.telefono,
+    };
   }
 }

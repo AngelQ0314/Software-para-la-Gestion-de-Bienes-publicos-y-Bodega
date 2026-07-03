@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  IsArray,
 } from 'class-validator';
 
 export class CompleteProfileDto {
@@ -25,4 +26,17 @@ export class CompleteProfileDto {
   @IsString()
   @MaxLength(15)
   telefono?: string;
+
+  @IsOptional()
+  @IsArray({ message: 'Las áreas deben ser un arreglo de textos' })
+  areas?: string[];
+
+  @IsOptional()
+  @IsArray({ message: 'Las jornadas deben ser un arreglo de textos' })
+  jornadas?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  horarioIngles?: string;
 }

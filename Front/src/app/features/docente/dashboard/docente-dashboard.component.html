@@ -1,0 +1,146 @@
+<div class="dashboard-wrapper animate-fade">
+  <header class="dashboard-header glass-panel">
+    <div class="header-info">
+      <h2>Módulo Docente</h2>
+      <p>Bienvenido, {{ userFullName() }}</p>
+    </div>
+    <button class="btn btn-danger" (click)="onLogout()">Cerrar Sesión</button>
+  </header>
+
+  <main class="dashboard-main grid-2">
+    <!-- Espacios Físicos Asignados -->
+    <div class="glass-card stat-card">
+      <div class="card-icon">🚪</div>
+      <h3>Aulas y Espacios Asignados</h3>
+      <p class="stat-desc">Consulta las aulas bajo tu cargo y los bienes registrados en tu jornada.</p>
+      <button class="btn btn-primary btn-sm">Ver Espacios</button>
+    </div>
+
+    <!-- Solicitudes -->
+    <div class="glass-card stat-card">
+      <div class="card-icon">📝</div>
+      <h3>Solicitud de Insumos y Traspasos</h3>
+      <p class="stat-desc">Genera y revisa solicitudes de consumibles o traspasos de bienes públicos.</p>
+      <button class="btn btn-primary btn-sm">Mis Solicitudes</button>
+    </div>
+
+    <!-- Reporte de Novedades -->
+    <div class="glass-card stat-card">
+      <div class="card-icon">⚠️</div>
+      <h3>Reportar Novedades / Incidencias</h3>
+      <p class="stat-desc">Informa daños o faltantes de bienes asignados a tus aulas de clase.</p>
+      <button class="btn btn-danger btn-sm">Reportar Daño</button>
+    </div>
+
+    <!-- Perfil Docente -->
+    <div class="glass-card stat-card">
+      <div class="card-icon">⚙️</div>
+      <h3>Mi Perfil Docente</h3>
+      <p class="stat-desc">Visualiza tu información de contacto y áreas de clases registradas.</p>
+      <button class="btn btn-secondary btn-sm" (click)="openProfileModal()">Configurar Perfil</button>
+    </div>
+  </main>
+
+  <!-- MODAL EDITAR PERFIL DOCENTE -->
+  @if (showProfileModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Mi Perfil Docente</h3>
+          <button class="close-btn" (click)="closeProfileModal()">×</button>
+        </div>
+        <form [formGroup]="profileForm" (ngSubmit)="onProfileSubmit()" class="modal-form">
+          <div class="form-group">
+            <label class="form-label">Cédula</label>
+            <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Correo Institucional</label>
+            <input type="text" class="form-input readonly-input" [value]="currentUser()?.correoInstitucional" readonly />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profNombres">Nombres</label>
+            <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
+            @if (isProfileFieldInvalid('nombres')) {
+              <span class="error-text">Los nombres son obligatorios</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profApellidos">Apellidos</label>
+            <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
+            @if (isProfileFieldInvalid('apellidos')) {
+              <span class="error-text">Los apellidos son obligatorios</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
+            <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
+            @if (isProfileFieldInvalid('correoSecundario')) {
+              <span class="error-text">Ingresa un correo secundario válido</span>
+            }
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="profTel">Teléfono (Opcional)</label>
+            <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
+          </div>
+
+          <!-- Áreas y Jornadas (Lectura) -->
+          @if (currentUser()?.rol === 'DOCENTE') {
+            <div class="form-group">
+              <label class="form-label">Mis Áreas Asignadas</label>
+              <div class="tag-container">
+                @for (area of currentUser()?.areas; track area) {
+                  <span class="tag tag-area">{{ area }}</span>
+                } @empty {
+                  <span class="tag-empty">Ninguna área asignada</span>
+                }
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Mis Jornadas</label>
+              <div class="tag-container">
+                @for (jornada of currentUser()?.jornadas; track jornada) {
+                  <span class="tag tag-jornada">{{ jornada }}</span>
+                } @empty {
+                  <span class="tag-empty">Ninguna jornada asignada</span>
+                }
+              </div>
+            </div>
+
+            @if (currentUser()?.horarioIngles) {
+              <div class="form-group">
+                <label class="form-label">Horario de Inglés</label>
+                <input type="text" class="form-input readonly-input" [value]="currentUser()?.horarioIngles" readonly />
+              </div>
+            }
+          }
+
+          <!-- Alertas -->
+          @if (profileErrorMessage()) {
+            <div class="alert-box error-alert">
+              <span>⚠️</span> {{ profileErrorMessage() }}
+            </div>
+          }
+          @if (profileSuccessMessage()) {
+            <div class="alert-box success-alert">
+              <span>✅</span> {{ profileSuccessMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeProfileModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || profileLoading()">
+              Guardar Cambios
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

@@ -1,0 +1,373 @@
+<div class="items-container animate-fade">
+  <!-- Encabezado de la página -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Bienes y Existencias</h2>
+      <p>Consulta, busca y registra elementos en el inventario general con formularios adaptables.</p>
+    </div>
+    <div class="header-buttons">
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        + Registrar Nuevo Ítem
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar">
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+      <div class="filter-group">
+        <label class="form-label">Código Yavirac</label>
+        <input type="text" class="form-input" placeholder="Código..." formControlName="codigoYavirac" />
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Subcategoría</label>
+        <select class="form-select" formControlName="subcategoriaId">
+          <option value="">Todas</option>
+          @for (sub of subcategories(); track sub.id) {
+            <option [value]="sub.id">{{ sub.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Tipo de Código</label>
+        <select class="form-select" formControlName="codigoTipoId">
+          <option value="">Todos</option>
+          @for (ct of codeTypes(); track ct.id) {
+            <option [value]="ct.id">{{ ct.nombre }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Estado Físico</label>
+        <select class="form-select" formControlName="estadoFisico">
+          <option value="">Todos</option>
+          <option value="BUENO">Bueno</option>
+          <option value="REGULAR">Regular</option>
+          <option value="MALO">Malo</option>
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-filter">Filtrar</button>
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">Limpiar</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Tabla de Bienes -->
+  <div class="glass-panel table-panel">
+    <div class="table-container">
+      <table class="custom-table">
+        <thead>
+          <tr>
+            <th>Código Yavirac</th>
+            <th>Código Auxiliar</th>
+            <th>Subcategoría</th>
+            <th>Tipo Código</th>
+            <th>Estado Físico</th>
+            <th>Detalles Dinámicos</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (item of items(); track item.id) {
+            <tr>
+              <td><strong>{{ item.codigoYavirac }}</strong></td>
+              <td>{{ item.codigoAuxiliar || '-' }}</td>
+              <td>{{ item.subcategoria?.nombre || '-' }}</td>
+              <td>{{ item.codigoTipo?.nombre || '-' }}</td>
+              <td>
+                <span class="badge" [ngClass]="{
+                  'badge-activo': item.estadoFisico === 'BUENO',
+                  'badge-pendiente': item.estadoFisico === 'REGULAR',
+                  'badge-inactivo': item.estadoFisico === 'MALO'
+                }">
+                  {{ item.estadoFisico }}
+                </span>
+              </td>
+              <td class="details-cell">
+                @if (item.resolvedValues) {
+                  <div class="resolved-vals-wrapper">
+                    @for (val of item.resolvedValues; track val.fieldId) {
+                      <span class="resolved-tag">
+                        <strong>{{ val.label }}:</strong> {{ val.value }}
+                      </span>
+                    }
+                  </div>
+                }
+              </td>
+              <td>
+                <div class="action-buttons">
+                  <button class="action-btn btn-view" title="Ver Detalle" (click)="viewDetail(item)">Ver</button>
+                  <button class="action-btn btn-edit" title="Editar" (click)="openEditModal(item)">Editar</button>
+                  <button class="action-btn btn-reset" title="Eliminar" (click)="deleteItem(item)">Borrar</button>
+                </div>
+              </td>
+            </tr>
+          }
+          @if (items().length === 0 && !loading()) {
+            <tr>
+              <td colspan="7" class="text-center no-data">No se encontraron elementos registrados.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Paginación -->
+    @if (totalPages() > 1) {
+      <div class="pagination">
+        <span class="pagination-info">
+          Página <strong>{{ currentPage() }}</strong> de <strong>{{ totalPages() }}</strong>
+        </span>
+        <div class="pagination-controls">
+          <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">
+            Anterior
+          </button>
+          <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">
+            Siguiente
+          </button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ==========================================================
+       MODAL REGISTRO/EDICIÓN DE ELEMENTO (CON FORMULARIO DINÁMICO)
+       ========================================================== -->
+  @if (showFormModal()) {
+    <div class="modal-overlay">
+      <div class="glass-panel modal-card wide-modal animate-slide">
+        <div class="modal-header">
+          <h3>{{ editingItemId() ? 'Editar Elemento' : 'Registrar Nuevo Elemento de Inventario' }}</h3>
+          <button class="close-btn" (click)="closeFormModal()">×</button>
+        </div>
+
+        <form [formGroup]="itemForm" (ngSubmit)="onItemSubmit()" class="modal-form">
+          <div class="item-form-grid">
+            
+            <!-- COLUMNA 1: DATOS BASE -->
+            <div class="form-column">
+              <h4 class="column-title">Datos Base del Elemento</h4>
+              
+              <div class="form-group">
+                <label class="form-label" for="codigoYavirac">Código Institucional Yavirac</label>
+                <input id="codigoYavirac" type="text" class="form-input" placeholder="Ej. YAV-001-2026" formControlName="codigoYavirac" />
+                @if (isFieldInvalid('codigoYavirac')) {
+                  <span class="error-text">El código Yavirac es obligatorio</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="codigoAuxiliar">Código Auxiliar (Opcional)</label>
+                <input id="codigoAuxiliar" type="text" class="form-input" placeholder="Código auxiliar..." formControlName="codigoAuxiliar" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="subcategoriaId">Subcategoría</label>
+                <select id="subcategoriaId" class="form-select" formControlName="subcategoriaId">
+                  <option value="">Selecciona...</option>
+                  @for (sub of subcategories(); track sub.id) {
+                    <option [value]="sub.id">
+                      {{ sub.nombre }} ({{ sub.categoria?.nombre }})
+                    </option>
+                  }
+                </select>
+                @if (isFieldInvalid('subcategoriaId')) {
+                  <span class="error-text">La subcategoría es obligatoria</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="estadoFisico">Estado Físico</label>
+                <select id="estadoFisico" class="form-select" formControlName="estadoFisico">
+                  <option value="BUENO">Bueno</option>
+                  <option value="REGULAR">Regular</option>
+                  <option value="MALO">Malo</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="codigoTipoId">Tipo de Código (Esquema de campos)</label>
+                <select id="codigoTipoId" class="form-select" formControlName="codigoTipoId" (change)="onCodeTypeChange()">
+                  <option value="">Selecciona tipo...</option>
+                  @for (ct of codeTypes(); track ct.id) {
+                    <option [value]="ct.id">{{ ct.nombre }}</option>
+                  }
+                </select>
+                @if (isFieldInvalid('codigoTipoId')) {
+                  <span class="error-text">El tipo de código es obligatorio</span>
+                }
+              </div>
+            </div>
+
+            <!-- COLUMNA 2: FORMULARIO DINÁMICO (Campos dinámicos según tipo de código) -->
+            <div class="form-column">
+              <h4 class="column-title">Especificaciones Dinámicas</h4>
+              
+              @if (dynamicFields().length > 0) {
+                <div class="dynamic-inputs-area">
+                  <p class="section-desc">Ingresa las especificaciones requeridas por el tipo de código:</p>
+
+                  <div formGroupName="dynamicValues" class="dynamic-fields-form">
+                    @for (assoc of dynamicFields(); track assoc.id) {
+                      <div class="form-group">
+                        <label class="form-label">
+                          {{ assoc.customField?.nombre }}
+                          @if (assoc.isMandatory) {
+                            <span class="required-asterisk">*</span>
+                          }
+                        </label>
+                        
+                        <!-- Renderizado según Tipo de Campo -->
+                        <ng-container [ngSwitch]="assoc.customField?.tipo">
+                          <!-- Caso TEXT -->
+                          <input
+                            *ngSwitchCase="'TEXT'"
+                            type="text"
+                            class="form-input"
+                            [placeholder]="'Ingresa ' + assoc.customField?.nombre"
+                            [formControlName]="assoc.customFieldId"
+                          />
+
+                          <!-- Caso NUMBER_INT -->
+                          <input
+                            *ngSwitchCase="'NUMBER_INT'"
+                            type="number"
+                            step="1"
+                            class="form-input"
+                            [placeholder]="'Ingresa número entero'"
+                            [formControlName]="assoc.customFieldId"
+                          />
+
+                          <!-- Caso NUMBER_DECIMAL -->
+                          <input
+                            *ngSwitchCase="'NUMBER_DECIMAL'"
+                            type="number"
+                            step="any"
+                            class="form-input"
+                            [placeholder]="'Ingresa número decimal'"
+                            [formControlName]="assoc.customFieldId"
+                          />
+
+                          <!-- Caso DATE -->
+                          <input
+                            *ngSwitchCase="'DATE'"
+                            type="date"
+                            class="form-input"
+                            [formControlName]="assoc.customFieldId"
+                          />
+
+                          <!-- Caso OPTIONS_LIST -->
+                          <select
+                            *ngSwitchCase="'OPTIONS_LIST'"
+                            class="form-select"
+                            [formControlName]="assoc.customFieldId"
+                          >
+                            <option value="">Selecciona opción...</option>
+                            @for (opt of assoc.customField?.opciones; track opt) {
+                              <option [value]="opt">{{ opt }}</option>
+                            }
+                          </select>
+                        </ng-container>
+
+                        <!-- Errores Dinámicos -->
+                        @if (isDynamicFieldInvalid(assoc.customFieldId)) {
+                          <span class="error-text">
+                            Este campo es obligatorio
+                          </span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </div>
+              } @else {
+                <div class="no-dynamic-fields text-center">
+                  <span class="info-icon">🏷️</span>
+                  <p>Selecciona un tipo de código para cargar y completar sus campos dinámicos.</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Alerta Error Modal -->
+          @if (modalErrorMessage()) {
+            <div class="alert-box error-alert">
+              <span>⚠️</span> {{ modalErrorMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeFormModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="itemForm.invalid || modalLoading()">
+              Guardar Bien
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- ==========================================================
+       MODAL DETALLE COMPLETO (FICHA TÉCNICA)
+       ========================================================== -->
+  @if (showDetailModal()) {
+    <div class="modal-overlay">
+      @if (selectedItem()) {
+        <div class="glass-panel modal-card wide-modal animate-slide">
+          <div class="modal-header">
+            <h3>Ficha Técnica del Elemento</h3>
+            <button class="close-btn" (click)="closeDetailModal()">×</button>
+          </div>
+          <div class="modal-body spec-grid">
+            <div class="spec-column">
+              <h4 class="spec-title">Información Base</h4>
+              <p class="spec-line"><strong>Código Yavirac:</strong> {{ selectedItem()?.codigoYavirac }}</p>
+              <p class="spec-line"><strong>Código Auxiliar:</strong> {{ selectedItem()?.codigoAuxiliar || 'No registra' }}</p>
+              <p class="spec-line">
+                <strong>Subcategoría:</strong> {{ selectedItem()?.subcategoria?.nombre }}
+              </p>
+              <p class="spec-line">
+                <strong>Categoría/Vista:</strong> {{ selectedItem()?.subcategoria?.categoria?.nombre }}
+              </p>
+              <p class="spec-line">
+                <strong>Tipo de Código:</strong> {{ selectedItem()?.codigoTipo?.nombre }}
+              </p>
+              <p class="spec-line">
+                <strong>Estado Físico:</strong>
+                <span class="badge" [ngClass]="{
+                  'badge-activo': selectedItem()?.estadoFisico === 'BUENO',
+                  'badge-pendiente': selectedItem()?.estadoFisico === 'REGULAR',
+                  'badge-inactivo': selectedItem()?.estadoFisico === 'MALO'
+                }">{{ selectedItem()?.estadoFisico }}</span>
+              </p>
+            </div>
+
+            <div class="spec-column">
+              <h4 class="spec-title">Especificaciones Dinámicas</h4>
+              @if (selectedItem()?.resolvedValues?.length) {
+                <div class="resolved-list">
+                  @for (val of selectedItem()?.resolvedValues; track val.fieldId) {
+                    <p class="spec-line">
+                      <strong>{{ val.label }}:</strong> {{ val.value || 'No completado' }}
+                    </p>
+                  }
+                </div>
+              } @else {
+                <p class="no-dynamic-text">
+                  No tiene configuradas especificaciones adicionales para este tipo de código.
+                </p>
+              }
+            </div>
+          </div>
+          <div class="modal-actions">
+            <button class="btn btn-secondary" (click)="closeDetailModal()">Cerrar Ficha</button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
