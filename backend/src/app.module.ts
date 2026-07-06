@@ -8,6 +8,7 @@ import { UsersModule } from './users/users.module';
 import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { InventoryModule } from './inventory/inventory.module';
+import { SpacesModule } from './spaces/spaces.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { InventoryModule } from './inventory/inventory.module';
     UsersModule,
     AuthModule,
     InventoryModule,
+    SpacesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

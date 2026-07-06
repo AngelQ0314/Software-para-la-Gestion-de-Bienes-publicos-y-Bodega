@@ -38,11 +38,21 @@ export class InventoryItem {
   @JoinColumn({ name: 'code_type_id' })
   codeType: CodeType;
 
-  @Column({ type: 'varchar', name: 'code_value', unique: true, nullable: true })
+  @Column({ name: 'physical_space_id', nullable: true })
+  physicalSpaceId: string | null;
+
+  @ManyToOne('PhysicalSpace', 'items', { onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'physical_space_id' })
+  physicalSpace: any;
+
+  @Column({ type: 'varchar', name: 'code_value', nullable: true })
   codeValue: string | null;
 
   @Column()
   name: string;
+
+  @Column({ type: 'int', name: 'cantidad', default: 1 })
+  cantidad: number;
 
   @Column({ type: 'jsonb', name: 'dynamic_values', default: {} })
   dynamicValues: Record<string, any>; // Estructura JSON: {"id_del_custom_field": "valor"}

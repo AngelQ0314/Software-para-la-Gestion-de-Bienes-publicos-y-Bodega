@@ -10,6 +10,8 @@ Para facilitar la integración con el frontend (Angular), la documentación de l
 
 *   [Módulo de Autenticación y Perfil (README_AUTH.md)](./README_AUTH.md) - Inicio de sesión, recuperación de contraseña, cambio de contraseña obligatoria y voluntaria, y validación de tokens.
 *   [Módulo de Administración de Usuarios (README_USERS.md)](./README_USERS.md) - Creación de usuarios, filtrado paginado, actualización de roles, cambio de estados con observaciones, bitácora de auditoría (logs) y edición de perfiles.
+*   [Módulo de Configuración de Inventario (README_INVENTORY.md)](./README_INVENTORY.md) - Creación y gestión de categorías, subcategorías, tipos de código, campos personalizados y elementos físicos del inventario.
+*   [Módulo de Gestión de Espacios Físicos (README_SPACES.md)](./README_SPACES.md) - Administración de aulas, laboratorios y oficinas, asignación de docentes responsables, asignación de inventario y seguimiento de estado independiente por jornada académica.
 
 ---
 

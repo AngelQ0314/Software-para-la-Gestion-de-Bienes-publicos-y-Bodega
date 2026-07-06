@@ -399,3 +399,20 @@
   color: var(--text-muted);
   margin-top: 4px;
 }
+
+/* Estilos premium para "Mi Cuenta" */
+.user-profile-card.my-account-card {
+  border-left: 4px solid #10b981 !important;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.05) 0%, rgba(255, 255, 255, 0.01) 100%);
+}
+
+.badge-my-account {
+  font-size: 0.7rem;
+  color: #ffffff;
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  padding: 2px 8px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  width: fit-content;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}

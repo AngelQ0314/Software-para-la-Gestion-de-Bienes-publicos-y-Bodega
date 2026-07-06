@@ -3,7 +3,7 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
 import { UsersService, UserLog } from './services/users.service';
-import { User } from '../../../core/auth/auth.service';
+import { User, AuthService } from '../../../core/auth/auth.service';
 
 @Component({
   selector: 'app-users-list',
@@ -36,7 +36,11 @@ export class UsersListComponent implements OnInit {
   tempStatus = 'ACTIVO';
   tempObservation = '';
 
-  constructor(private readonly fb: FormBuilder, private readonly usersService: UsersService) {
+  constructor(
+    private readonly fb: FormBuilder,
+    private readonly usersService: UsersService,
+    public readonly authService: AuthService,
+  ) {
     this.filterForm = this.fb.group({
       cedula: [''],
       correoInstitucional: [''],
@@ -61,7 +65,19 @@ export class UsersListComponent implements OnInit {
     
     this.usersService.getUsers(this.currentPage(), 10, filters).subscribe({
       next: (res: any) => {
-        this.users.set(res.data || []);
+        let list = res.data || [];
+        const currentUserId = this.authService.currentUser()?.id;
+        
+        if (currentUserId) {
+          // Coloca al usuario logueado al inicio de la lista
+          list = [...list].sort((a: any, b: any) => {
+            if (a.id === currentUserId) return -1;
+            if (b.id === currentUserId) return 1;
+            return 0;
+          });
+        }
+        
+        this.users.set(list);
         this.totalPages.set(res.lastPage || 1);
         this.loading.set(false);
       },

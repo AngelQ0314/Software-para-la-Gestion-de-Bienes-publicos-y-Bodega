@@ -5,7 +5,7 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, IsNull, Not } from 'typeorm';
 
 import { InventoryView, InventoryViewCode } from './entities/inventory-view.entity';
 import { Category } from './entities/category.entity';
@@ -270,7 +270,14 @@ export class InventoryService {
 
   // TIPOS DE CÓDIGO
   async findAllCodeTypes(): Promise<CodeType[]> {
-    return this.codeTypeRepo.find({ order: { name: 'ASC' } });
+    return this.codeTypeRepo.find({
+      relations: {
+        configs: {
+          customField: true,
+        },
+      },
+      order: { name: 'ASC' },
+    });
   }
 
   async createCodeType(dto: CreateCodeTypeDto): Promise<CodeType> {
@@ -486,7 +493,7 @@ export class InventoryService {
     if (!subId && dto.subcategoryName) {
       const sub = await this.subcategoryRepo.findOne({
         where: { name: dto.subcategoryName.toUpperCase() },
-        relations: { category: true },
+        relations: { category: { inventoryView: true } },
       });
       if (!sub) {
         throw new NotFoundException(`La subcategoría con nombre '${dto.subcategoryName}' no existe.`);
@@ -500,7 +507,7 @@ export class InventoryService {
 
     const subcategory = await this.subcategoryRepo.findOne({
       where: { id: subId },
-      relations: { category: true },
+      relations: { category: { inventoryView: true } },
     });
     if (!subcategory) {
       throw new NotFoundException('La subcategoría seleccionada no existe.');
@@ -530,7 +537,7 @@ export class InventoryService {
     if (dto.codeValue && dto.codeValue.trim() !== '') {
       formattedCodeValue = dto.codeValue.trim();
       const existeCodigo = await this.itemRepo.findOne({
-        where: { codeValue: formattedCodeValue },
+        where: { codeValue: formattedCodeValue, physicalSpaceId: IsNull() },
         withDeleted: true,
       });
 
@@ -547,12 +554,30 @@ export class InventoryService {
 
     const validatedValues = await this.validateAndFormatDynamicValues(codeTypeId, dto.dynamicValues || {});
 
+    // Validar cantidad según la vista
+    const viewCode = subcategory.category.inventoryView?.code;
+    let cantidadToSave = 1;
+    if (viewCode === InventoryViewCode.INSUMOS) {
+      if (dto.cantidad === undefined || dto.cantidad === null) {
+        throw new BadRequestException('La cantidad es obligatoria para la vista de Insumos y Suministros.');
+      }
+      if (dto.cantidad < 0) {
+        throw new BadRequestException('La cantidad no puede ser menor a 0.');
+      }
+      cantidadToSave = dto.cantidad;
+    } else {
+      if (dto.cantidad !== undefined && dto.cantidad !== null) {
+        cantidadToSave = dto.cantidad;
+      }
+    }
+
     const nuevoItem = {
       name: dto.name,
       codeValue: formattedCodeValue,
       subcategoryId: subId,
       codeTypeId: codeTypeId,
       inventoryViewId: subcategory.category.inventoryViewId,
+      cantidad: cantidadToSave,
       dynamicValues: validatedValues,
       status: 'ACTIVO',
     };
@@ -563,6 +588,7 @@ export class InventoryService {
   async updateInventoryItem(id: string, dto: UpdateInventoryItemDto): Promise<InventoryItem> {
     const item = await this.itemRepo.findOne({ 
       where: { id },
+      relations: { inventoryView: true },
       withDeleted: true, // Permite cargar ítems inactivos para poder editarlos y reactivarlos
     });
     if (!item) {
@@ -573,7 +599,7 @@ export class InventoryService {
     if (!targetSubId && dto.subcategoryName) {
       const sub = await this.subcategoryRepo.findOne({
         where: { name: dto.subcategoryName.toUpperCase() },
-        relations: { category: true },
+        relations: { category: { inventoryView: true } },
       });
       if (!sub) {
         throw new NotFoundException(`La subcategoría con nombre '${dto.subcategoryName}' no existe.`);
@@ -584,13 +610,14 @@ export class InventoryService {
     if (targetSubId) {
       const subcategory = await this.subcategoryRepo.findOne({
         where: { id: targetSubId },
-        relations: { category: true },
+        relations: { category: { inventoryView: true } },
       });
       if (!subcategory) {
         throw new NotFoundException('La subcategoría seleccionada no existe.');
       }
       item.subcategoryId = targetSubId;
       item.inventoryViewId = subcategory.category.inventoryViewId;
+      item.inventoryView = subcategory.category.inventoryView;
     }
 
     let targetCodeTypeId = dto.codeTypeId;
@@ -616,7 +643,7 @@ export class InventoryService {
       if (dto.codeValue && dto.codeValue.trim() !== '') {
         const formattedCode = dto.codeValue.trim();
         const existeCodigo = await this.itemRepo.findOne({
-          where: { codeValue: formattedCode },
+          where: { codeValue: formattedCode, physicalSpaceId: IsNull() },
           withDeleted: true,
         });
         if (existeCodigo && existeCodigo.id !== id) {
@@ -636,6 +663,22 @@ export class InventoryService {
 
     if (dto.name) item.name = dto.name;
 
+    // Validar y actualizar cantidad
+    const finalViewCode = item.inventoryView?.code;
+    if (dto.cantidad !== undefined) {
+      if (dto.cantidad === null) {
+        if (finalViewCode === InventoryViewCode.INSUMOS) {
+          throw new BadRequestException('La cantidad es obligatoria para la vista de Insumos y Suministros.');
+        }
+        item.cantidad = 1;
+      } else {
+        if (finalViewCode === InventoryViewCode.INSUMOS && dto.cantidad < 0) {
+          throw new BadRequestException('La cantidad no puede ser menor a 0.');
+        }
+        item.cantidad = dto.cantidad;
+      }
+    }
+
     if (dto.status !== undefined) {
       if (dto.status !== 'ACTIVO' && dto.status !== 'INACTIVO') {
         throw new BadRequestException('El estado debe ser ACTIVO o INACTIVO.');
@@ -645,7 +688,7 @@ export class InventoryService {
         // Validar si el código ya está siendo usado por otro item activo
         if (item.codeValue) {
           const duplicadoActivo = await this.itemRepo.findOne({
-            where: { codeValue: item.codeValue },
+            where: { codeValue: item.codeValue, physicalSpaceId: IsNull() },
           });
           if (duplicadoActivo && duplicadoActivo.id !== id) {
             throw new ConflictException(
@@ -699,7 +742,12 @@ export class InventoryService {
         subcategory: {
           category: true,
         },
-        codeType: true,
+        codeType: {
+          configs: {
+            customField: true,
+          },
+        },
+        physicalSpace: true,
       },
     });
 
@@ -710,8 +758,48 @@ export class InventoryService {
     // Resolver los nombres legibles de las propiedades dinámicas
     const resolvedValues = await this.resolveDynamicValuesLabels(item.codeTypeId, item.dynamicValues);
 
+    let distribucionEspacios: any[] = [];
+    const isInsumo = item.inventoryView?.code === 'INSUMOS';
+
+    if (isInsumo) {
+      const distributions = await this.itemRepo.find({
+        where: {
+          name: item.name,
+          codeTypeId: item.codeTypeId,
+          codeValue: item.codeValue === null ? IsNull() : item.codeValue,
+          physicalSpaceId: Not(IsNull()),
+          status: 'ACTIVO',
+        },
+        relations: { physicalSpace: true },
+      });
+
+      distribucionEspacios = distributions.map((d) => ({
+        id: d.id,
+        cantidad: d.cantidad,
+        spaceId: d.physicalSpaceId,
+        roomNumber: d.physicalSpace?.roomNumber || '',
+        name: d.physicalSpace?.name || '',
+      }));
+    }
+
+    const disponible = item.physicalSpaceId === null ? (isInsumo ? item.cantidad > 0 : true) : false;
+
+    let mensajeDisponibilidad = 'Disponible';
+    if (item.physicalSpaceId !== null) {
+      mensajeDisponibilidad = `Asignado al espacio '${item.physicalSpace?.name || ''}' (Número ${item.physicalSpace?.roomNumber || ''})`;
+    } else if (isInsumo) {
+      const totalAsignado = distribucionEspacios.reduce((sum, d) => sum + d.cantidad, 0);
+      mensajeDisponibilidad = `En Bodega: ${item.cantidad} unidades.` +
+        (totalAsignado > 0
+          ? ` Distribuido en: ${distribucionEspacios.map((d) => `${d.roomNumber} (${d.cantidad} ud)`).join(', ')}.`
+          : ' Sin asignaciones.');
+    }
+
     return {
       ...item,
+      disponible,
+      mensajeDisponibilidad,
+      distribucionEspacios,
       resolvedValues,
     };
   }
@@ -737,9 +825,15 @@ export class InventoryService {
       .leftJoinAndSelect('item.subcategory', 'subcategory')
       .leftJoinAndSelect('subcategory.category', 'category')
       .leftJoinAndSelect('item.codeType', 'codeType')
+      .leftJoinAndSelect('codeType.configs', 'configs')
+      .leftJoinAndSelect('configs.customField', 'customField')
+      .leftJoinAndSelect('item.physicalSpace', 'physicalSpace')
       .orderBy('item.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
+
+    // Para insumos, en el listado general solo mostrar el lote principal de bodega (evitar duplicados)
+    query.andWhere("(inventoryView.code != 'INSUMOS' OR item.physicalSpaceId IS NULL)");
 
     if (filters.inventoryViewId) {
       query.andWhere('item.inventoryViewId = :inventoryViewId', { inventoryViewId: filters.inventoryViewId });
@@ -771,8 +865,55 @@ export class InventoryService {
 
     const [data, total] = await query.getManyAndCount();
 
+    const mappedData: any[] = [];
+    for (const item of data) {
+      const isInsumo = item.inventoryView?.code === 'INSUMOS';
+      let distribucionEspacios: any[] = [];
+
+      if (isInsumo) {
+        const distributions = await this.itemRepo.find({
+          where: {
+            name: item.name,
+            codeTypeId: item.codeTypeId,
+            codeValue: item.codeValue === null ? IsNull() : item.codeValue,
+            physicalSpaceId: Not(IsNull()),
+            status: 'ACTIVO',
+          },
+          relations: { physicalSpace: true },
+        });
+
+        distribucionEspacios = distributions.map((d) => ({
+          id: d.id,
+          cantidad: d.cantidad,
+          spaceId: d.physicalSpaceId,
+          roomNumber: d.physicalSpace?.roomNumber || '',
+          name: d.physicalSpace?.name || '',
+        }));
+      }
+
+      const disponible = item.physicalSpaceId === null ? (isInsumo ? item.cantidad > 0 : true) : false;
+
+      let mensajeDisponibilidad = 'Disponible';
+      if (item.physicalSpaceId !== null) {
+        mensajeDisponibilidad = `Asignado al espacio '${item.physicalSpace?.name || ''}' (Número ${item.physicalSpace?.roomNumber || ''})`;
+      } else if (isInsumo) {
+        const totalAsignado = distribucionEspacios.reduce((sum, d) => sum + d.cantidad, 0);
+        mensajeDisponibilidad = `En Bodega: ${item.cantidad} unidades.` +
+          (totalAsignado > 0
+            ? ` Distribuido en: ${distribucionEspacios.map((d) => `${d.roomNumber} (${d.cantidad} ud)`).join(', ')}.`
+            : ' Sin asignaciones.');
+      }
+
+      mappedData.push({
+        ...item,
+        disponible,
+        mensajeDisponibilidad,
+        distribucionEspacios,
+      });
+    }
+
     return {
-      data,
+      data: mappedData as any[],
       total,
       page,
       lastPage: Math.ceil(total / limit),

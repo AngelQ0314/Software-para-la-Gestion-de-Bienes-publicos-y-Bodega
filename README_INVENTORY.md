@@ -453,6 +453,7 @@ Registra físicamente un bien o insumo en el inventario.
     "codeTypeName": "CÓDIGO SECAP", // O usar "codeTypeId": "d46e3223-69b8-4cb0-8b79-c11336b48096"
     "codeValue": "QR-TEC-0001", // Opcional
     "name": "Teclado Genius SlimStar",
+    "cantidad": 1, // Opcional (Obligatorio en Suministros/Insumos)
     "dynamicValues": {
       "marca": "Genius"
     }
@@ -467,6 +468,7 @@ Registra físicamente un bien o insumo en el inventario.
     "subcategoryId": "89ef4cda-12bc-4fa8-bb98-9cd562c1d6ef",
     "codeTypeId": "d46e3223-69b8-4cb0-8b79-c11336b48096",
     "inventoryViewId": "e305e7cc-8b43-41fa-8a8b-3e5fbfba05a1",
+    "cantidad": 1,
     "dynamicValues": {
       "3235ca05-bff0-4cb4-a213-607f554491c1": "Genius"
     },
@@ -516,6 +518,7 @@ Registra físicamente un bien o insumo en el inventario.
         },
         "codeValue": "QTR-002",
         "name": "Teclado2",
+        "cantidad": 1,
         "dynamicValues": {
           "3235ca05-bff0-4cb4-a213-607f554491c1": "Genius",
           "40fa671f-3e8a-416e-b41a-f3cf2b8c1f16": "En la planta baja"
@@ -561,6 +564,7 @@ Retorna la información completa de un artículo y la traducción de sus variabl
     },
     "codeValue": "QTR-002",
     "name": "Teclado2",
+    "cantidad": 1,
     "dynamicValues": {
       "3235ca05-bff0-4cb4-a213-607f554491c1": "Genius",
       "40fa671f-3e8a-416e-b41a-f3cf2b8c1f16": "En la planta baja"
@@ -597,6 +601,7 @@ Permite modificar campos específicos, incluyendo su estado. Realiza una fusión
   ```json
   {
     "name": "Teclado Genius SlimStar V2",
+    "cantidad": 5, // Opcional para re-definir stock
     "dynamicValues": {
       "marca": "Dell"
     }
@@ -608,6 +613,7 @@ Permite modificar campos específicos, incluyendo su estado. Realiza una fusión
     "id": "item-uuid-1",
     "name": "Teclado Genius SlimStar V2",
     "codeValue": "QR-TEC-0001",
+    "cantidad": 5,
     "status": "ACTIVO",
     "dynamicValues": {
       "3235ca05-bff0-4cb4-a213-607f554491c1": "Dell"

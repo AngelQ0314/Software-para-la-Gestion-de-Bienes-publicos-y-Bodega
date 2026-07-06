@@ -58,7 +58,7 @@
     @if (users().length > 0) {
       <div class="users-grid">
         @for (user of users(); track user.id) {
-          <div class="glass-card user-profile-card">
+          <div class="glass-card user-profile-card" [class.my-account-card]="user.id === authService.currentUser()?.id">
             <!-- Encabezado de la tarjeta -->
             <div class="user-card-header">
               <div class="user-card-avatar">
@@ -68,7 +68,12 @@
                 <h3 class="user-card-fullname" [class.placeholder-name]="!user.nombres">
                   {{ user.nombres ? (user.nombres + ' ' + user.apellidos) : 'Perfil sin completar' }}
                 </h3>
-                <span class="user-card-role-badge">{{ formatRole(user.rol) }}</span>
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="user-card-role-badge">{{ formatRole(user.rol) }}</span>
+                  @if (user.id === authService.currentUser()?.id) {
+                    <span class="badge-my-account">Mi Cuenta</span>
+                  }
+                </div>
               </div>
             </div>
 
@@ -88,12 +93,14 @@
                   {{ user.estado }}
                 </span>
               </div>
-              <div class="info-row">
-                <span class="info-label">Perfil:</span>
-                <span class="profile-status" [class.completed]="user.profileCompleted">
-                  {{ user.profileCompleted ? 'Completo' : 'Incompleto' }}
-                </span>
-              </div>
+              @if (user.rol === 'DOCENTE') {
+                <div class="info-row">
+                  <span class="info-label">Perfil:</span>
+                  <span class="profile-status" [class.completed]="user.profileCompleted">
+                    {{ user.profileCompleted ? 'Completo' : 'Incompleto' }}
+                  </span>
+                </div>
+              }
 
               <!-- Mostrar detalles específicos de Docentes si ya completaron el perfil -->
               @if (user.rol === 'DOCENTE' && user.profileCompleted) {

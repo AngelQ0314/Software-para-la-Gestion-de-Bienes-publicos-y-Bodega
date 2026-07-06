@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsUUID, IsObject } from 'class-validator';
+import { IsString, IsOptional, IsUUID, IsObject, IsInt, Min } from 'class-validator';
 
 export class UpdateInventoryItemDto {
   @IsUUID('4', { message: 'El ID de la subcategoría debe ser un UUID válido.' })
@@ -24,6 +24,11 @@ export class UpdateInventoryItemDto {
   @IsString()
   @IsOptional()
   name?: string;
+
+  @IsInt({ message: 'La cantidad debe ser un número entero.' })
+  @Min(0, { message: 'La cantidad no puede ser menor a 0.' })
+  @IsOptional()
+  cantidad?: number;
 
   @IsObject({ message: 'Los valores dinámicos deben enviarse como un objeto.' })
   @IsOptional()

@@ -166,14 +166,13 @@ export class UsersService {
 
     const baseConditions: any = {};
     if (filters.cedula) baseConditions.cedula = ILike(`%${filters.cedula}%`);
-    if (filters.correo) baseConditions.correoInstitucional = ILike(`%${filters.correo}%`);
-    if (filters.estado) baseConditions.estado = filters.estado;
     
-    if (filters.rol) {
-      baseConditions.rol = filters.rol;
-    } else {
-      baseConditions.rol = Not(UserRole.ADMINISTRADOR);
-    }
+    // Soporta tanto 'correo' (DTO) como 'correoInstitucional' (Enviado por Angular)
+    const emailFilter = filters.correo || (filters as any).correoInstitucional;
+    if (emailFilter) baseConditions.correoInstitucional = ILike(`%${emailFilter}%`);
+    
+    if (filters.estado) baseConditions.estado = filters.estado;
+    if (filters.rol) baseConditions.rol = filters.rol;
 
     let where: any[];
     if (filters.nombre) {
