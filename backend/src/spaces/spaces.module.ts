@@ -9,6 +9,7 @@ import { UsersModule } from '../users/users.module';
 import { User } from '../users/entities/user.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { UserLog } from '../users/entities/user-log.entity';
+import { AcademicPeriod } from '../periods/entities/academic-period.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { UserLog } from '../users/entities/user-log.entity';
       User,
       InventoryItem,
       UserLog,
+      AcademicPeriod,
     ]),
     InventoryModule,
     UsersModule,

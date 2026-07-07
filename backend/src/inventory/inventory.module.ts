@@ -10,6 +10,7 @@ import { CodeType } from './entities/code-type.entity';
 import { CustomField } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
+import { AcademicPeriod } from '../periods/entities/academic-period.entity';
 
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
@@ -24,6 +25,7 @@ import { InventoryController } from './inventory.controller';
       CustomField,
       CustomFieldConfig,
       InventoryItem,
+      AcademicPeriod,
     ]),
   ],
   providers: [InventoryService],

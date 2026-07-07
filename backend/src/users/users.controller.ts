@@ -13,6 +13,7 @@ import {
 import { UsersService } from './users.service';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { FilterUsersDto } from './dto/filter-users.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -40,6 +41,20 @@ export class UsersController {
   @Get()
   findAll(@Query() filters: FilterUsersDto) {
     return this.usersService.findAll(filters);
+  }
+
+  // PD001: Consulta del perfil por el usuario autenticado (Docente, Admin, Responsable de Bienes)
+  @Get('profile')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
+  getProfile(@Request() req) {
+    return this.usersService.findOne(req.user.id);
+  }
+
+  // PD002 & PD003 & PD004: Actualización del perfil propio
+  @Patch('profile')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
+  updateProfile(@Request() req, @Body() dto: UpdateProfileDto) {
+    return this.usersService.updateProfile(req.user.id, dto);
   }
 
   // Editar perfil de usuario por el Admin

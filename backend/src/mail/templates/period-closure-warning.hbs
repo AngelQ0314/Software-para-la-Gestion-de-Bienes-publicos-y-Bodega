@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Notificación de Cierre de Período Académico</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f6f9; font-family: Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #e67e22; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #ffffff; margin: 0; font-size: 20px; }
+    .header p { color: #f9ebea; margin: 8px 0 0; font-size: 13px; }
+    .body { padding: 36px 40px; }
+    .body h2 { color: #1a3a5c; font-size: 18px; }
+    .body p { color: #555; line-height: 1.7; font-size: 14px; }
+    .details { background: #fdf2e2; border-left: 4px solid #e67e22; padding: 16px; margin: 20px 0; border-radius: 4px; font-size: 14px; }
+    .details p { margin: 6px 0; color: #444; }
+    .warning { background: #fff8e1; border: 1px solid #ffc107; border-radius: 4px; padding: 12px 16px; margin-top: 20px; font-size: 13px; color: #7a5f00; }
+    .footer { background: #f4f6f9; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <img src="{{logoUrl}}" alt="Logo Yavirac" style="max-height: 55px; display: block; margin: 0 auto 12px auto;" />
+      <h1>Instituto Superior Tecnológico Yavirac</h1>
+      <p>Sistema de Gestión de Bienes Públicos y Bodega</p>
+    </div>
+    <div class="body">
+      <h2>Aviso Preventivo: Próximo Cierre de Período Académico</h2>
+      <p>Hola <strong>{{nombres}}</strong>,</p>
+      <p>Te notificamos que el período académico actual está próximo a finalizar y se cerrará automáticamente en las siguientes 48 horas.</p>
+
+      <div class="details">
+        <p><strong>Período Académico:</strong> {{periodName}}</p>
+        <p><strong>Fecha de Cierre Programada:</strong> {{endDate}}</p>
+      </div>
+
+      <div class="warning">
+        <strong>Nota Importante:</strong> Al finalizar el período académico, el inventario actual se congelará y se generará el reporte consolidado inmutable de cierre. Durante el lapso fuera de período, todas las operaciones de modificación de inventario y aulas quedarán temporalmente suspendidas hasta la activación del nuevo período académico.
+      </div>
+
+      <p style="margin-top: 24px; font-size: 13px; color: #888;">
+        Si tienes bienes o insumos pendientes por reportar o devolver en las aulas, por favor realiza estas gestiones antes de la fecha de cierre.
+      </p>
+    </div>
+    <div class="footer">
+      © {{anio}} Instituto Superior Tecnológico Yavirac. Este correo es generado automáticamente.
+    </div>
+  </div>
+</body>
+</html>

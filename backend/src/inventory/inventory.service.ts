@@ -14,6 +14,7 @@ import { CodeType } from './entities/code-type.entity';
 import { CustomField, CustomFieldType } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
+import { AcademicPeriod } from '../periods/entities/academic-period.entity';
 
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
@@ -41,6 +42,8 @@ export class InventoryService {
     private readonly fieldConfigRepo: Repository<CustomFieldConfig>,
     @InjectRepository(InventoryItem)
     private readonly itemRepo: Repository<InventoryItem>,
+    @InjectRepository(AcademicPeriod)
+    private readonly periodRepo: Repository<AcademicPeriod>,
   ) {}
 
   // VISTAS DE INVENTARIO
@@ -571,6 +574,8 @@ export class InventoryService {
       }
     }
 
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+
     const nuevoItem = {
       name: dto.name,
       codeValue: formattedCodeValue,
@@ -580,12 +585,19 @@ export class InventoryService {
       cantidad: cantidadToSave,
       dynamicValues: validatedValues,
       status: 'ACTIVO',
+      academicPeriodId: activePeriod ? activePeriod.id : null,
+      isPending: !activePeriod,
     };
 
     return this.itemRepo.save(nuevoItem);
   }
 
   async updateInventoryItem(id: string, dto: UpdateInventoryItemDto): Promise<InventoryItem> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const item = await this.itemRepo.findOne({ 
       where: { id },
       relations: { inventoryView: true },
@@ -921,6 +933,11 @@ export class InventoryService {
   }
 
   async deleteInventoryItem(id: string): Promise<void> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const item = await this.itemRepo.findOne({ where: { id } });
     if (!item) {
       throw new NotFoundException('El elemento no existe.');

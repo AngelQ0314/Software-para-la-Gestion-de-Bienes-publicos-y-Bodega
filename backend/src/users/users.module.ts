@@ -5,9 +5,14 @@ import { UsersController } from './users.controller';
 import { User } from './entities/user.entity';
 import { UserLog } from './entities/user-log.entity';
 import { MailModule } from '../mail/mail.module';
+import { ReportsModule } from '../reports/reports.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([User, UserLog]), MailModule],
+  imports: [
+    TypeOrmModule.forFeature([User, UserLog]),
+    MailModule,
+    ReportsModule,
+  ],
   controllers: [UsersController],
   providers: [UsersService],
   exports: [UsersService],

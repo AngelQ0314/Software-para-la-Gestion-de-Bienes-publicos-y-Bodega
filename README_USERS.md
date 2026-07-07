@@ -127,6 +127,7 @@ Obtiene toda la información almacenada en el perfil de un usuario por medio de 
 
 ### 4. Editar Datos del Usuario
 Permite al administrador o responsable de bienes modificar los datos personales, de contacto y de docencia de cualquier usuario del sistema.
+* **Restricción de Identidad Oficial:** La **cédula** (`cedula`) y el **correo institucional** (`correoInstitucional`) no pueden ser modificados bajo ninguna circunstancia. Si la petición del administrador intenta alterarlos, el backend rechazará la operación con un error `400 Bad Request`.
 * **Restricción de Docencia:** Los campos de clase (`areas`, `jornadas`, `horarioIngles`) solo son permitidos y validados si el usuario cuenta con el rol de `DOCENTE`. Si se intentan enviar para un `ADMINISTRADOR` o `RESPONSABLE_DE_BIENES`, el backend los rechazará con error `400 Bad Request`.
 * **Método:** `PATCH`
 * **Ruta:** `/users/:id` (ej. `/users/e4a2f8b1-3c9d-4c6e-8d9e-1f2a3b4c5d6e`)

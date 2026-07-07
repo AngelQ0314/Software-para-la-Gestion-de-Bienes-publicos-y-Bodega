@@ -44,13 +44,13 @@ export class InventoryController {
   }
 
   @Post('categories')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async createCategory(@Body() dto: CreateCategoryDto) {
     return this.inventoryService.createCategory(dto);
   }
 
   @Patch('categories/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async updateCategory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body('name') name: string,
@@ -59,7 +59,7 @@ export class InventoryController {
   }
 
   @Delete('categories/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async deleteCategory(@Param('id', ParseUUIDPipe) id: string) {
     const result = await this.inventoryService.deleteCategory(id);
     return {
@@ -74,13 +74,13 @@ export class InventoryController {
   }
 
   @Post('subcategories')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async createSubcategory(@Body() dto: CreateSubcategoryDto) {
     return this.inventoryService.createSubcategory(dto);
   }
 
   @Patch('subcategories/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async updateSubcategory(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: { name?: string; categoryId?: string; categoryName?: string },
@@ -89,7 +89,7 @@ export class InventoryController {
   }
 
   @Delete('subcategories/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async deleteSubcategory(@Param('id', ParseUUIDPipe) id: string) {
     const result = await this.inventoryService.deleteSubcategory(id);
     return {
@@ -104,13 +104,13 @@ export class InventoryController {
   }
 
   @Post('code-types')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async createCodeType(@Body() dto: CreateCodeTypeDto) {
     return this.inventoryService.createCodeType(dto);
   }
 
   @Patch('code-types/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async updateCodeType(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: CreateCodeTypeDto,
@@ -119,7 +119,7 @@ export class InventoryController {
   }
 
   @Delete('code-types/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async deleteCodeType(@Param('id', ParseUUIDPipe) id: string) {
     await this.inventoryService.deleteCodeType(id);
     return { message: 'Tipo de código eliminado correctamente.' };
@@ -127,19 +127,19 @@ export class InventoryController {
 
   // CAMPOS PERSONALIZADOS
   @Get('custom-fields')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async getAllCustomFields() {
     return this.inventoryService.findAllCustomFields();
   }
 
   @Post('custom-fields')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async createCustomField(@Body() dto: CreateCustomFieldDto) {
     return this.inventoryService.createCustomField(dto);
   }
 
   @Patch('custom-fields/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async updateCustomField(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateCustomFieldDto,
@@ -148,7 +148,7 @@ export class InventoryController {
   }
 
   @Delete('custom-fields/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async deleteCustomField(@Param('id', ParseUUIDPipe) id: string) {
     await this.inventoryService.deleteCustomField(id);
     return { message: 'Campo personalizado eliminado correctamente.' };
@@ -161,7 +161,7 @@ export class InventoryController {
   }
 
   @Post('code-types/:id/fields')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async associateField(
     @Param('id', ParseUUIDPipe) codeTypeId: string,
     @Body() dto: AssociateFieldDto,
@@ -170,7 +170,7 @@ export class InventoryController {
   }
 
   @Delete('code-types/:codeTypeId/fields/:customFieldId')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async removeField(
     @Param('codeTypeId', ParseUUIDPipe) codeTypeId: string,
     @Param('customFieldId', ParseUUIDPipe) customFieldId: string,
@@ -209,13 +209,13 @@ export class InventoryController {
   }
 
   @Post('items')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async createItem(@Body() dto: CreateInventoryItemDto) {
     return this.inventoryService.createInventoryItem(dto);
   }
 
   @Patch('items/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async updateItem(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateInventoryItemDto,
@@ -224,7 +224,7 @@ export class InventoryController {
   }
 
   @Delete('items/:id')
-  @Roles(UserRole.ADMINISTRADOR)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async deleteItem(@Param('id', ParseUUIDPipe) id: string) {
     await this.inventoryService.deleteInventoryItem(id);
     return { message: 'Elemento eliminado del inventario correctamente.' };

@@ -3,6 +3,7 @@ import {
   ConflictException,
   Injectable,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository, Not } from 'typeorm';
@@ -12,16 +13,21 @@ import { UserLog, LogType } from './entities/user-log.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { FilterUsersDto } from './dto/filter-users.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { MailService } from '../mail/mail.service';
+import { ReportsService } from '../reports/reports.service';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserLog)
     private readonly logRepo: Repository<UserLog>,
     private readonly mailService: MailService,
+    private readonly reportsService: ReportsService,
   ) { }
 
   async create(dto: CreateUserDto): Promise<{ message: string; user: Partial<User> }> {
@@ -363,7 +369,6 @@ export class UsersService {
     });
   }
 
-  //Helpers internos
   private async registrarLog(data: {
     userId: string;
     adminId: string;
@@ -373,7 +378,14 @@ export class UsersService {
     observacion?: string;
   }): Promise<void> {
     const log = this.logRepo.create(data);
-    await this.logRepo.save(log);
+    const savedLog = await this.logRepo.save(log);
+
+    // RP003: Registrar reporte automático al cambiar estado
+    if (data.tipoCambio === LogType.CAMBIO_ESTADO) {
+      await this.reportsService.registerUserStatusReport(savedLog).catch((err) => {
+        this.logger.error('Error al registrar reporte de cambio de estado', err);
+      });
+    }
   }
 
   async findByResetToken(token: string): Promise<User | null> {
@@ -401,6 +413,16 @@ export class UsersService {
     adminId: string,
   ): Promise<{ message: string; user: User }> {
     const user = await this.findOne(userId);
+
+    // No está permitido modificar la cédula ni el correo institucional (identidad oficial)
+    if (dto.cedula && dto.cedula !== user.cedula) {
+      throw new BadRequestException('No está permitido modificar la cédula de un usuario.');
+    }
+    if (dto.correoInstitucional && dto.correoInstitucional.toLowerCase() !== user.correoInstitucional.toLowerCase()) {
+      throw new BadRequestException('No está permitido modificar el correo institucional de un usuario.');
+    }
+    delete dto.cedula;
+    delete dto.correoInstitucional;
 
     // Si no es docente, rechazamos cualquier intento de meter campos de clase
     if (user.rol !== UserRole.DOCENTE && (dto.areas || dto.jornadas || dto.horarioIngles)) {
@@ -496,6 +518,62 @@ export class UsersService {
     return {
       message: 'Usuario actualizado correctamente',
       user: updated,
+    };
+  }
+
+  // PD002 & PD003 & PD004: Actualización de perfil por el docente / usuario autenticado
+  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<{ message: string; user: Partial<User> }> {
+    const user = await this.findOne(userId);
+
+    // Validación de unicidad de correo secundario si se está actualizando
+    if (dto.correoSecundario) {
+      if (dto.correoSecundario.toLowerCase() === user.correoInstitucional.toLowerCase()) {
+        throw new BadRequestException(
+          'El correo secundario no puede ser igual al correo institucional.',
+        );
+      }
+      const existeCorreo = await this.findByEmailAnywhere(dto.correoSecundario);
+      if (existeCorreo && existeCorreo.id !== userId) {
+        throw new BadRequestException(
+          'El correo secundario ya está registrado en el sistema por otro usuario.',
+        );
+      }
+    }
+
+    // Actualizar únicamente campos permitidos para perfil propio
+    if (dto.correoSecundario !== undefined) {
+      user.correoSecundario = dto.correoSecundario;
+    }
+    if (dto.telefono !== undefined) {
+      user.telefono = dto.telefono;
+    }
+
+    const updated = await this.userRepo.save(user);
+
+    // Registro de log de auditoría
+    await this.registrarLog({
+      userId,
+      adminId: userId,
+      tipoCambio: LogType.CAMBIO_ESTADO,
+      observacion: 'Perfil actualizado por el docente / usuario',
+    });
+
+    return {
+      message: 'Información personal actualizada correctamente.',
+      user: {
+        id: updated.id,
+        nombres: updated.nombres,
+        apellidos: updated.apellidos,
+        cedula: updated.cedula,
+        correoInstitucional: updated.correoInstitucional,
+        correoSecundario: updated.correoSecundario,
+        telefono: updated.telefono,
+        rol: updated.rol,
+        estado: updated.estado,
+        areas: updated.areas,
+        jornadas: updated.jornadas,
+        horarioIngles: updated.horarioIngles,
+      },
     };
   }
 }

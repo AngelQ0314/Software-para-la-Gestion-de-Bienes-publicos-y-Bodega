@@ -15,6 +15,7 @@ import { CreateSpaceDto } from './dto/create-space.dto';
 import { UpdateSpaceDto } from './dto/update-space.dto';
 import { LinkTeachersDto } from './dto/link-teachers.dto';
 import { AssignItemsDto } from './dto/assign-items.dto';
+import { AcademicPeriod } from '../periods/entities/academic-period.entity';
 
 @Injectable()
 export class SpacesService {
@@ -29,6 +30,8 @@ export class SpacesService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(UserLog)
     private readonly userLogRepo: Repository<UserLog>,
+    @InjectRepository(AcademicPeriod)
+    private readonly periodRepo: Repository<AcademicPeriod>,
   ) {}
 
   // CREAR ESPACIO FÍSICO
@@ -188,6 +191,11 @@ export class SpacesService {
 
   // ELIMINAR ESPACIO FÍSICO (CON RESTRICCIÓN DE SEGURIDAD)
   async deleteSpace(id: string): Promise<void> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const space = await this.spaceRepo.findOne({
       where: { id },
       relations: { responsibleTeachers: true, items: true },
@@ -211,6 +219,11 @@ export class SpacesService {
 
   // VINCULAR DOCENTES A UN ESPACIO FÍSICO
   async linkTeachersToSpace(spaceId: string, dto: LinkTeachersDto): Promise<void> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const space = await this.spaceRepo.findOne({
       where: { id: spaceId },
       relations: { responsibleTeachers: true },
@@ -261,6 +274,11 @@ export class SpacesService {
 
   // DESVINCULAR UN DOCENTE DE UN ESPACIO FÍSICO
   async unlinkTeacherFromSpace(spaceId: string, teacherId: string): Promise<void> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const space = await this.spaceRepo.findOne({
       where: { id: spaceId },
       relations: { responsibleTeachers: true },
@@ -280,6 +298,11 @@ export class SpacesService {
 
   // ASIGNAR ARTÍCULOS A UN ESPACIO (CON SOPORTE DE FRACCIONAMIENTO PARA INSUMOS)
   async assignItemsToSpace(spaceId: string, dto: AssignItemsDto): Promise<void> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const space = await this.spaceRepo.findOne({ where: { id: spaceId } });
     if (!space) {
       throw new NotFoundException(`El espacio físico no existe.`);
@@ -298,6 +321,12 @@ export class SpacesService {
       if (!item) {
         throw new NotFoundException(
           `El artículo con ID '${assignInfo.itemId}' no existe o no está activo.`,
+        );
+      }
+
+      if (item.isPending) {
+        throw new BadRequestException(
+          `El artículo '${item.name}' está pendiente de incorporación y no puede ser asignado hasta que inicie el siguiente período académico.`,
         );
       }
 
@@ -400,6 +429,11 @@ export class SpacesService {
 
   // DESASOCIAR UN ARTÍCULO DEL ESPACIO
   async removeItemFromSpace(spaceId: string, itemId: string): Promise<void> {
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    if (!activePeriod) {
+      throw new BadRequestException('No se pueden realizar operaciones de inventario porque no hay un período académico activo.');
+    }
+
     const space = await this.spaceRepo.findOne({ where: { id: spaceId } });
     if (!space) {
       throw new NotFoundException(`El espacio físico no existe.`);

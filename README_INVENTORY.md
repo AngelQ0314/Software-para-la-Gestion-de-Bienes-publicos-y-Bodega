@@ -77,7 +77,7 @@ Lista todas las categorías registradas con sus subcategorías anidadas.
 Permite al administrador crear una nueva categoría asociada a una vista de inventario.
 * **Método:** `POST`
 * **Ruta:** `/inventory/categories`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   * *Puedes enviar `inventoryViewId` (UUID) o `inventoryViewCode` (código legible).*
   ```json
@@ -101,7 +101,7 @@ Permite al administrador crear una nueva categoría asociada a una vista de inve
 Modifica el nombre de una categoría existente.
 * **Método:** `PATCH`
 * **Ruta:** `/inventory/categories/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   ```json
   {
@@ -121,7 +121,7 @@ Modifica el nombre de una categoría existente.
 Elimina una categoría completa junto con todas sus subcategorías. Los bienes asociados se desvinculan (quedan huérfanos sin categoría/vista) en lugar de borrarse.
 * **Método:** `DELETE`
 * **Ruta:** `/inventory/categories/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   {
@@ -164,7 +164,7 @@ Retorna la lista de todas las subcategorías con sus categorías y vistas anidad
 Crea una nueva subcategoría enlazada a una categoría padre.
 * **Método:** `POST`
 * **Ruta:** `/inventory/subcategories`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   * *Puedes enviar `categoryId` (UUID) o `categoryName` (nombre legible).*
   ```json
@@ -188,7 +188,7 @@ Crea una nueva subcategoría enlazada a una categoría padre.
 Modifica el nombre o reasocia la subcategoría a otra categoría.
 * **Método:** `PATCH`
 * **Ruta:** `/inventory/subcategories/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   * *Permite usar `categoryId` o `categoryName` para la reasociación.*
   ```json
@@ -210,7 +210,7 @@ Modifica el nombre o reasocia la subcategoría a otra categoría.
 Remueve una subcategoría de la base de datos. Los bienes asociados se desvinculan (quedan huérfanos sin subcategoría/vista) en lugar de borrarse.
 * **Método:** `DELETE`
 * **Ruta:** `/inventory/subcategories/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   {
@@ -243,7 +243,7 @@ Lista todos los tipos de códigos registrados en el sistema.
 Registra un nuevo tipo de identificador y prefijo sugerido.
 * **Método:** `POST`
 * **Ruta:** `/inventory/code-types`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   ```json
   {
@@ -264,7 +264,7 @@ Registra un nuevo tipo de identificador y prefijo sugerido.
 Edita el nombre o prefijo de un tipo de código.
 * **Método:** `PATCH`
 * **Ruta:** `/inventory/code-types/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   ```json
   {
@@ -285,7 +285,7 @@ Edita el nombre o prefijo de un tipo de código.
 Elimina un tipo de código de la base de datos.
 * **Método:** `DELETE`
 * **Ruta:** `/inventory/code-types/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   {
@@ -302,7 +302,7 @@ Catálogo de campos globales reutilizables.
 Obtiene la lista global de campos creados en el sistema.
 * **Método:** `GET`
 * **Ruta:** `/inventory/custom-fields`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   [
@@ -320,7 +320,7 @@ Obtiene la lista global de campos creados en el sistema.
 Define un nuevo metadato global en la base de datos.
 * **Método:** `POST`
 * **Ruta:** `/inventory/custom-fields`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   ```json
   {
@@ -343,7 +343,7 @@ Define un nuevo metadato global en la base de datos.
 Edita un campo personalizado existente de forma global.
 * **Método:** `PATCH`
 * **Ruta:** `/inventory/custom-fields/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   ```json
   {
@@ -366,7 +366,7 @@ Edita un campo personalizado existente de forma global.
 Elimina un campo personalizado globalmente. Esto removerá en cascada todas sus asociaciones de esquemas con los tipos de código.
 * **Método:** `DELETE`
 * **Ruta:** `/inventory/custom-fields/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   {
@@ -383,7 +383,7 @@ Vincula qué atributos le pertenecen a cada plantilla de entrada.
 Vincula un atributo dinámico a un tipo de código, indicando obligatoriedad y orden en el formulario.
 * **Método:** `POST`
 * **Ruta:** `/inventory/code-types/:id/fields` (donde `:id` es el UUID del Tipo de Código, ej: `d46e3223-69b8-4cb0-8b79-c11336b48096`)
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   * *Puedes enviar `customFieldId` (UUID) o `customFieldName` (nombre técnico legible del campo, ej: `"marca"`).*
   ```json
@@ -427,7 +427,7 @@ Vincula un atributo dinámico a un tipo de código, indicando obligatoriedad y o
 Desvincula un campo personalizado de un tipo de código específico.
 * **Método:** `DELETE`
 * **Ruta:** `/inventory/code-types/:codeTypeId/fields/:customFieldId`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   {
@@ -444,7 +444,7 @@ Artículos físicos finales registrados en el sistema.
 Registra físicamente un bien o insumo en el inventario.
 * **Método:** `POST`
 * **Ruta:** `/inventory/items`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   * *Puedes enviar `subcategoryId` (UUID) o `subcategoryName` (nombre legible), así como `codeTypeId` (UUID) o `codeTypeName` (nombre legible).*
   ```json
@@ -596,7 +596,7 @@ Retorna la información completa de un artículo y la traducción de sus variabl
 Permite modificar campos específicos, incluyendo su estado. Realiza una fusión inteligente en los campos dinámicos para no sobreescribir ni dañar el resto del historial.
 * **Método:** `PATCH`
 * **Ruta:** `/inventory/items/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Cuerpo de la Petición (Request Body):**
   ```json
   {
@@ -625,7 +625,7 @@ Permite modificar campos específicos, incluyendo su estado. Realiza una fusión
 Desactiva el elemento del inventario cambiando su estado a `INACTIVO` y estableciendo la fecha de borrado lógico (`deletedAt`).
 * **Método:** `DELETE`
 * **Ruta:** `/inventory/items/:id`
-* **Acceso:** Privado (Solo ADMINISTRADOR. Requiere cabecera `Authorization: Bearer <TOKEN>`)
+* **Acceso:** Privado (ADMINISTRADOR o RESPONSABLE_DE_BIENES. Requiere cabecera `Authorization: Bearer <TOKEN>`)
 * **Respuesta (200 OK):**
   ```json
   {

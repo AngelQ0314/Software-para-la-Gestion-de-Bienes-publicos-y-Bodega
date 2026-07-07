@@ -9,6 +9,9 @@ import { AuthModule } from './auth/auth.module';
 import { MailModule } from './mail/mail.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { SpacesModule } from './spaces/spaces.module';
+import { PeriodsModule } from './periods/periods.module';
+import { RequestsModule } from './requests/requests.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -32,6 +35,9 @@ import { SpacesModule } from './spaces/spaces.module';
     AuthModule,
     InventoryModule,
     SpacesModule,
+    PeriodsModule,
+    RequestsModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

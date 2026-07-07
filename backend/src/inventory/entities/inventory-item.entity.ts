@@ -48,6 +48,16 @@ export class InventoryItem {
   @Column({ type: 'varchar', name: 'code_value', nullable: true })
   codeValue: string | null;
 
+  @Column({ name: 'academic_period_id', nullable: true })
+  academicPeriodId: string | null;
+
+  @ManyToOne('AcademicPeriod', 'items', { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'academic_period_id' })
+  academicPeriod: any;
+
+  @Column({ type: 'boolean', name: 'is_pending', default: false })
+  isPending: boolean;
+
   @Column()
   name: string;
 

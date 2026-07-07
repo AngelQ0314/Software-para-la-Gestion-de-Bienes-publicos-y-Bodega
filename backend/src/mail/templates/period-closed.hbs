@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Período Académico Cerrado Exitosamente</title>
+  <style>
+    body { margin: 0; padding: 0; background-color: #f4f6f9; font-family: Arial, sans-serif; }
+    .wrapper { max-width: 600px; margin: 40px auto; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.08); }
+    .header { background: #2c3e50; padding: 32px 40px; text-align: center; }
+    .header h1 { color: #ffffff; margin: 0; font-size: 20px; }
+    .header p { color: #bdc3c7; margin: 8px 0 0; font-size: 13px; }
+    .body { padding: 36px 40px; }
+    .body h2 { color: #2c3e50; font-size: 18px; }
+    .body p { color: #555; line-height: 1.7; font-size: 14px; }
+    .details { background: #eaeded; border-left: 4px solid #2c3e50; padding: 16px; margin: 20px 0; border-radius: 4px; font-size: 14px; }
+    .details p { margin: 6px 0; color: #444; }
+    .success-badge { display: inline-block; padding: 6px 12px; background: #27ae60; color: #ffffff; border-radius: 4px; font-size: 12px; font-weight: bold; margin-bottom: 12px; }
+    .footer { background: #f4f6f9; padding: 20px 40px; text-align: center; font-size: 12px; color: #999; }
+  </style>
+</head>
+<body>
+  <div class="wrapper">
+    <div class="header">
+      <img src="{{logoUrl}}" alt="Logo Yavirac" style="max-height: 55px; display: block; margin: 0 auto 12px auto;" />
+      <h1>Instituto Superior Tecnológico Yavirac</h1>
+      <p>Sistema de Gestión de Bienes Públicos y Bodega</p>
+    </div>
+    <div class="body">
+      <div class="success-badge">CIERRE EXITOSO</div>
+      <h2>Período Académico Cerrado y Archivado</h2>
+      <p>Hola <strong>{{nombres}}</strong>,</p>
+      <p>Te informamos que el período académico indicado ha concluido y fue cerrado formalmente.</p>
+
+      <div class="details">
+        <p><strong>Período Académico:</strong> {{periodName}}</p>
+        <p><strong>Fecha de Cierre:</strong> {{closedAt}}</p>
+        <p><strong>Código del Reporte de Cierre:</strong> {{reportCode}}</p>
+        <p><strong>Tipo de Cierre:</strong> {{closureType}}</p> <!-- Automático / Manual -->
+      </div>
+
+      <p>El inventario ha sido consolidado en su totalidad y el reporte histórico inmutable ha quedado almacenado en la sección de **Reportes** del sistema para su consulta y auditoría en cualquier momento.</p>
+
+      <p style="margin-top: 24px; font-size: 13px; color: #888;">
+        Las operaciones sobre el inventario quedarán congeladas hasta que el administrador inicie y active el siguiente período académico.
+      </p>
+    </div>
+    <div class="footer">
+      © {{anio}} Instituto Superior Tecnológico Yavirac. Este correo es generado automáticamente.
+    </div>
+  </div>
+</body>
+</html>
