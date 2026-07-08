@@ -10,6 +10,7 @@ import {
   UseGuards,
   ParseUUIDPipe,
   BadRequestException,
+  Request,
 } from '@nestjs/common';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -204,8 +205,13 @@ export class InventoryController {
   }
 
   @Get('items/:id')
-  async getItemById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.inventoryService.findInventoryItemById(id);
+  async getItemById(
+    @Request() req,
+    @Param('id', ParseUUIDPipe) id: string,
+  ) {
+    const userId = req.user?.id;
+    const userRol = req.user?.rol;
+    return this.inventoryService.findInventoryItemById(id, userId, userRol);
   }
 
   @Post('items')

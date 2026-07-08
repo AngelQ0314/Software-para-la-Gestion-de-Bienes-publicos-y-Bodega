@@ -64,9 +64,18 @@ export class PdfGeneratorService {
         const resolvedAt = request.resolvedAt ? request.resolvedAt.toLocaleString('es-EC') : new Date().toLocaleString('es-EC');
 
         doc.text(`Entregado por: ${resolvedBy}`)
-           .text(`Recibido por (Docente): ${teacher} (C.I. ${cedula})`)
-           .text(`Espacio Físico Destino: ${spaceName} (Número ${roomNumber})`)
-           .text(`Período Académico: ${periodName}`)
+           .text(`Recibido por (Docente): ${teacher} (C.I. ${cedula})`);
+
+        if (request.type === 'TRANSFERENCIA' && request.destinationSpace) {
+          const destSpaceName = request.destinationSpace.name || 'N/A';
+          const destRoomNumber = request.destinationSpace.roomNumber || 'N/A';
+          doc.text(`Espacio Físico Origen: ${spaceName} (Número ${roomNumber})`)
+             .text(`Espacio Físico Destino: ${destSpaceName} (Número ${destRoomNumber})`);
+        } else {
+          doc.text(`Espacio Físico Destino: ${spaceName} (Número ${roomNumber})`);
+        }
+
+        doc.text(`Período Académico: ${periodName}`)
            .text(`Fecha de Atención: ${resolvedAt}`)
            .text(`Justificación/Motivo: ${request.motive || 'Sin justificación'}`)
            .moveDown(1.5);

@@ -42,6 +42,16 @@ export class Request {
   @JoinColumn({ name: 'academic_period_id' })
   academicPeriod: AcademicPeriod;
 
+  @Column({ type: 'varchar', default: 'NUEVO_INVENTARIO' })
+  type: string; // 'NUEVO_INVENTARIO' o 'TRANSFERENCIA'
+
+  @Column({ name: 'destination_space_id', nullable: true })
+  destinationSpaceId: string | null;
+
+  @ManyToOne(() => PhysicalSpace, { nullable: true })
+  @JoinColumn({ name: 'destination_space_id' })
+  destinationSpace: PhysicalSpace | null;
+
   @Column({ type: 'varchar', default: 'EN_PROCESO' })
   status: string; // 'EN_PROCESO', 'APROBADA', 'RECHAZADA'
 

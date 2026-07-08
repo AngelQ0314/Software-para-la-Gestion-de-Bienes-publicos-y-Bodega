@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException, ForbiddenException, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
 import { Request } from './entities/request.entity';
@@ -51,10 +51,13 @@ export class RequestsService {
       throw new BadRequestException('No se pueden registrar solicitudes de inventario porque no hay un período académico activo.');
     }
 
-    // 2. Validar que el espacio físico exista
-    const space = await this.spaceRepo.findOne({ where: { id: dto.spaceId } });
+    // 2. Validar que el espacio físico exista y esté bajo la responsabilidad del docente
+    const space = await this.spaceRepo.findOne({
+      where: { id: dto.spaceId },
+      relations: { responsibleTeachers: true },
+    });
     if (!space) {
-      throw new NotFoundException(`El espacio físico destino no existe.`);
+      throw new NotFoundException(`El espacio físico principal no existe.`);
     }
 
     // 3. Validar docente solicitante
@@ -64,6 +67,27 @@ export class RequestsService {
     }
     if (teacher.estado !== UserStatus.ACTIVO) {
       throw new BadRequestException('El docente solicitante se encuentra inactivo.');
+    }
+
+    const isResponsible = space.responsibleTeachers.some((t) => t.id === teacherId);
+    if (!isResponsible) {
+      throw new BadRequestException('El espacio físico asociado a la solicitud debe estar bajo tu responsabilidad.');
+    }
+
+    const type = dto.type || 'NUEVO_INVENTARIO';
+
+    // Si es transferencia, validar el espacio físico destino
+    if (type === 'TRANSFERENCIA') {
+      if (!dto.destinationSpaceId) {
+        throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes de transferencia.');
+      }
+      if (dto.destinationSpaceId === dto.spaceId) {
+        throw new BadRequestException('El espacio físico de destino no puede ser igual al de origen.');
+      }
+      const destSpace = await this.spaceRepo.findOne({ where: { id: dto.destinationSpaceId } });
+      if (!destSpace) {
+        throw new NotFoundException('El espacio físico de destino no existe.');
+      }
     }
 
     if (!dto.items || dto.items.length === 0) {
@@ -77,6 +101,8 @@ export class RequestsService {
       academicPeriodId: activePeriod.id,
       status: 'EN_PROCESO',
       motive: dto.motive?.trim() || null,
+      type,
+      destinationSpaceId: type === 'TRANSFERENCIA' ? dto.destinationSpaceId : null,
     });
 
     const savedRequest = await this.requestRepo.save(request);
@@ -84,11 +110,30 @@ export class RequestsService {
     // 5. Crear detalles e ítems
     const itemsToSave: RequestItem[] = [];
     for (const itemDto of dto.items) {
-      const item = await this.itemRepo.findOne({
-        where: { id: itemDto.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
-      });
-      if (!item) {
-        throw new NotFoundException(`El artículo con ID '${itemDto.itemId}' no existe en bodega o no está activo.`);
+      let item: InventoryItem | null = null;
+
+      if (type === 'NUEVO_INVENTARIO') {
+        // En nuevo inventario: deben estar en bodega (physicalSpaceId es nulo)
+        item = await this.itemRepo.findOne({
+          where: { id: itemDto.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
+        });
+        if (!item) {
+          throw new NotFoundException(`El artículo con ID '${itemDto.itemId}' no existe en bodega o no está activo.`);
+        }
+      } else {
+        // En transferencia: deben estar asignados al espacio de origen del docente (spaceId)
+        item = await this.itemRepo.findOne({
+          where: { id: itemDto.itemId, physicalSpaceId: dto.spaceId, status: 'ACTIVO' },
+        });
+        if (!item) {
+          throw new NotFoundException(`El artículo con ID '${itemDto.itemId}' no está asignado al espacio de origen o no está activo.`);
+        }
+      }
+
+      if (item.cantidad < itemDto.cantidad) {
+        throw new BadRequestException(
+          `Cantidad insuficiente para '${item.name}'. Solicitado: ${itemDto.cantidad}, Disponible: ${item.cantidad}.`,
+        );
       }
 
       const requestItem = this.requestItemRepo.create({
@@ -151,12 +196,13 @@ export class RequestsService {
   }
 
   // DETALLE COMPLETO DE UNA SOLICITUD (GS011)
-  async findRequestById(id: string): Promise<Request> {
+  async findRequestById(id: string, requesterId?: string, requesterRole?: string): Promise<Request> {
     const request = await this.requestRepo.findOne({
       where: { id },
       relations: {
         teacher: true,
         space: true,
+        destinationSpace: true,
         academicPeriod: true,
         resolvedBy: true,
         handoverAct: true,
@@ -175,6 +221,11 @@ export class RequestsService {
 
     if (!request) {
       throw new NotFoundException(`La solicitud de inventario no existe.`);
+    }
+
+    // Si el rol es DOCENTE, verificar que sea el dueño de la solicitud
+    if (requesterRole === UserRole.DOCENTE && requesterId && request.teacherId !== requesterId) {
+      throw new ForbiddenException('No tienes permisos para acceder a esta solicitud.');
     }
 
     return request;
@@ -197,87 +248,178 @@ export class RequestsService {
       throw new BadRequestException('El usuario administrador responsable no es válido.');
     }
 
-    // 1. Validar disponibilidad de stock en bodega para cada artículo
+    // 1. Validar disponibilidad de stock en el origen correspondiente (bodega o espacio de origen)
     for (const reqItem of request.items) {
-      const itemInBodega = await this.itemRepo.findOne({
-        where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
-      });
-
-      if (!itemInBodega) {
-        throw new BadRequestException(`El artículo '${reqItem.item?.name || 'N/A'}' ya no se encuentra disponible en bodega.`);
-      }
-
-      if (itemInBodega.cantidad < reqItem.cantidad) {
-        throw new BadRequestException(
-          `Stock insuficiente para '${itemInBodega.name}' en bodega. Disponible: ${itemInBodega.cantidad}, Solicitado: ${reqItem.cantidad}.`,
-        );
+      if (request.type === 'TRANSFERENCIA') {
+        const itemInOrigin = await this.itemRepo.findOne({
+          where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
+        });
+        if (!itemInOrigin) {
+          throw new BadRequestException(`El artículo '${reqItem.item?.name || 'N/A'}' ya no se encuentra asignado al espacio de origen.`);
+        }
+        if (itemInOrigin.cantidad < reqItem.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente para '${itemInOrigin.name}' en el espacio de origen. Disponible: ${itemInOrigin.cantidad}, Solicitado: ${reqItem.cantidad}.`,
+          );
+        }
+      } else {
+        const itemInBodega = await this.itemRepo.findOne({
+          where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
+        });
+        if (!itemInBodega) {
+          throw new BadRequestException(`El artículo '${reqItem.item?.name || 'N/A'}' ya no se encuentra disponible en bodega.`);
+        }
+        if (itemInBodega.cantidad < reqItem.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente para '${itemInBodega.name}' en bodega. Disponible: ${itemInBodega.cantidad}, Solicitado: ${reqItem.cantidad}.`,
+          );
+        }
       }
     }
 
-    // 2. Procesar transferencia / asignación física de ítems al aula
+    // 2. Procesar transferencia / asignación física de ítems al aula destino
     for (const reqItem of request.items) {
-      const itemInBodega = await this.itemRepo.findOne({
-        where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
-        relations: { inventoryView: true },
-      });
-
-      const isInsumo = itemInBodega!.inventoryView?.code === 'INSUMOS';
-
-      if (!isInsumo) {
-        // BIENES PÚBLICOS / BIBLIOTECA: Transferir completo asignándole el physicalSpaceId
-        itemInBodega!.physicalSpaceId = request.spaceId;
-        await this.itemRepo.save(itemInBodega!);
-
-        // Eliminar históricos previos en jornada para este item en otras aulas
-        await this.shiftRepo.delete({ itemId: itemInBodega!.id });
-
-        // Inicializar jornadas para este aula
-        for (const jornada of request.space.jornadas) {
-          const shift = this.shiftRepo.create({
-            spaceId: request.spaceId,
-            itemId: itemInBodega!.id,
-            jornada,
-            estadoFisico: 'BUENO',
-          });
-          await this.shiftRepo.save(shift);
-        }
-      } else {
-        // INSUMOS: Restar de bodega y clonar/añadir al laboratorio
-        itemInBodega!.cantidad -= reqItem.cantidad;
-        await this.itemRepo.save(itemInBodega!);
-
-        // Buscar si ya existe un clon de este insumo en esa aula específica
-        let cloneInSpace = await this.itemRepo.findOne({
-          where: {
-            physicalSpaceId: request.spaceId,
-            codeValue: itemInBodega!.codeValue === null ? IsNull() : itemInBodega!.codeValue,
-            status: 'ACTIVO',
-          },
+      if (request.type === 'TRANSFERENCIA') {
+        const itemInOrigin = await this.itemRepo.findOne({
+          where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
+          relations: { codeType: true, subcategory: { category: { inventoryView: true } } },
         });
 
-        if (cloneInSpace) {
-          cloneInSpace.cantidad += reqItem.cantidad;
-          await this.itemRepo.save(cloneInSpace);
-        } else {
-          cloneInSpace = this.itemRepo.create({
-            ...itemInBodega,
-            id: undefined,
-            createdAt: undefined,
-            updatedAt: undefined,
-            cantidad: reqItem.cantidad,
-            physicalSpaceId: request.spaceId,
-          });
-          const savedClone = await this.itemRepo.save(cloneInSpace);
+        const destSpace = await this.spaceRepo.findOne({
+          where: { id: request.destinationSpaceId! },
+        });
 
-          // Inicializar jornadas para el clon nuevo
-          for (const jornada of request.space.jornadas) {
+        const isInsumo = itemInOrigin!.subcategory?.category?.inventoryView?.code === 'INSUMOS';
+
+        if (!isInsumo) {
+          // BIENES PÚBLICOS / BIBLIOTECA: Transferir completo asignándole el new destinationSpaceId
+          itemInOrigin!.physicalSpaceId = request.destinationSpaceId!;
+          await this.itemRepo.save(itemInOrigin!);
+
+          // Eliminar históricos previos en jornada para este item en el origen
+          await this.shiftRepo.delete({ itemId: itemInOrigin!.id });
+
+          // Inicializar jornadas para el espacio destino
+          for (const jornada of destSpace!.jornadas) {
             const shift = this.shiftRepo.create({
-              spaceId: request.spaceId,
-              itemId: savedClone.id,
+              spaceId: request.destinationSpaceId!,
+              itemId: itemInOrigin!.id,
               jornada,
               estadoFisico: 'BUENO',
             });
             await this.shiftRepo.save(shift);
+          }
+        } else {
+          // INSUMOS: Restar del origen y clonar/añadir al destino
+          itemInOrigin!.cantidad -= reqItem.cantidad;
+          if (itemInOrigin!.cantidad <= 0) {
+            // Eliminar fila en origen si cantidad llega a 0
+            await this.itemRepo.remove(itemInOrigin!);
+            await this.shiftRepo.delete({ itemId: itemInOrigin!.id });
+          } else {
+            await this.itemRepo.save(itemInOrigin!);
+          }
+
+          // Buscar si ya existe un clon de este insumo en el destino
+          let cloneInDest = await this.itemRepo.findOne({
+            where: {
+              physicalSpaceId: request.destinationSpaceId!,
+              codeValue: itemInOrigin!.codeValue === null ? IsNull() : itemInOrigin!.codeValue,
+              status: 'ACTIVO',
+            },
+          });
+
+          if (cloneInDest) {
+            cloneInDest.cantidad += reqItem.cantidad;
+            await this.itemRepo.save(cloneInDest);
+          } else {
+            cloneInDest = this.itemRepo.create({
+              ...itemInOrigin,
+              id: undefined,
+              createdAt: undefined,
+              updatedAt: undefined,
+              cantidad: reqItem.cantidad,
+              physicalSpaceId: request.destinationSpaceId!,
+            });
+            const savedClone = await this.itemRepo.save(cloneInDest);
+
+            // Inicializar jornadas para el clon nuevo
+            for (const jornada of destSpace!.jornadas) {
+              const shift = this.shiftRepo.create({
+                spaceId: request.destinationSpaceId!,
+                itemId: savedClone.id,
+                jornada,
+                estadoFisico: 'BUENO',
+              });
+              await this.shiftRepo.save(shift);
+            }
+          }
+        }
+      } else {
+        // NUEVO_INVENTARIO: Procesar normalmente
+        const itemInBodega = await this.itemRepo.findOne({
+          where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
+          relations: { inventoryView: true },
+        });
+
+        const isInsumo = itemInBodega!.inventoryView?.code === 'INSUMOS';
+
+        if (!isInsumo) {
+          // BIENES PÚBLICOS / BIBLIOTECA: Transferir completo asignándole el physicalSpaceId
+          itemInBodega!.physicalSpaceId = request.spaceId;
+          await this.itemRepo.save(itemInBodega!);
+
+          // Eliminar históricos previos en jornada para este item en otras aulas
+          await this.shiftRepo.delete({ itemId: itemInBodega!.id });
+
+          // Inicializar jornadas para este aula
+          for (const jornada of request.space.jornadas) {
+            const shift = this.shiftRepo.create({
+              spaceId: request.spaceId,
+              itemId: itemInBodega!.id,
+              jornada,
+              estadoFisico: 'BUENO',
+            });
+            await this.shiftRepo.save(shift);
+          }
+        } else {
+          // INSUMOS: Restar de bodega y clonar/añadir al laboratorio
+          itemInBodega!.cantidad -= reqItem.cantidad;
+          await this.itemRepo.save(itemInBodega!);
+
+          // Buscar si ya existe un clon de este insumo en esa aula específica
+          let cloneInSpace = await this.itemRepo.findOne({
+            where: {
+              physicalSpaceId: request.spaceId,
+              codeValue: itemInBodega!.codeValue === null ? IsNull() : itemInBodega!.codeValue,
+              status: 'ACTIVO',
+            },
+          });
+
+          if (cloneInSpace) {
+            cloneInSpace.cantidad += reqItem.cantidad;
+            await this.itemRepo.save(cloneInSpace);
+          } else {
+            cloneInSpace = this.itemRepo.create({
+              ...itemInBodega,
+              id: undefined,
+              createdAt: undefined,
+              updatedAt: undefined,
+              cantidad: reqItem.cantidad,
+              physicalSpaceId: request.spaceId,
+            });
+            const savedClone = await this.itemRepo.save(cloneInSpace);
+
+            // Inicializar jornadas para el clon nuevo
+            for (const jornada of request.space.jornadas) {
+              const shift = this.shiftRepo.create({
+                spaceId: request.spaceId,
+                itemId: savedClone.id,
+                jornada,
+                estadoFisico: 'BUENO',
+              });
+              await this.shiftRepo.save(shift);
+            }
           }
         }
       }
@@ -300,7 +442,8 @@ export class RequestsService {
     const pdfPath = path.join(uploadDir, pdfName);
 
     // Generar el archivo físico
-    await this.pdfGeneratorService.generateHandoverActPdf(finalRequest, actCode, pdfPath);
+    const requestForPdf = await this.findRequestById(finalRequest.id);
+    await this.pdfGeneratorService.generateHandoverActPdf(requestForPdf, actCode, pdfPath);
 
     // Guardar el registro de Acta de Recepción
     const act = this.actRepo.create({

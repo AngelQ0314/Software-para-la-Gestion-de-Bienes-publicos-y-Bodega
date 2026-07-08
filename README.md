@@ -12,8 +12,11 @@ Para facilitar la integración con el frontend (Angular), la documentación de l
 *   [Módulo de Administración de Usuarios (README_USERS.md)](./README_USERS.md) - Creación de usuarios, filtrado paginado, actualización de roles, cambio de estados con observaciones, bitácora de auditoría (logs) y edición de perfiles.
 *   [Módulo de Configuración de Inventario (README_INVENTORY.md)](./README_INVENTORY.md) - Creación y gestión de categorías, subcategorías, tipos de código, campos personalizados y elementos físicos del inventario.
 *   [Módulo de Gestión de Espacios Físicos (README_SPACES.md)](./README_SPACES.md) - Administración de aulas, laboratorios y oficinas, asignación de docentes responsables, asignación de inventario y seguimiento de estado independiente por jornada académica.
+*   [Módulo de Espacios Físicos Asignados (README_SPACES_ASSIGNED.md)](./README_SPACES_ASSIGNED.md) - Consulta docente de espacios asignados bajo su responsabilidad y su inventario de bienes/insumos de forma general o por jornada académica.
 *   [Módulo de Períodos Académicos (README_PERIODS.md)](./README_PERIODS.md) - Planificación de períodos académicos, automatización de fechas, alertas previas y cierres cronológicos automáticos.
 *   [Módulo de Solicitudes y Actas (README_REQUESTS.md)](./README_REQUESTS.md) - Gestión de solicitudes de docentes para asignación de bienes y consumibles a espacios físicos, aprobación/rechazo y generación de actas PDF.
+*   [Módulo de Reporte de Novedades e Incidencias (README_INCIDENTS.md)](./README_INCIDENTS.md) - Registro docente de novedades sobre artículos de su espacio, jornada y período activo, y actualización de estados por el administrador.
+*   [Módulo de Inventario Asignado (README_ASSIGNED_INVENTORY.md)](./README_ASSIGNED_INVENTORY.md) - Consulta global de inventario asignado al docente a través de sus espacios físicos, con filtros avanzados de categoría, subcategoría, tipo de código, aula y jornada.
 *   [Módulo de Gestión de Reportes (README_REPORTS.md)](./README_REPORTS.md) - Historial de reportes, reportes de cierre de período, reportes de jornadas, auditorías de usuarios, reportes de incidencias y exportación PDF.
 *   [Módulo de Perfil del Docente (README_PROFILE.md)](./README_PROFILE.md) - Consulta y edición restringida del perfil de contacto del docente y de los usuarios autenticados.
 

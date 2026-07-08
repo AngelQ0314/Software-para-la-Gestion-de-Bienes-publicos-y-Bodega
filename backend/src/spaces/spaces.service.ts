@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In, IsNull } from 'typeorm';
@@ -61,6 +62,8 @@ export class SpacesService {
     name?: string;
     type?: SpaceType;
     location?: string;
+    teacherId?: string;
+    role?: string;
   }): Promise<PhysicalSpace[]> {
     const query = this.spaceRepo
       .createQueryBuilder('space')
@@ -85,11 +88,16 @@ export class SpacesService {
       query.andWhere('space.location ILIKE :location', { location: `%${filters.location}%` });
     }
 
+    // Si el rol es DOCENTE, filtrar por espacios asignados al docente
+    if (filters.role === UserRole.DOCENTE && filters.teacherId) {
+      query.innerJoin('space.responsibleTeachers', 'assignedTeacher', 'assignedTeacher.id = :teacherId', { teacherId: filters.teacherId });
+    }
+
     return query.getMany();
   }
 
   // OBTENER UN ESPACIO POR ID
-  async findOneSpace(id: string): Promise<PhysicalSpace> {
+  async findOneSpace(id: string, requesterId?: string, requesterRole?: string): Promise<PhysicalSpace> {
     const space = await this.spaceRepo.findOne({
       where: { id },
       relations: {
@@ -102,6 +110,14 @@ export class SpacesService {
 
     if (!space) {
       throw new NotFoundException(`El espacio físico con ID '${id}' no existe.`);
+    }
+
+    // Si el rol es DOCENTE, verificar que sea responsable del espacio
+    if (requesterRole === UserRole.DOCENTE && requesterId) {
+      const isAssigned = space.responsibleTeachers.some((t) => t.id === requesterId);
+      if (!isAssigned) {
+        throw new ForbiddenException('No tienes asignada la responsabilidad de este espacio físico.');
+      }
     }
 
     return space;
@@ -486,10 +502,46 @@ export class SpacesService {
   }
 
   // OBTENER INVENTARIO DEL ESPACIO FILTRADO POR JORNADA
-  async getSpaceInventoryByShift(spaceId: string, jornada: string): Promise<any[]> {
-    const space = await this.spaceRepo.findOne({ where: { id: spaceId } });
+  async getSpaceInventoryByShift(
+    spaceId: string,
+    jornada?: string,
+    requesterId?: string,
+    requesterRole?: string,
+  ): Promise<any[]> {
+    const space = await this.spaceRepo.findOne({
+      where: { id: spaceId },
+      relations: { responsibleTeachers: true },
+    });
     if (!space) {
       throw new NotFoundException(`El espacio físico no existe.`);
+    }
+
+    // Si el rol es DOCENTE, verificar que sea responsable del espacio
+    if (requesterRole === UserRole.DOCENTE && requesterId) {
+      const isAssigned = space.responsibleTeachers.some((t) => t.id === requesterId);
+      if (!isAssigned) {
+        throw new ForbiddenException('No tienes asignada la responsabilidad de este espacio físico.');
+      }
+    }
+
+    const items = await this.itemRepo.find({
+      where: { physicalSpaceId: spaceId, status: 'ACTIVO' },
+      relations: { codeType: true, subcategory: { category: { inventoryView: true } } },
+      order: { name: 'ASC' },
+    });
+
+    if (!jornada) {
+      // EA002: Retorna el inventario completo asignado al espacio
+      return items.map((item) => ({
+        id: item.id,
+        name: item.name,
+        codeValue: item.codeValue,
+        codeType: item.codeType?.name || '',
+        category: item.subcategory?.category?.name || '',
+        subcategory: item.subcategory?.name || '',
+        view: item.subcategory?.category?.inventoryView?.name || '',
+        cantidad: item.cantidad,
+      }));
     }
 
     const normalizedJornada = jornada.toUpperCase().trim();
@@ -498,12 +550,6 @@ export class SpacesService {
         `La jornada '${jornada}' no está configurada para este espacio. Jornadas habilitadas: ${space.jornadas.join(', ')}`,
       );
     }
-
-    const items = await this.itemRepo.find({
-      where: { physicalSpaceId: spaceId, status: 'ACTIVO' },
-      relations: { codeType: true },
-      order: { name: 'ASC' },
-    });
 
     const shifts = await this.shiftRepo.find({
       where: { spaceId, jornada: normalizedJornada },
@@ -515,7 +561,10 @@ export class SpacesService {
         id: item.id,
         name: item.name,
         codeValue: item.codeValue,
-        codeType: item.codeType,
+        codeType: item.codeType?.name || '',
+        category: item.subcategory?.category?.name || '',
+        subcategory: item.subcategory?.name || '',
+        view: item.subcategory?.category?.inventoryView?.name || '',
         cantidad: item.cantidad,
         jornada: normalizedJornada,
         estadoFisico: shiftInfo ? shiftInfo.estadoFisico : 'BUENO',
@@ -523,5 +572,131 @@ export class SpacesService {
         novedades: shiftInfo ? shiftInfo.novedades : null,
       };
     });
+  }
+
+  // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS (IA001, IA003, IA004)
+  async getAssignedInventory(
+    userId: string,
+    userRol: string,
+    filters: {
+      spaceId?: string;
+      jornada?: string;
+      categoryId?: string;
+      subcategoryId?: string;
+      codeTypeId?: string;
+    },
+  ): Promise<any[]> {
+    let spaceIdsToQuery: string[] = [];
+
+    if (userRol === UserRole.DOCENTE) {
+      const teacherSpaces = await this.spaceRepo.createQueryBuilder('space')
+        .innerJoin('space.responsibleTeachers', 'teacher', 'teacher.id = :userId', { userId })
+        .getMany();
+
+      const assignedSpaceIds = teacherSpaces.map((s) => s.id);
+      if (assignedSpaceIds.length === 0) {
+        return [];
+      }
+
+      if (filters.spaceId) {
+        if (!assignedSpaceIds.includes(filters.spaceId)) {
+          throw new ForbiddenException('No tienes asignada la responsabilidad de este espacio físico.');
+        }
+        spaceIdsToQuery = [filters.spaceId];
+      } else {
+        spaceIdsToQuery = assignedSpaceIds;
+      }
+    } else {
+      if (filters.spaceId) {
+        const spaceExists = await this.spaceRepo.findOne({ where: { id: filters.spaceId } });
+        if (!spaceExists) {
+          throw new NotFoundException('El espacio físico seleccionado no existe.');
+        }
+        spaceIdsToQuery = [filters.spaceId];
+      }
+    }
+
+    const query = this.itemRepo.createQueryBuilder('item')
+      .leftJoinAndSelect('item.codeType', 'codeType')
+      .leftJoinAndSelect('item.subcategory', 'subcategory')
+      .leftJoinAndSelect('subcategory.category', 'category')
+      .leftJoinAndSelect('category.inventoryView', 'inventoryView')
+      .leftJoinAndSelect('item.physicalSpace', 'physicalSpace')
+      .where('item.status = :status', { status: 'ACTIVO' });
+
+    if (spaceIdsToQuery.length > 0) {
+      query.andWhere('item.physicalSpaceId IN (:...spaceIdsToQuery)', { spaceIdsToQuery });
+    } else {
+      query.andWhere('item.physicalSpaceId IS NOT NULL');
+    }
+
+    if (filters.subcategoryId) {
+      query.andWhere('item.subcategoryId = :subcategoryId', { subcategoryId: filters.subcategoryId });
+    } else if (filters.categoryId) {
+      query.andWhere('subcategory.categoryId = :categoryId', { categoryId: filters.categoryId });
+    }
+
+    if (filters.codeTypeId) {
+      query.andWhere('item.codeTypeId = :codeTypeId', { codeTypeId: filters.codeTypeId });
+    }
+
+    query.orderBy('item.name', 'ASC');
+    const items = await query.getMany();
+
+    if (filters.jornada) {
+      const normalizedJornada = filters.jornada.toUpperCase().trim();
+      
+      if (spaceIdsToQuery.length === 1) {
+        const spaceObj = await this.spaceRepo.findOne({ where: { id: spaceIdsToQuery[0] } });
+        if (spaceObj && !spaceObj.jornadas.includes(normalizedJornada)) {
+          throw new BadRequestException(
+            `La jornada '${filters.jornada}' no está configurada para el espacio '${spaceObj.name}'.`,
+          );
+        }
+      }
+
+      const shifts = await this.shiftRepo.find({
+        where: {
+          jornada: normalizedJornada,
+          ...(spaceIdsToQuery.length > 0 ? { spaceId: In(spaceIdsToQuery) } : {}),
+        },
+      });
+
+      return items.map((item) => {
+        const shiftInfo = shifts.find((s) => s.itemId === item.id && s.spaceId === item.physicalSpaceId);
+        return {
+          id: item.id,
+          name: item.name,
+          codeValue: item.codeValue,
+          codeType: item.codeType?.name || '',
+          category: item.subcategory?.category?.name || '',
+          subcategory: item.subcategory?.name || '',
+          view: item.subcategory?.category?.inventoryView?.name || '',
+          spaceId: item.physicalSpaceId,
+          roomNumber: item.physicalSpace?.roomNumber || '',
+          spaceName: item.physicalSpace?.name || '',
+          cantidad: item.cantidad,
+          jornada: normalizedJornada,
+          estadoFisico: shiftInfo ? shiftInfo.estadoFisico : 'BUENO',
+          observacion: shiftInfo ? shiftInfo.observacion : null,
+          novedades: shiftInfo ? shiftInfo.novedades : null,
+        };
+      });
+    }
+
+    return items.map((item) => ({
+      id: item.id,
+      name: item.name,
+      codeValue: item.codeValue,
+      codeType: item.codeType?.name || '',
+      category: item.subcategory?.category?.name || '',
+      subcategory: item.subcategory?.name || '',
+      view: item.subcategory?.category?.inventoryView?.name || '',
+      spaceId: item.physicalSpaceId,
+      roomNumber: item.physicalSpace?.roomNumber || '',
+      spaceName: item.physicalSpace?.name || '',
+      cantidad: item.cantidad,
+      status: item.status,
+    }));
   }
 }

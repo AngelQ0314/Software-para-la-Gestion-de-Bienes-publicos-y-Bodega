@@ -12,10 +12,10 @@ Todos los endpoints usan el prefijo base: `http://localhost:3000/api`
 ---
 
 ### 1. Obtener Todos los Espacios Físicos
-Permite listar todos los laboratorios, aulas, bodegas u oficinas registrados en el sistema, aplicando filtros opcionales de búsqueda y cargando las relaciones asociadas.
+Permite listar los laboratorios, aulas, bodegas u oficinas. Si el solicitante tiene rol de docente, la consulta se restringe estrictamente a los espacios asignados bajo su responsabilidad (EA001).
 * **Método:** `GET`
 * **Ruta:** `/spaces`
-* **Acceso:** Privado (Requiere token JWT con rol de `ADMINISTRADOR` o `RESPONSABLE_DE_BIENES`)
+* **Acceso:** Privado (Roles `ADMINISTRADOR`, `RESPONSABLE_DE_BIENES`, `DOCENTE`)
 * **Parámetros de Búsqueda (Query Params - Opcionales):**
   * `roomNumber`: Filtro por código/número de espacio (ej. `LAB-4`).
   * `name`: Búsqueda parcial del nombre (ej. `Laboratorio`).
@@ -56,10 +56,10 @@ Permite listar todos los laboratorios, aulas, bodegas u oficinas registrados en 
 ---
 
 ### 2. Obtener Detalle de un Espacio Físico
-Retorna la información completa de un espacio físico, sus docentes responsables y la lista de artículos asignados.
+Retorna la información completa de un espacio físico, sus docentes responsables y la lista de artículos asignados. Si el rol es docente, restringe el acceso arrojando `403 Forbidden` si no es responsable asignado.
 * **Método:** `GET`
 * **Ruta:** `/spaces/:id`
-* **Acceso:** Privado (Requiere token JWT con rol de `ADMINISTRADOR` o `RESPONSABLE_DE_BIENES`)
+* **Acceso:** Privado (Roles `ADMINISTRADOR`, `RESPONSABLE_DE_BIENES`, `DOCENTE`)
 * **Respuesta (200 OK):**
   ```json
   {
@@ -255,14 +255,29 @@ Libera el bien único o consolida el stock del insumo devolviéndolo a bodega.
 
 ---
 
-### 10. Consultar Inventario del Espacio por Jornada
-Retorna la lista de artículos asignados al espacio físico junto con el estado físico, observaciones y novedades de la jornada académica.
+### 10. Consultar Inventario del Espacio Físico (General o por Jornada)
+Retorna la lista de artículos asignados al espacio físico (bienes públicos, insumos y suministros, y material bibliográfico). Si el rol es docente, restringe el acceso arrojando `403 Forbidden` si no es responsable asignado.
 * **Método:** `GET`
 * **Ruta:** `/spaces/:id/inventory`
-* **Acceso:** Privado (Requiere token JWT con rol de `ADMINISTRADOR` o `RESPONSABLE_DE_BIENES`)
-* **Parámetros Query (Obligatorio):**
-  * `jornada`: La jornada académica a consultar (`MATUTINA`, `VESPERTINA`, `NOCTURNA`).
-* **Respuesta (200 OK):**
+* **Acceso:** Privado (Roles `ADMINISTRADOR`, `RESPONSABLE_DE_BIENES`, `DOCENTE`)
+* **Parámetros Query (Opcionales):**
+  * `jornada`: La jornada académica a consultar (`MATUTINA`, `VESPERTINA`, `NOCTURNA`). Si se omite, retorna el inventario general del espacio sin detalles de jornada (EA002). Si se incluye, carga el estado físico, observación y novedades de la jornada correspondiente (EA003).
+* **Respuesta (200 OK - Sin jornada):**
+  ```json
+  [
+    {
+      "id": "e9c8cf44-4352-4584-a093-ed7fcc931889",
+      "name": "cuchillo metalico",
+      "codeValue": "codigo003",
+      "codeType": "CODIGO PARA CUCHILLOS",
+      "category": "UTENSILIOS",
+      "subcategory": "COCINA",
+      "view": "Insumos y Suministros",
+      "cantidad": 10
+    }
+  ]
+  ```
+* **Respuesta (200 OK - Con jornada):**
   ```json
   [
     {

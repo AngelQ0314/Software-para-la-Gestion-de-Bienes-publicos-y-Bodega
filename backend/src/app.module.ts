@@ -12,6 +12,7 @@ import { SpacesModule } from './spaces/spaces.module';
 import { PeriodsModule } from './periods/periods.module';
 import { RequestsModule } from './requests/requests.module';
 import { ReportsModule } from './reports/reports.module';
+import { IncidentsModule } from './incidents/incidents.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ReportsModule } from './reports/reports.module';
     PeriodsModule,
     RequestsModule,
     ReportsModule,
+    IncidentsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

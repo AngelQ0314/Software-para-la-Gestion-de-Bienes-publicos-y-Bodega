@@ -3,6 +3,7 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull, Not } from 'typeorm';
@@ -745,7 +746,7 @@ export class InventoryService {
     return this.itemRepo.save(item);
   }
 
-  async findInventoryItemById(id: string): Promise<any> {
+  async findInventoryItemById(id: string, userId?: string, userRol?: string): Promise<any> {
     const item = await this.itemRepo.findOne({
       where: { id },
       withDeleted: true, // Permite ver detalles de ítems inactivos
@@ -759,12 +760,21 @@ export class InventoryService {
             customField: true,
           },
         },
-        physicalSpace: true,
+        physicalSpace: {
+          responsibleTeachers: true,
+        },
       },
     });
 
     if (!item) {
       throw new NotFoundException('El elemento de inventario no existe.');
+    }
+
+    if (userRol === 'DOCENTE' && item.physicalSpaceId !== null) {
+      const isAssigned = item.physicalSpace?.responsibleTeachers?.some((t) => t.id === userId);
+      if (!isAssigned) {
+        throw new ForbiddenException('No tienes permiso para ver los detalles de este artículo porque pertenece a un espacio físico fuera de tu responsabilidad.');
+      }
     }
 
     // Resolver los nombres legibles de las propiedades dinámicas

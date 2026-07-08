@@ -9,6 +9,7 @@ import {
   Query,
   UseGuards,
   ParseUUIDPipe,
+  Request,
 } from '@nestjs/common';
 import { SpacesService } from './spaces.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -29,19 +30,29 @@ export class SpacesController {
 
   // OBTENER TODOS LOS ESPACIOS
   @Get()
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async getAllSpaces(
+    @Request() req,
     @Query('roomNumber') roomNumber?: string,
     @Query('name') name?: string,
     @Query('type') type?: SpaceType,
     @Query('location') location?: string,
   ) {
-    return this.spacesService.findAllSpaces({ roomNumber, name, type, location });
+    return this.spacesService.findAllSpaces({
+      roomNumber,
+      name,
+      type,
+      location,
+      teacherId: req.user.id,
+      role: req.user.rol,
+    });
   }
 
   // OBTENER DETALLE DE UN ESPACIO
   @Get(':id')
-  async getSpaceById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.spacesService.findOneSpace(id);
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
+  async getSpaceById(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    return this.spacesService.findOneSpace(id, req.user.id, req.user.rol);
   }
 
   // CREAR UN ESPACIO FÍSICO
@@ -106,13 +117,37 @@ export class SpacesController {
     return { message: 'Elemento del inventario desasociado del espacio físico correctamente.' };
   }
 
+  // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS (IA001, IA003, IA004)
+  @Get('assigned-inventory/items')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
+  async getAssignedInventory(
+    @Request() req,
+    @Query('spaceId') spaceId?: string,
+    @Query('jornada') jornada?: string,
+    @Query('categoryId') categoryId?: string,
+    @Query('subcategoryId') subcategoryId?: string,
+    @Query('codeTypeId') codeTypeId?: string,
+  ) {
+    const userId = req.user.id;
+    const userRol = req.user.rol;
+    return this.spacesService.getAssignedInventory(userId, userRol, {
+      spaceId,
+      jornada,
+      categoryId,
+      subcategoryId,
+      codeTypeId,
+    });
+  }
+
   // OBTENER INVENTARIO DEL ESPACIO FILTRADO POR JORNADA
   @Get(':id/inventory')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async getInventoryByShift(
     @Param('id', ParseUUIDPipe) spaceId: string,
-    @Query('jornada') jornada: string,
+    @Request() req,
+    @Query('jornada') jornada?: string,
   ) {
-    return this.spacesService.getSpaceInventoryByShift(spaceId, jornada);
+    return this.spacesService.getSpaceInventoryByShift(spaceId, jornada, req.user.id, req.user.rol);
   }
 
 }

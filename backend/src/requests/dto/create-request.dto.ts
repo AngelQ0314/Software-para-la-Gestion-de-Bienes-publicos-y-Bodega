@@ -1,4 +1,4 @@
-import { IsArray, IsUUID, IsInt, Min, IsOptional, ValidateNested, IsString, IsNotEmpty } from 'class-validator';
+import { IsArray, IsUUID, IsInt, Min, IsOptional, ValidateNested, IsString, IsNotEmpty, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class RequestItemDto {
@@ -19,6 +19,16 @@ export class CreateRequestDto {
   @IsOptional()
   @IsString({ message: 'El motivo debe ser una cadena de texto.' })
   motive?: string;
+
+  @IsOptional()
+  @IsIn(['NUEVO_INVENTARIO', 'TRANSFERENCIA'], {
+    message: 'El tipo de solicitud debe ser NUEVO_INVENTARIO o TRANSFERENCIA.',
+  })
+  type?: string;
+
+  @IsOptional()
+  @IsUUID('4', { message: 'El ID del espacio físico destino debe ser un UUID válido.' })
+  destinationSpaceId?: string;
 
   @IsArray({ message: 'Debe enviar una lista de artículos.' })
   @ValidateNested({ each: true })

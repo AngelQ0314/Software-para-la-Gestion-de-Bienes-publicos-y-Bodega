@@ -32,10 +32,11 @@ export class RequestsController {
     return this.requestsService.createRequest(dto, teacherId);
   }
 
-  // CONSULTAR TODAS LAS SOLICITUDES CON FILTROS (ADMINISTRADOR y RESPONSABLE DE BIENES)
+  // CONSULTAR TODAS LAS SOLICITUDES CON FILTROS (ADMINISTRADOR, RESPONSABLE DE BIENES y DOCENTE)
   @Get()
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async getAllRequests(
+    @Request() req,
     @Query('teacherId') teacherId?: string,
     @Query('status') status?: string,
     @Query('academicPeriodId') academicPeriodId?: string,
@@ -43,8 +44,9 @@ export class RequestsController {
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
+    const finalTeacherId = req.user.rol === UserRole.DOCENTE ? req.user.id : teacherId;
     return this.requestsService.findAllRequests({
-      teacherId,
+      teacherId: finalTeacherId,
       status,
       academicPeriodId,
       spaceId,
@@ -55,9 +57,9 @@ export class RequestsController {
 
   // DETALLE COMPLETO DE UNA SOLICITUD
   @Get(':id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
-  async getRequestById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.requestsService.findRequestById(id);
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
+  async getRequestById(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
+    return this.requestsService.findRequestById(id, req.user.id, req.user.rol);
   }
 
   // APROBAR SOLICITUD (ADMINISTRADOR)
@@ -90,11 +92,15 @@ export class RequestsController {
 
   // VISUALIZAR / DESCARGAR ACTA DE RECEPCIÓN (PDF)
   @Get(':id/acta')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async downloadActa(
     @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
     @Res() res: Response,
   ) {
+    // Validar pertenencia primero
+    await this.requestsService.findRequestById(id, req.user.id, req.user.rol);
+    
     const { stream, filename } = await this.requestsService.getActPdfStream(id);
     res.set({
       'Content-Type': 'application/pdf',
