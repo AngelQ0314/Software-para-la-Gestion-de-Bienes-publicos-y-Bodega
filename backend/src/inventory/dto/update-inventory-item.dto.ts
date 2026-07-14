@@ -37,4 +37,8 @@ export class UpdateInventoryItemDto {
   @IsString({ message: 'El estado debe ser un texto.' })
   @IsOptional()
   status?: string;
+
+  @IsString({ message: 'El estado físico debe ser un texto.' })
+  @IsOptional()
+  estadoFisico?: string;
 }

@@ -74,10 +74,16 @@ export class AuthService {
         cedula: user.cedula,
         nombres: user.nombres,
         apellidos: user.apellidos,
+        correoInstitucional: user.correoInstitucional,
+        correoSecundario: user.correoSecundario ?? null,
+        telefono: user.telefono ?? null,
         rol: user.rol,
         estado: user.estado,
         isFirstLogin: user.isFirstLogin,
         profileCompleted: user.profileCompleted,
+        areas: user.areas ?? [],
+        jornadas: user.jornadas ?? [],
+        horarioIngles: user.horarioIngles ?? null,
       },
     };
   }

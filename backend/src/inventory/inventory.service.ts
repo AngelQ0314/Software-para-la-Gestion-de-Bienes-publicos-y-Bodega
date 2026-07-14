@@ -16,6 +16,8 @@ import { CustomField, CustomFieldType } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
 import { AcademicPeriod } from '../periods/entities/academic-period.entity';
+import * as ExcelJS from 'exceljs';
+
 
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
@@ -586,6 +588,7 @@ export class InventoryService {
       cantidad: cantidadToSave,
       dynamicValues: validatedValues,
       status: 'ACTIVO',
+      estadoFisico: dto.estadoFisico ? dto.estadoFisico.toUpperCase().trim() : 'BUENO',
       academicPeriodId: activePeriod ? activePeriod.id : null,
       isPending: !activePeriod,
     };
@@ -716,6 +719,14 @@ export class InventoryService {
         }
       }
       item.status = dto.status;
+    }
+
+    if (dto.estadoFisico !== undefined) {
+      const raw = dto.estadoFisico.toUpperCase().trim();
+      if (raw !== 'BUENO' && raw !== 'REGULAR' && raw !== 'MALO') {
+        throw new BadRequestException('El estado físico debe ser BUENO, REGULAR o MALO.');
+      }
+      item.estadoFisico = raw;
     }
 
     if (dto.dynamicValues) {
@@ -926,11 +937,14 @@ export class InventoryService {
             : ' Sin asignaciones.');
       }
 
+      const resolvedValues = await this.resolveDynamicValuesLabels(item.codeTypeId, item.dynamicValues);
+
       mappedData.push({
         ...item,
         disponible,
         mensajeDisponibilidad,
         distribucionEspacios,
+        resolvedValues,
       });
     }
 
@@ -1061,4 +1075,373 @@ export class InventoryService {
       };
     });
   }
+
+  async importItemsFromExcel(fileBuffer: any, defaultInventoryViewId?: string): Promise<any> {
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(fileBuffer);
+
+    if (workbook.worksheets.length === 0) {
+      throw new BadRequestException('El archivo de Excel no contiene hojas.');
+    }
+
+    const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
+    
+    // Pre-cargar vistas de inventario, subcategorías y tipos de código para optimizar velocidad
+    const allViews = await this.findAllViews();
+    const allSubcategories = await this.subcategoryRepo.find({ relations: { category: true } });
+    const allCodeTypes = await this.codeTypeRepo.find();
+    
+    // Obtener todas las configuraciones de campos personalizados asociadas a los esquemas
+    const allConfigs = await this.fieldConfigRepo.find({
+      relations: { customField: true, codeType: true },
+    });
+
+    const itemsToSave: any[] = [];
+    const errors: string[] = [];
+    let sheetsProcessed = 0;
+    const importedBreakdown: Record<string, number> = {};
+
+    for (const worksheet of workbook.worksheets) {
+      // Ignorar hojas ocultas o vacías
+      if (!worksheet || worksheet.rowCount <= 1) {
+        continue;
+      }
+
+      // Determinar la vista de inventario correspondiente a esta hoja
+      const sheetNameUpper = worksheet.name.toUpperCase().trim();
+      let currentViewId = defaultInventoryViewId;
+
+      if (sheetNameUpper.includes('BIEN')) {
+        currentViewId = allViews.find((v) => v.code === 'BIENES_PUBLICOS')?.id;
+      } else if (sheetNameUpper.includes('BOD') || sheetNameUpper.includes('INSUM')) {
+        currentViewId = allViews.find((v) => v.code === 'INSUMOS')?.id;
+      } else if (sheetNameUpper.includes('BIBL') || sheetNameUpper.includes('LIBR')) {
+        currentViewId = allViews.find((v) => v.code === 'BIBLIOTECA')?.id;
+      }
+
+      if (!currentViewId) {
+        // Si no se puede determinar la vista y no hay default, ignoramos la hoja
+        continue;
+      }
+
+      const viewCodeName = allViews.find((v) => v.id === currentViewId)?.name || 'Inventario';
+
+      // Cabecera: normalizamos para encontrar las columnas
+      const headerRow = worksheet.getRow(1);
+      const headers: Record<string, number> = {};
+      const colMapByIndex: Record<number, string> = {};
+
+      headerRow.eachCell((cell, colNumber) => {
+        const rawVal = cell.value?.toString() || '';
+        const val = rawVal.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Quitar acentos
+        if (val) {
+          headers[val] = colNumber;
+          colMapByIndex[colNumber] = rawVal.trim(); // Guardar el nombre real de la cabecera
+        }
+      });
+
+      // Mapeo flexible de columnas obligatorias
+      const nameCol = headers['nombre'] || headers['descripcion'] || headers['articulo'];
+      const codeCol = headers['codigo yavirac'] || headers['codigo institucional'] || headers['codigo'] || headers['codigo_yavirac'];
+      const subcategoryCol = headers['subcategoria'] || headers['subcategoria_nombre'] || headers['categoria'];
+      const codeTypeCol = headers['tipo de codigo'] || headers['tipo codigo'] || headers['esquema'] || headers['tipo_codigo'];
+
+      if (!nameCol || !codeCol || !subcategoryCol || !codeTypeCol) {
+        errors.push(
+          `Hoja "${worksheet.name}": Faltan columnas obligatorias (Nombre, Código Yavirac, Subcategoría y Tipo de Código).`
+        );
+        continue;
+      }
+
+      // Columnas opcionales
+      const auxCol = headers['codigo auxiliar'] || headers['auxiliar'] || headers['codigo_auxiliar'];
+      const statusCol = headers['estado fisico'] || headers['estado'] || headers['estado_fisico'];
+      const quantityCol = headers['cantidad'] || headers['stock'];
+
+      sheetsProcessed++;
+      let sheetImportedCount = 0;
+
+      for (let r = 2; r <= worksheet.rowCount; r++) {
+        const row = worksheet.getRow(r);
+        const nameVal = row.getCell(nameCol).value?.toString().trim();
+        const codeVal = row.getCell(codeCol).value?.toString().trim();
+        const subVal = row.getCell(subcategoryCol).value?.toString().trim();
+        const codeTypeVal = row.getCell(codeTypeCol).value?.toString().trim();
+
+        // Fila vacía
+        if (!nameVal && !codeVal && !subVal && !codeTypeVal) {
+          continue;
+        }
+
+        if (!nameVal || !codeVal || !subVal || !codeTypeVal) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: Faltan campos obligatorios.`
+          );
+          continue;
+        }
+
+        // Buscar subcategoría
+        const subcategory = allSubcategories.find(
+          (s) => s.name.toLowerCase().trim() === subVal.toLowerCase()
+        );
+        if (!subcategory) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría "${subVal}" no existe.`
+          );
+          continue;
+        }
+
+        // Validar que corresponda a la vista
+        if (subcategory.category?.inventoryViewId !== currentViewId) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría "${subVal}" no corresponde al tipo de inventario de la hoja.`
+          );
+          continue;
+        }
+
+        // Buscar tipo de código
+        const codeType = allCodeTypes.find(
+          (ct) => ct.name.toLowerCase().trim() === codeTypeVal.toLowerCase()
+        );
+        if (!codeType) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: El tipo de código "${codeTypeVal}" no existe.`
+          );
+          continue;
+        }
+
+        // Validar duplicado de código Yavirac en base de datos
+        const formattedCodeValue = codeVal.toUpperCase();
+        const existingItem = await this.itemRepo.findOne({
+          where: { codeValue: formattedCodeValue },
+          withDeleted: true,
+        });
+        if (existingItem) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: El código Yavirac "${formattedCodeValue}" ya está registrado.`
+          );
+          continue;
+        }
+
+        // Validar duplicado en el lote a guardar
+        const duplicateInBatch = itemsToSave.some((item) => item.codeValue === formattedCodeValue);
+        if (duplicateInBatch) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: El código Yavirac "${formattedCodeValue}" está duplicado en el archivo.`
+          );
+          continue;
+        }
+
+        // Campos opcionales
+        const auxVal = auxCol ? row.getCell(auxCol).value?.toString().trim() || null : null;
+        
+        let statusVal = 'BUENO';
+        if (statusCol) {
+          const rawStatus = row.getCell(statusCol).value?.toString().toUpperCase().trim();
+          if (rawStatus === 'REGULAR' || rawStatus === 'MALO') {
+            statusVal = rawStatus;
+          }
+        }
+
+        let qtyVal = 1;
+        if (quantityCol) {
+          const cellValue = row.getCell(quantityCol).value;
+          const rawQty = cellValue ? parseInt(cellValue.toString(), 10) : NaN;
+          if (!isNaN(rawQty) && rawQty >= 0) {
+            qtyVal = rawQty;
+          }
+        }
+
+        // ==========================================================
+        // DETECCIÓN DINÁMICA DE CAMPOS PERSONALIZADOS
+        // ==========================================================
+        const dynamicValues: Record<string, any> = {};
+        
+        // Obtener campos permitidos para el tipo de código de esta fila
+        const allowedConfigs = allConfigs.filter((c) => c.codeTypeId === codeType.id);
+
+        row.eachCell((cell, colIndex) => {
+          // Si el índice de columna está fuera del mapeo de cabecera o es una columna base, lo ignoramos
+          if (
+            colIndex === nameCol ||
+            colIndex === codeCol ||
+            colIndex === subcategoryCol ||
+            colIndex === codeTypeCol ||
+            colIndex === auxCol ||
+            colIndex === statusCol ||
+            colIndex === quantityCol
+          ) {
+            return;
+          }
+
+          const headerName = colMapByIndex[colIndex];
+          if (!headerName) return;
+
+          // Buscar si esta columna de Excel coincide con la etiqueta o el nombre técnico del campo dinámico
+          const matchedConfig = allowedConfigs.find(
+            (c) =>
+              c.customField?.label.toLowerCase().trim() === headerName.toLowerCase().trim() ||
+              c.customField?.name.toLowerCase().trim() === headerName.toLowerCase().trim()
+          );
+
+          if (matchedConfig) {
+            const rawCellVal = cell.value?.toString().trim() || '';
+            dynamicValues[matchedConfig.customField.id] = rawCellVal;
+          }
+        });
+
+        // Validar e inicializar valores dinámicos
+        const validatedValues = await this.validateAndFormatDynamicValues(codeType.id, dynamicValues);
+
+        itemsToSave.push({
+          name: nameVal,
+          codeValue: formattedCodeValue,
+          codigoAuxiliar: auxVal,
+          subcategoryId: subcategory.id,
+          codeTypeId: codeType.id,
+          inventoryViewId: currentViewId,
+          cantidad: qtyVal,
+          status: 'ACTIVO',
+          estadoFisico: statusVal,
+          dynamicValues: validatedValues,
+          academicPeriodId: activePeriod ? activePeriod.id : null,
+          isPending: !activePeriod,
+        });
+
+        sheetImportedCount++;
+      }
+
+      if (sheetImportedCount > 0) {
+        importedBreakdown[viewCodeName] = (importedBreakdown[viewCodeName] || 0) + sheetImportedCount;
+      }
+    }
+
+    if (errors.length > 0) {
+      throw new BadRequestException({
+        message: 'Se encontraron errores al procesar el archivo Excel.',
+        errors: errors,
+      });
+    }
+
+    if (itemsToSave.length === 0) {
+      throw new BadRequestException('No se encontraron hojas ni filas con datos válidos para importar.');
+    }
+
+    await this.itemRepo.save(itemsToSave);
+
+    const breakdownMsg = Object.entries(importedBreakdown)
+      .map(([name, count]) => `${count} en ${name}`)
+      .join(', ');
+
+    return {
+      message: `Importación masiva completada con éxito. Se importaron: ${breakdownMsg}.`,
+      importedCount: itemsToSave.length,
+    };
+  }
+
+  async generateExcelTemplate(): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+    
+    // Obtener todos los esquemas y sus campos para colocarlos como columnas dinámicas
+    const allConfigs = await this.fieldConfigRepo.find({
+      relations: { customField: true, codeType: true },
+      order: { sortOrder: 'ASC' },
+    });
+
+    const sheetsConfig = [
+      {
+        name: 'BIENES PUBLICOS',
+        viewCode: 'BIENES_PUBLICOS',
+        defaultSubcategory: 'EQUIPOS TECNOLOGICOS',
+        defaultCodeType: 'BIENES GENERALES',
+      },
+      {
+        name: 'BODEGA (INSUMOS)',
+        viewCode: 'INSUMOS',
+        defaultSubcategory: 'SUMINISTROS DE ASEO',
+        defaultCodeType: 'INSUMOS GENERALES',
+      },
+      {
+        name: 'BIBLIOTECA',
+        viewCode: 'BIBLIOTECA',
+        defaultSubcategory: 'LIBROS',
+        defaultCodeType: 'LIBROS Y TEXTOS',
+      },
+    ];
+
+    for (const sc of sheetsConfig) {
+      const worksheet = workbook.addWorksheet(sc.name);
+
+      // Columnas base
+      const headers = [
+        'Nombre',
+        'Código Yavirac',
+        'Código Auxiliar',
+        'Subcategoría',
+        'Tipo de Código',
+        'Estado Físico',
+        'Cantidad',
+      ];
+
+      // Buscar campos dinámicos asociados al tipo de código por defecto de esta hoja
+      const dynamicFields = allConfigs
+        .filter((c) => c.codeType?.name.toUpperCase().trim() === sc.defaultCodeType.toUpperCase().trim())
+        .map((c) => c.customField?.label || c.customField?.name)
+        .filter(Boolean);
+
+      // Agregar los campos dinámicos como columnas adicionales a la derecha
+      const allHeaders = [...headers, ...dynamicFields];
+      worksheet.addRow(allHeaders);
+
+      // Estilizar la cabecera
+      const headerRow = worksheet.getRow(1);
+      headerRow.height = 25;
+      
+      headerRow.eachCell((cell, colNum) => {
+        const isDynamic = colNum > headers.length;
+        cell.font = {
+          bold: true,
+          color: { argb: 'FFFFFF' },
+          name: 'Arial',
+          size: 10,
+        };
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: isDynamic ? '6366F1' : 'F97316' }, // Lila para campos dinámicos, Naranja para base
+        };
+        cell.alignment = {
+          vertical: 'middle',
+          horizontal: 'center',
+        };
+      });
+
+      // Agregar fila de ejemplo útil para guiar al usuario
+      const exampleRow = [
+        `Ejemplo de ${sc.name.toLowerCase()}`,
+        `${sc.viewCode.substring(0,3)}-EX-001`,
+        'AUX-999',
+        sc.defaultSubcategory,
+        sc.defaultCodeType,
+        'BUENO',
+        1,
+      ];
+
+      // Rellenar valores de ejemplo para los campos dinámicos
+      for (let i = 0; i < dynamicFields.length; i++) {
+        exampleRow.push('Ejemplo Valor');
+      }
+
+      worksheet.addRow(exampleRow);
+
+      // Formatear el ancho de las columnas
+      worksheet.columns.forEach((column) => {
+        column.width = 22;
+      });
+    }
+
+    return workbook.xlsx.writeBuffer() as any;
+  }
 }
+
+

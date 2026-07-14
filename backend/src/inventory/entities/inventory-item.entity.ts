@@ -70,6 +70,10 @@ export class InventoryItem {
   @Column({ type: 'varchar', default: 'ACTIVO' })
   status: string; // Valores válidos: 'ACTIVO', 'INACTIVO'
 
+  @Column({ type: 'varchar', name: 'estado_fisico', default: 'BUENO' })
+  estadoFisico: string; // Valores válidos: 'BUENO', 'REGULAR', 'MALO'
+
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

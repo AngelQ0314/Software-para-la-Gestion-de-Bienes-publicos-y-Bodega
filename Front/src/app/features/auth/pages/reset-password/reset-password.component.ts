@@ -1,15 +1,17 @@
-import { Component, OnInit, signal } from '@angular/core';
+import { Component, OnInit, signal, ViewEncapsulation, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './reset-password.component.html',
-  styleUrl: './reset-password.component.css'
+  styleUrl: './reset-password.component.css',
+  encapsulation: ViewEncapsulation.None
 })
 export class ResetPasswordComponent implements OnInit {
   resetForm: FormGroup;
@@ -22,10 +24,13 @@ export class ResetPasswordComponent implements OnInit {
 
   private token = '';
 
+  isDarkMode = computed(() => this.themeService.isDarkMode());
+
   constructor(
     private readonly route: ActivatedRoute,
     private readonly fb: FormBuilder,
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly themeService: ThemeService
   ) {
     this.resetForm = this.fb.group({
       newPassword: ['', [
@@ -35,6 +40,10 @@ export class ResetPasswordComponent implements OnInit {
       ]],
       confirmPassword: ['', [Validators.required]]
     }, { validators: this.passwordMatchValidator });
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   ngOnInit(): void {

@@ -143,9 +143,10 @@ export class AuthService {
 
   // Cerrar Sesión
   logout(): void {
+    this.clearSession();
     this.http.post(`${this.apiUrl}/logout`, {}).subscribe({
-      next: () => this.clearSession(),
-      error: () => this.clearSession(),
+      next: () => {},
+      error: () => {},
     });
   }
 

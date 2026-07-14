@@ -1,15 +1,17 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ViewEncapsulation, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-forgot-password',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './forgot-password.component.html',
-  styleUrl: './forgot-password.component.css'
+  styleUrl: './forgot-password.component.css',
+  encapsulation: ViewEncapsulation.None
 })
 export class ForgotPasswordComponent {
   forgotForm: FormGroup;
@@ -19,14 +21,21 @@ export class ForgotPasswordComponent {
   successMessage = signal<string | null>(null);
   devToken = signal<string | null>(null);
 
+  isDarkMode = computed(() => this.themeService.isDarkMode());
+
   constructor(
     private readonly fb: FormBuilder,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly themeService: ThemeService
   ) {
     this.forgotForm = this.fb.group({
       correo: ['', [Validators.required, Validators.email]]
     });
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   isFieldInvalid(field: string): boolean {

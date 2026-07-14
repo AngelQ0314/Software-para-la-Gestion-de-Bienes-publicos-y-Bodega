@@ -8,6 +8,7 @@ import { AcademicPeriod } from '../periods/entities/academic-period.entity';
 import { PhysicalSpace } from '../spaces/entities/physical-space.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { User } from '../users/entities/user.entity';
+import { InventoryItemShift } from '../spaces/entities/inventory-item-shift.entity';
 
 @Module({
   imports: [
@@ -18,6 +19,7 @@ import { User } from '../users/entities/user.entity';
       PhysicalSpace,
       InventoryItem,
       User,
+      InventoryItemShift,
     ]),
   ],
   controllers: [IncidentsController],

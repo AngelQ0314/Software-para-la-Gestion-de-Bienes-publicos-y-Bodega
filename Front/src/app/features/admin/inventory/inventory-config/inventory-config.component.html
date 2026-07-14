@@ -1,21 +1,21 @@
 <div class="config-container animate-fade">
   <div class="glass-panel page-header">
     <div class="header-text">
-      <h2>Configuración del Motor de Inventario</h2>
-      <p>Define categorías, crea campos personalizados dinámicos y asócialos a tipos de código.</p>
+      <h2>Configuración de Inventario</h2>
+      <p>Administra las categorías base, define los campos personalizados y asócialos a esquemas de código dinámicos.</p>
     </div>
   </div>
 
   <!-- TABS DE NAVEGACIÓN INTERNA -->
   <div class="tabs-wrapper glass-panel">
     <button class="tab-btn" [class.active-tab]="activeTab() === 'categories'" (click)="setTab('categories')">
-      Categorías / Subcategorías
+      <span class="material-icons-round font-icon-tab">folder_special</span> Categorías y Subcategorías
     </button>
     <button class="tab-btn" [class.active-tab]="activeTab() === 'fields'" (click)="setTab('fields')">
-      Campos Personalizados
+      <span class="material-icons-round font-icon-tab">dynamic_form</span> Campos Personalizados
     </button>
     <button class="tab-btn" [class.active-tab]="activeTab() === 'codetypes'" (click)="setTab('codetypes')">
-      Tipos de Código
+      <span class="material-icons-round font-icon-tab">schema</span> Esquemas y Relación de Campos
     </button>
   </div>
 
@@ -26,31 +26,45 @@
     <div class="tab-content grid-2 animate-fade">
       <!-- Gestión de Categorías -->
       <div class="glass-panel panel-card">
-        <h3 class="panel-title">Categorías Base</h3>
+        <div class="card-header-styled">
+          <span class="material-icons-round card-icon">folder</span>
+          <h3 class="panel-title">Categorías Base</h3>
+        </div>
+        <p class="section-desc">Crea las agrupaciones base (ej. Equipos, Muebles) para clasificar tus bienes o insumos.</p>
         
         <form [formGroup]="categoryForm" (ngSubmit)="onCategorySubmit()" class="panel-form inline-form">
-          <input type="text" class="form-input" placeholder="Nombre Categoría..." formControlName="nombre" />
+          <input type="text" class="form-input" placeholder="Nombre de categoría..." formControlName="nombre" />
           <select class="form-select" formControlName="baseView">
             <option value="BIENES_PUBLICOS">Bienes Públicos</option>
-            <option value="INSUMOS">Insumos y Bodega</option>
+            <option value="INSUMOS">Bodega (Insumos)</option>
             <option value="BIBLIOTECA">Biblioteca</option>
           </select>
           <button type="submit" class="btn btn-primary" [disabled]="categoryForm.invalid">
-            {{ editingCategoryId() ? 'Editar' : 'Agregar' }}
+            {{ editingCategoryId() ? 'Actualizar' : 'Agregar' }}
           </button>
         </form>
 
-        <div class="list-container">
+        <div class="list-container styled-scroll">
           @for (cat of categories(); track cat.id) {
-            <div class="list-item">
+            <div class="list-item-styled">
               <div class="item-info">
-                <strong>{{ cat.nombre }}</strong>
-                <span class="sub-label">{{ formatView(cat.baseView) }}</span>
+                <span class="item-title">{{ cat.nombre }}</span>
+                <span class="badge badge-tab-view">{{ formatView(cat.baseView) }}</span>
               </div>
               <div class="item-actions">
-                <button class="action-btn btn-edit" (click)="editCategory(cat)">Editar</button>
-                <button class="action-btn btn-reset" (click)="deleteCategory(cat.id)">Borrar</button>
+                <button class="action-icon-btn btn-edit-icon" title="Editar" (click)="editCategory(cat)">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button class="action-icon-btn btn-delete-icon" title="Borrar" (click)="deleteCategory(cat.id)">
+                  <span class="material-icons-round">delete</span>
+                </button>
               </div>
+            </div>
+          }
+          @if (categories().length === 0) {
+            <div class="empty-state-card">
+              <span class="material-icons-round empty-icon">folder_off</span>
+              <p>No se han registrado categorías base aún.</p>
             </div>
           }
         </div>
@@ -58,32 +72,46 @@
 
       <!-- Gestión de Subcategorías -->
       <div class="glass-panel panel-card">
-        <h3 class="panel-title">Subcategorías</h3>
+        <div class="card-header-styled">
+          <span class="material-icons-round card-icon">account_tree</span>
+          <h3 class="panel-title">Subcategorías</h3>
+        </div>
+        <p class="section-desc">Desglosa tus categorías base en ítems específicos (ej. Categoría: Cómputo ➔ Subcategoría: Laptops).</p>
         
         <form [formGroup]="subcategoryForm" (ngSubmit)="onSubcategorySubmit()" class="panel-form inline-form">
-          <input type="text" class="form-input" placeholder="Nombre Subcategoría..." formControlName="nombre" />
+          <input type="text" class="form-input" placeholder="Nombre de subcategoría..." formControlName="nombre" />
           <select class="form-select" formControlName="categoriaId">
-            <option value="">Selecciona Categoría...</option>
+            <option value="">Selecciona Categoría Base...</option>
             @for (cat of categories(); track cat.id) {
-              <option [value]="cat.id">{{ cat.nombre }}</option>
+              <option [value]="cat.id">{{ cat.nombre }} ({{ formatView(cat.baseView) }})</option>
             }
           </select>
           <button type="submit" class="btn btn-primary" [disabled]="subcategoryForm.invalid">
-            {{ editingSubcategoryId() ? 'Editar' : 'Agregar' }}
+            {{ editingSubcategoryId() ? 'Actualizar' : 'Agregar' }}
           </button>
         </form>
 
-        <div class="list-container">
+        <div class="list-container styled-scroll">
           @for (sub of subcategories(); track sub.id) {
-            <div class="list-item">
+            <div class="list-item-styled">
               <div class="item-info">
-                <strong>{{ sub.nombre }}</strong>
-                <span class="sub-label">Categoría: {{ sub.categoria?.nombre || 'Desconocida' }}</span>
+                <span class="item-title">{{ sub.nombre }}</span>
+                <span class="sub-label">Pertenece a: <strong>{{ sub.categoria?.nombre || 'Desconocida' }}</strong></span>
               </div>
               <div class="item-actions">
-                <button class="action-btn btn-edit" (click)="editSubcategory(sub)">Editar</button>
-                <button class="action-btn btn-reset" (click)="deleteSubcategory(sub.id)">Borrar</button>
+                <button class="action-icon-btn btn-edit-icon" title="Editar" (click)="editSubcategory(sub)">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button class="action-icon-btn btn-delete-icon" title="Borrar" (click)="deleteSubcategory(sub.id)">
+                  <span class="material-icons-round">delete</span>
+                </button>
               </div>
+            </div>
+          }
+          @if (subcategories().length === 0) {
+            <div class="empty-state-card">
+              <span class="material-icons-round empty-icon">hierarchy</span>
+              <p>No se han registrado subcategorías aún.</p>
             </div>
           }
         </div>
@@ -98,54 +126,58 @@
     <div class="tab-content grid-2 animate-fade">
       <!-- Formulario Campos -->
       <div class="glass-panel panel-card">
-        <h3 class="panel-title">{{ editingFieldId() ? 'Editar Campo' : 'Registrar Nuevo Campo Personalizado' }}</h3>
+        <div class="card-header-styled">
+          <span class="material-icons-round card-icon">add_circle</span>
+          <h3 class="panel-title">{{ editingFieldId() ? 'Editar Campo Personalizado' : 'Nuevo Campo Personalizado' }}</h3>
+        </div>
+        <p class="section-desc">Crea campos dinámicos para capturar atributos técnicos específicos (ej. Memoria RAM, Color, Voltaje).</p>
         
-        <form [formGroup]="fieldForm" (ngSubmit)="onFieldSubmit()" class="panel-form flex-form">
+        <form [formGroup]="fieldForm" (ngSubmit)="onFieldSubmit()" class="panel-form flex-form" style="gap: 15px;">
           <div class="form-group">
-            <label class="form-label">Nombre del Campo</label>
-            <input type="text" class="form-input" placeholder="Ej. Marca, Número de Páginas" formControlName="nombre" />
+            <label class="form-label">Nombre o Etiqueta Visible del Campo*</label>
+            <input type="text" class="form-input" placeholder="Ej. Marca, Número de Puertos, RAM" formControlName="nombre" />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Tipo de Dato</label>
+            <label class="form-label">Tipo de Entrada / Tipo de Dato*</label>
             <select class="form-select" formControlName="tipo" (change)="onFieldTypeChange()">
-              <option value="TEXT">Cadena de Texto (String)</option>
-              <option value="NUMBER_INT">Numérico Entero</option>
-              <option value="NUMBER_DECIMAL">Numérico Decimal</option>
+              <option value="TEXT">Texto Abierto</option>
+              <option value="NUMBER_INT">Número Entero</option>
+              <option value="NUMBER_DECIMAL">Número Decimal / Fraccionario</option>
               <option value="DATE">Fecha</option>
-              <option value="OPTIONS_LIST">Lista de Opciones</option>
+              <option value="OPTIONS_LIST">Lista Desplegable (Opciones múltiples)</option>
             </select>
           </div>
 
           <!-- Sección de Opciones para OPTIONS_LIST -->
           @if (fieldForm.get('tipo')?.value === 'OPTIONS_LIST') {
-            <div class="form-group animate-fade">
-              <label class="form-label">Opciones de la Lista</label>
+            <div class="form-group animate-fade options-wrapper-styled">
+              <label class="form-label">Añadir Opciones a la Lista</label>
               <div class="options-input-wrapper">
-                <input type="text" class="form-input" placeholder="Escribe opción y presiona +" [(ngModel)]="newOption" [ngModelOptions]="{standalone: true}" />
-                <button type="button" class="btn btn-secondary" (click)="addOption()">+</button>
+                <input type="text" class="form-input" placeholder="Escribe la opción y haz clic en +" [(ngModel)]="newOption" [ngModelOptions]="{standalone: true}" (keydown.enter)="$event.preventDefault(); addOption()" />
+                <button type="button" class="btn btn-secondary add-opt-btn" (click)="addOption()">
+                  <span class="material-icons-round">add</span>
+                </button>
               </div>
-              <div class="options-tag-cloud">
+              <div class="options-tag-cloud styled-scroll">
                 @for (opt of tempOptions(); track opt; let idx = $index) {
-                  <span class="option-tag">
+                  <span class="option-tag animate-fade">
                     {{ opt }} <span class="remove-tag" (click)="removeOption(idx)">×</span>
                   </span>
                 }
               </div>
               @if (tempOptions().length === 0) {
-                <span class="error-text">
-                  Debes agregar al menos una opción
-                </span>
+                <span class="error-text">Debes agregar al menos una opción para esta lista.</span>
               }
             </div>
           }
 
-          <div class="form-actions">
+          <div class="form-actions" style="margin-top: 10px;">
             @if (editingFieldId()) {
               <button type="button" class="btn btn-secondary" (click)="cancelFieldEdit()">Cancelar</button>
             }
             <button type="submit" class="btn btn-primary" [disabled]="fieldForm.invalid || (fieldForm.get('tipo')?.value === 'OPTIONS_LIST' && tempOptions().length === 0)">
-              Guardar Campo
+              <span class="material-icons-round" style="font-size: 1.1rem; margin-right: 4px;">save</span> Guardar Campo
             </button>
           </div>
         </form>
@@ -153,22 +185,36 @@
 
       <!-- Listado de Campos -->
       <div class="glass-panel panel-card">
-        <h3 class="panel-title">Campos Existentes</h3>
+        <div class="card-header-styled">
+          <span class="material-icons-round card-icon">list_alt</span>
+          <h3 class="panel-title">Catálogo de Campos Existentes</h3>
+        </div>
+        <p class="section-desc">Estos son todos los atributos dinámicos creados y disponibles para asociar a tus esquemas.</p>
         
-        <div class="list-container">
+        <div class="list-container styled-scroll">
           @for (f of customFields(); track f.id) {
-            <div class="list-item">
-              <div class="item-info">
-                <strong>{{ f.nombre }}</strong>
-                <span class="sub-label">Tipo: {{ f.tipo }}</span>
-                @if (f.opciones) {
-                  <span class="sub-label italic">Opciones: {{ f.opciones.join(', ') }}</span>
+            <div class="list-item-styled">
+              <div class="item-info" style="max-width: 75%;">
+                <span class="item-title">{{ f.nombre }}</span>
+                <span class="badge badge-field-type">{{ f.tipo === 'OPTIONS_LIST' ? 'Desplegable' : f.tipo }}</span>
+                @if (f.opciones && f.opciones.length > 0) {
+                  <span class="sub-label italic" style="margin-top: 4px;">Opciones: {{ f.opciones.join(', ') }}</span>
                 }
               </div>
               <div class="item-actions">
-                <button class="action-btn btn-edit" (click)="editField(f)">Editar</button>
-                <button class="action-btn btn-reset" (click)="deleteField(f.id)">Borrar</button>
+                <button class="action-icon-btn btn-edit-icon" title="Editar" (click)="editField(f)">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button class="action-icon-btn btn-delete-icon" title="Borrar" (click)="deleteField(f.id)">
+                  <span class="material-icons-round">delete</span>
+                </button>
               </div>
+            </div>
+          }
+          @if (customFields().length === 0) {
+            <div class="empty-state-card">
+              <span class="material-icons-round empty-icon">assignment_late</span>
+              <p>No se han creado campos personalizados aún.</p>
             </div>
           }
         </div>
@@ -183,82 +229,111 @@
     <div class="tab-content grid-2 animate-fade">
       <!-- Gestión Tipos de Código -->
       <div class="glass-panel panel-card">
-        <h3 class="panel-title">Tipos de Código</h3>
+        <div class="card-header-styled">
+          <span class="material-icons-round card-icon">qr_code</span>
+          <h3 class="panel-title">Esquemas de Código / Clasificadores</h3>
+        </div>
+        <p class="section-desc">Crea esquemas de agrupación técnica (ej. Sillas, Computadoras, Proyectores) para vincular sus características únicas.</p>
         
         <form [formGroup]="codeTypeForm" (ngSubmit)="onCodeTypeSubmit()" class="panel-form inline-form">
-          <input type="text" class="form-input" placeholder="Nombre Tipo..." formControlName="nombre" />
+          <input type="text" class="form-input" placeholder="Ej. EQUIPO COMPUTO, VEHICULOS..." formControlName="nombre" />
           <button type="submit" class="btn btn-primary" [disabled]="codeTypeForm.invalid">
-            {{ editingCodeTypeId() ? 'Editar' : 'Agregar' }}
+            {{ editingCodeTypeId() ? 'Actualizar' : 'Agregar' }}
           </button>
         </form>
 
-        <div class="list-container">
+        <div class="list-container styled-scroll" style="max-height: 480px;">
           @for (ct of codeTypes(); track ct.id) {
-            <div class="list-item" [class.selected-item]="selectedCodeType()?.id === ct.id" (click)="selectCodeType(ct)">
+            <div class="list-item-styled clickable-list-item" [class.selected-item-styled]="selectedCodeType()?.id === ct.id" (click)="selectCodeType(ct)">
               <div class="item-info">
-                <strong>{{ ct.nombre }}</strong>
-                <span class="sub-label clickable">Configurar campos</span>
+                <span class="item-title" style="display: flex; align-items: center; gap: 8px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem; color: var(--color-primary);">wysiwyg</span>
+                  {{ ct.nombre }}
+                </span>
+                <span class="sub-label clickable">Configurar campos de este esquema</span>
               </div>
               <div class="item-actions" (click)="$event.stopPropagation()">
-                <button class="action-btn btn-edit" (click)="editCodeType(ct)">Editar</button>
-                <button class="action-btn btn-reset" (click)="deleteCodeType(ct.id)">Borrar</button>
+                <button class="action-icon-btn btn-edit-icon" title="Editar" (click)="editCodeType(ct)">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button class="action-icon-btn btn-delete-icon" title="Borrar" (click)="deleteCodeType(ct.id)">
+                  <span class="material-icons-round">delete</span>
+                </button>
               </div>
+            </div>
+          }
+          @if (codeTypes().length === 0) {
+            <div class="empty-state-card">
+              <span class="material-icons-round empty-icon">qr_code_scanner</span>
+              <p>No se han registrado esquemas de código aún.</p>
             </div>
           }
         </div>
       </div>
 
       <!-- Configuración de Asociación de Campos -->
-      <div class="glass-panel panel-card">
-        <h3 class="panel-title">
-          Campos Asignados a: <span class="active-code-name">{{ selectedCodeType()?.nombre || 'Ninguno seleccionado' }}</span>
-        </h3>
+      <div class="glass-panel panel-card card-assoc-container">
+        <div class="card-header-styled">
+          <span class="material-icons-round card-icon" style="color: var(--color-success);">playlist_add_check</span>
+          <h3 class="panel-title">
+            Relación de Campos: <span class="active-code-name">{{ selectedCodeType()?.nombre || 'Ninguno seleccionado' }}</span>
+          </h3>
+        </div>
 
         @if (selectedCodeType()) {
-          <div class="association-body">
-            <p class="section-desc">Selecciona qué campos se solicitarán para este tipo de código, define su orden de aparición y si son obligatorios.</p>
+          <div class="association-body animate-fade">
+            <p class="section-desc" style="margin-bottom: 20px;">
+              Marca los campos que se solicitarán obligatoriamente o de forma opcional para el esquema <strong>{{ selectedCodeType()?.nombre }}</strong> y asigna su orden de visualización.
+            </p>
 
-            <div class="fields-association-list">
+            <div class="fields-association-list styled-scroll">
               @for (assoc of tempAssociations(); track assoc.field.id; let idx = $index) {
-                <div class="assoc-item">
-                  <div class="assoc-checkbox">
-                    <label class="checkbox-label-compact">
+                <div class="assoc-card-item" [class.assoc-active]="assoc.selected">
+                  <div class="assoc-header-row">
+                    <label class="modern-switch-container">
                       <input type="checkbox" [checked]="assoc.selected" (change)="onAssocToggle(idx, $event)" />
-                      <span class="checkbox-custom"></span>
-                      <strong>{{ assoc.field.nombre }}</strong>
+                      <span class="slider"></span>
+                      <span class="switch-label-text">{{ assoc.field.nombre }}</span>
                     </label>
-                    <span class="field-type-tag">{{ assoc.field.tipo }}</span>
+                    <span class="badge badge-field-type-compact">{{ assoc.field.tipo }}</span>
                   </div>
 
                   @if (assoc.selected) {
-                    <div class="assoc-details animate-fade">
-                      <div class="assoc-group">
-                        <label class="compact-label">Orden</label>
-                        <input type="number" class="form-input compact-input" [(ngModel)]="assoc.orden" />
+                    <div class="assoc-details-panel animate-slide">
+                      <div class="assoc-input-group">
+                        <label class="compact-label-styled">Posición / Orden</label>
+                        <input type="number" class="form-input compact-input-styled" [(ngModel)]="assoc.orden" min="1" />
                       </div>
-                      <div class="assoc-group">
-                        <label class="checkbox-label-compact mt-2">
+                      <div class="assoc-input-group checkbox-align">
+                        <label class="modern-checkbox-container">
                           <input type="checkbox" [(ngModel)]="assoc.isMandatory" />
-                          <span class="checkbox-custom"></span>
-                          Obligatorio
+                          <span class="checkmark"></span>
+                          <span class="checkbox-label-text">¿Es obligatorio?</span>
                         </label>
                       </div>
                     </div>
                   }
                 </div>
               }
+              @if (tempAssociations().length === 0) {
+                <div class="empty-state-card" style="padding: 20px;">
+                  <span class="material-icons-round empty-icon">warning_amber</span>
+                  <p>Crea campos personalizados primero en la pestaña anterior para poder asociarlos a este esquema.</p>
+                </div>
+              }
             </div>
 
-            <div class="modal-actions">
-              <button class="btn btn-primary" (click)="saveAssociations()">
-                Guardar Configuración
+            <div class="modal-actions" style="border-top: 1px solid var(--border-color); padding-top: 15px;">
+              <button class="btn btn-primary btn-lg-save" (click)="saveAssociations()">
+                <span class="material-icons-round" style="font-size: 1.2rem; margin-right: 6px;">verified</span> Guardar Configuración de Campos
               </button>
             </div>
           </div>
         } @else {
-          <div class="no-selection-card text-center">
-            <span class="no-select-icon">👈</span>
-            <p>Selecciona un tipo de código de la lista para configurar e hilvanar sus campos dinámicos.</p>
+          <div class="no-selection-container animate-fade">
+            <span class="material-icons-round select-arrow-icon">arrow_back</span>
+            <h4>Configurar Relación de Campos</h4>
+            <p>Selecciona un esquema de código de la lista de la izquierda para definir qué campos se le solicitarán al usuario y su orden de aparición.</p>
           </div>
         }
       </div>

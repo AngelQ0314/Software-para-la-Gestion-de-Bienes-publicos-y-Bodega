@@ -1,0 +1,264 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Reportar Novedades / Incidencias</h2>
+      <p>Reporta daños, pérdidas o robos de bienes públicos asignados a tus aulas para su respectivo seguimiento.</p>
+    </div>
+    <div class="header-buttons">
+      <button class="btn btn-danger" (click)="openCreateModal()">
+        <span class="material-icons-round" style="font-size:1.1rem">report_problem</span>
+        Reportar Novedad
+      </button>
+    </div>
+  </div>
+
+  <!-- Rejilla de Reportes -->
+  <div class="cards-layout-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-container">
+          <div class="spinner-core"></div>
+        </div>
+        <p>Cargando reportes de novedad...</p>
+      </div>
+    } @else {
+      @if (incidents().length > 0) {
+        <div class="users-grid">
+          @for (inc of incidents(); track inc.id) {
+            <div class="glass-card user-profile-card">
+              <div class="user-card-header">
+                <div class="user-card-avatar" 
+                     [style.background]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.15)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(244, 63, 94, 0.15)')"
+                     [style.border-color]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.3)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(244, 63, 94, 0.3)')">
+                  <span class="material-icons-round"
+                    [style.color]="inc.status === 'RESUELTO' ? '#10b981' : (inc.status === 'REVISADO' ? '#f59e0b' : '#f43f5e')">
+                    warning_amber
+                  </span>
+                </div>
+                <div class="user-card-title-group">
+                  <h3 class="user-card-fullname">Aula {{ inc.space?.roomNumber }}</h3>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge" [ngClass]="{
+                      'badge-activo': inc.status === 'RESUELTO',
+                      'badge-inactivo': inc.status === 'REVISADO',
+                      'badge-dado-de-baja': inc.status === 'PENDIENTE'
+                    }">
+                      {{ formatStatus(inc.status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-card-body">
+                <div class="info-row">
+                  <span class="info-label">Jornada:</span>
+                  <span class="info-value">{{ formatJornada(inc.jornada) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Fecha de Reporte:</span>
+                  <span class="info-value font-mono">{{ inc.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Items Afectados:</span>
+                  <span class="info-value font-mono">{{ inc.items?.length || 0 }} items</span>
+                </div>
+                <p class="description-preview" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                  {{ inc.description | slice:0:70 }}{{ inc.description.length > 70 ? '...' : '' }}
+                </p>
+              </div>
+
+              <div class="user-card-actions">
+                <button class="btn btn-secondary btn-block" (click)="openDetailModal(inc)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                  Ver Detalles
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-panel">
+          <p>No has registrado reportes de novedad o incidencias.</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- MODAL: REGISTRAR REPORTE -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide modal-card-lg">
+        <div class="modal-header">
+          <h3>Reportar Novedad / Incidencia</h3>
+          <button class="close-btn" (click)="closeCreateModal()">×</button>
+        </div>
+
+        <form [formGroup]="incidentForm" (ngSubmit)="onSubmitIncident()" class="modal-form">
+          <div class="modal-grid-2">
+            <!-- Izquierda: Formulario -->
+            <div class="modal-column">
+              <h4>Datos de la Incidencia</h4>
+
+              <div class="form-group" style="margin-top: 15px;">
+                <label class="form-label">Aula / Espacio*</label>
+                <select class="form-select" formControlName="spaceId">
+                  <option value="">-- Elige un Aula --</option>
+                  @for (s of mySpaces(); track s.id) {
+                    <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Jornada*</label>
+                <select class="form-select" formControlName="jornada" [disabled]="!selectedSpaceId()">
+                  <option value="">-- Elige la Jornada --</option>
+                  @for (j of availableJornadas(); track j) {
+                    <option [value]="j">{{ formatJornada(j) }}</option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Estado Físico del Bien*</label>
+                <select class="form-select" formControlName="estadoFisico">
+                  <option value="REGULAR">Regular (Presenta fallas o averías leves)</option>
+                  <option value="MALO">Malo (Inoperable o inservible)</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="desc">Descripción / Observación*</label>
+                <textarea id="desc" class="form-input" rows="4" 
+                          placeholder="Describe detalladamente lo ocurrido (ej: daños específicos, faltantes, etc.)..."
+                          formControlName="description"></textarea>
+                @if (incidentForm.get('description')?.touched && incidentForm.get('description')?.invalid) {
+                  <span class="error-text">La descripción debe tener al menos 10 caracteres.</span>
+                }
+              </div>
+            </div>
+
+            <!-- Derecha: Artículos Afectados -->
+            <div class="modal-column">
+              <h4>Selecciona los Artículos Afectados*</h4>
+
+              @if (itemsLoading()) {
+                <div class="loading-state" style="padding: 20px 0;">
+                  <div class="spinner-container" style="width: 30px; height: 30px;">
+                    <div class="spinner-core"></div>
+                  </div>
+                  <p style="font-size: 0.8rem;">Cargando inventario del aula...</p>
+                </div>
+              } @else {
+                <div class="checkboxes-list">
+                  @for (item of availableItems(); track item.id) {
+                    <label class="checkbox-card" [class.selected]="selectedItemIds().includes(item.id)">
+                      <input type="checkbox"
+                             [checked]="selectedItemIds().includes(item.id)"
+                             (change)="toggleItemSelection(item.id)" />
+                      <div class="checkbox-card-content">
+                        <span class="checkbox-card-code">[{{ item.codeValue || '--' }}]</span>
+                        <span class="checkbox-card-name">{{ item.name || 'Artículo sin nombre' }}</span>
+                        <span class="checkbox-card-qty">Cantidad asignada: {{ item.cantidad || 1 }}</span>
+                      </div>
+                    </label>
+                  } @empty {
+                    <p style="text-align: center; color: var(--text-muted); font-style: italic; padding: 30px 0; font-size: 0.85rem;">
+                      {{ incidentForm.value.jornada ? 'No hay bienes registrados en esta jornada.' : 'Selecciona un aula y jornada primero.' }}
+                    </p>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">Cancelar</button>
+            <button type="submit" class="btn btn-danger" [disabled]="incidentForm.invalid || selectedItemIds().length === 0 || modalLoading()">
+              Registrar Reporte
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: DETALLE DE REPORTE -->
+  @if (showDetailModal() && selectedIncident()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Detalle de la Incidencia</h3>
+          <button class="close-btn" (click)="closeDetailModal()">×</button>
+        </div>
+        
+        <div class="modal-form">
+          <div class="info-row">
+            <span class="info-label">Aula:</span>
+            <span class="info-value font-bold">{{ selectedIncident()!.space?.roomNumber }} - {{ selectedIncident()!.space?.name }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Jornada / Fecha:</span>
+            <span class="info-value font-mono">
+              {{ formatJornada(selectedIncident()!.jornada) }} | {{ selectedIncident()!.createdAt | date:'dd/MM/yyyy HH:mm' }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Estado:</span>
+            <span class="badge" [ngClass]="{
+              'badge-activo': selectedIncident()!.status === 'RESUELTO',
+              'badge-inactivo': selectedIncident()!.status === 'REVISADO',
+              'badge-dado-de-baja': selectedIncident()!.status === 'PENDIENTE'
+            }">
+              {{ formatStatus(selectedIncident()!.status) }}
+            </span>
+          </div>
+          
+          <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 10px;">
+            <span class="info-label">Descripción del Docente:</span>
+            <span class="info-value" style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; width: 100%; white-space: pre-wrap;">
+              {{ selectedIncident()!.description }}
+            </span>
+          </div>
+
+          <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 15px; margin-bottom: 8px;">Artículos Afectados</h4>
+          <div class="assigned-items-table-container" style="max-height: 150px;">
+            <table class="assigned-items-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Artículo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of selectedIncident()!.items; track item.id) {
+                  <tr>
+                    <td class="font-mono">{{ item.item?.codeValue || 'S/C' }}</td>
+                    <td>{{ item.item?.name || 'Artículo sin nombre' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeDetailModal()">Cerrar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

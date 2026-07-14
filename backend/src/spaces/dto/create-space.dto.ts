@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsInt,
   Min,
+  Max,
   IsArray,
   IsUUID,
   IsOptional,
@@ -32,6 +33,7 @@ export class CreateSpaceDto {
 
   @IsInt({ message: 'La capacidad debe ser un número entero.' })
   @Min(1, { message: 'La capacidad mínima debe ser 1 persona.' })
+  @Min(1) @Max(500, { message: 'La capacidad máxima permitida es de 500 personas.' })
   capacity: number;
 
   @IsArray({ message: 'Las jornadas deben enviarse como una lista.' })

@@ -33,4 +33,8 @@ export class CreateInventoryItemDto {
   @IsObject({ message: 'Los valores dinámicos deben enviarse como un objeto.' })
   @IsOptional()
   dynamicValues?: Record<string, any> = {};
+
+  @IsString({ message: 'El estado físico debe ser un texto.' })
+  @IsOptional()
+  estadoFisico?: string;
 }

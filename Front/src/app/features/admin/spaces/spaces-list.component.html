@@ -1,0 +1,637 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado de la página -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Gestión de Espacios Físicos</h2>
+      <p>Administra las aulas, laboratorios, talleres, oficinas y bodegas, asignando docentes y elementos del inventario.</p>
+    </div>
+    <div class="header-buttons">
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="material-icons-round" style="font-size:1.1rem">add</span>
+        Registrar Nuevo Espacio
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar">
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+      <div class="filter-group">
+        <label class="form-label">Código / Número</label>
+        <input type="text" class="form-input" placeholder="Ej: LAB-3..." formControlName="roomNumber" />
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Nombre del Espacio</label>
+        <input type="text" class="form-input" placeholder="Ej: Laboratorio de modas..." formControlName="name" />
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Tipo de Espacio</label>
+        <select class="form-select" formControlName="type">
+          <option value="">Todos</option>
+          <option value="AULA">Aula</option>
+          <option value="LABORATORIO">Laboratorio</option>
+          <option value="TALLER">Taller</option>
+          <option value="OFICINA">Oficina</option>
+          <option value="BODEGA">Bodega</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Ubicación</label>
+        <input type="text" class="form-input" placeholder="Ej: Bloque B..." formControlName="location" />
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-filter">
+          <span class="material-icons-round" style="font-size:1.1rem">search</span>
+          Filtrar
+        </button>
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Listado de Espacios -->
+  <div class="cards-layout-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-container">
+          <div class="spinner-core"></div>
+        </div>
+        <p>Cargando espacios físicos...</p>
+      </div>
+    } @else {
+      @if (spaces().length > 0) {
+        <div class="users-grid">
+          @for (space of spaces(); track space.id) {
+            <div class="glass-card user-profile-card card-clickable" (click)="openSpaceDetails(space)" style="cursor: pointer; transition: all 0.2s ease;">
+              <div class="user-card-header">
+                <div class="user-card-avatar" style="background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); display: flex; align-items: center; justify-content: center;">
+                  <span class="material-icons-round" style="color: var(--color-primary); font-size: 1.4rem;">meeting_room</span>
+                </div>
+                <div class="user-card-title-group">
+                  <h3 class="user-card-fullname">{{ space.name }}</h3>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="user-card-role-badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">
+                      {{ space.roomNumber }}
+                    </span>
+                    <span class="badge badge-activo">{{ formatType(space.type) }}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-card-body">
+                <div class="info-row">
+                  <span class="info-label">Ubicación:</span>
+                  <span class="info-value">{{ space.location }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Capacidad:</span>
+                  <span class="info-value font-mono">{{ space.capacity }} estudiantes</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Jornadas:</span>
+                  <span class="info-value">
+                    @for (jornada of space.jornadas; track $index) {
+                      <span class="sub-tag" style="background: rgba(16, 185, 129, 0.12); color: #10b981; margin-right: 4px;">{{ jornada }}</span>
+                    }
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Responsables:</span>
+                  <span class="info-value">
+                    @for (teacher of space.responsibleTeachers; track teacher.id) {
+                      <div class="teacher-row-tag" style="display: inline-flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 0.9rem;">person</span>
+                        {{ teacher.nombres }} {{ teacher.apellidos }}
+                      </div>
+                    } @empty {
+                      <span class="text-muted italic" style="font-size: 0.82rem;">Sin docentes asignados</span>
+                    }
+                  </span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Artículos Asignados:</span>
+                  <span class="info-value font-mono" style="font-weight: 700; color: #fb7185;">
+                    {{ space.items?.length || 0 }} ítems
+                  </span>
+                </div>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-panel">
+          <p>No se encontraron espacios físicos registrados.</p>
+        </div>
+      }
+    }
+  </div>
+
+
+  <!-- MODAL: VINCULAR DOCENTES RESPONSABLES -->
+  @if (showTeachersModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Docentes Responsables: {{ selectedSpace()?.roomNumber }}</h3>
+          <button class="close-btn" (click)="closeTeachersModal()">×</button>
+        </div>
+        <form [formGroup]="teachersForm" (ngSubmit)="onTeachersSubmit()" class="modal-form">
+          <p class="modal-hint">Selecciona los docentes asignados al espacio físico actual.</p>
+          
+          <div class="teachers-selection-scroll">
+            @for (t of teachers(); track t.id) {
+              <label class="teacher-checkbox-row">
+                <input type="checkbox" [formControlName]="t.id" />
+                <div class="teacher-row-info">
+                  <span class="teacher-name">{{ t.nombres }} {{ t.apellidos }}</span>
+                  <span class="teacher-meta">Cédula: {{ t.cedula }} | {{ t.correoInstitucional }}</span>
+                </div>
+              </label>
+            } @empty {
+              <div class="empty-state">
+                <p>No se encontraron docentes activos registrados.</p>
+              </div>
+            }
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeTeachersModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="modalLoading()">
+              Guardar Vinculación
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: ASIGNAR ELEMENTOS DE INVENTARIO -->
+  @if (showInventoryModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide modal-card-lg">
+        <div class="modal-header">
+          <h3>Inventario del Espacio: {{ selectedSpace()?.roomNumber }}</h3>
+          <button class="close-btn" (click)="closeInventoryModal()">×</button>
+        </div>
+        
+        <div class="modal-grid-2">
+          <!-- Lado Izquierdo: Agregar Item -->
+          <div class="modal-column">
+            <h4>Asignar Nuevo Elemento</h4>
+            <div class="form-grid-2" style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-top: 15px;">
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.72rem;">Tipo</label>
+                <select class="form-select" (change)="updateItemFilterView($any($event.target).value)" style="padding: 8px 12px; font-size: 0.8rem;">
+                  <option value="">Todos</option>
+                  @for (view of inventoryViews(); track view.id) {
+                    <option [value]="view.id" [selected]="selectedFilterView() === view.id">
+                      {{ view.name }}
+                    </option>
+                  }
+                </select>
+              </div>
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.72rem;">Buscar Artículo</label>
+                <input type="text" class="form-input" placeholder="Buscar por código o nombre..." 
+                       #searchField [value]="itemSearchQuery()" (input)="updateItemSearch(searchField.value)" style="padding: 8px 12px;" />
+              </div>
+            </div>
+
+            <form [formGroup]="inventoryForm" (ngSubmit)="addTempItem()" class="modal-form" style="margin-top: 10px;">
+              <div class="form-group">
+                <label class="form-label" style="font-size: 0.72rem;">Seleccionar Artículo*</label>
+                <select class="form-select" formControlName="selectedItemId" style="padding: 8px 12px;">
+                  <option value="">-- Elige un artículo --</option>
+                  @for (item of filteredInventoryItems(); track item.id) {
+                    <option [value]="item.id">
+                      [{{ item.codigoYavirac }}] {{ item.name }} - {{ item.subcategoria?.nombre || 'General' }} (Stock: {{ item.cantidad || 1 }})
+                    </option>
+                  }
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Cantidad a Trasladar*</label>
+                <input type="number" class="form-input" min="1" step="1" formControlName="assignQuantity" />
+                <span class="error-text" *ngIf="inventoryForm.get('assignQuantity')?.touched && inventoryForm.get('assignQuantity')?.invalid" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger);">
+                  Mínimo 1
+                </span>
+              </div>
+
+              <button type="submit" class="btn btn-secondary btn-block" [disabled]="inventoryForm.invalid">
+                + Añadir a la lista temporal
+              </button>
+            </form>
+          </div>
+
+          <!-- Lado Derecho: Lista temporal / Actual -->
+          <div class="modal-column">
+            <h4>Artículos a ser Asignados</h4>
+            
+            <div class="assigned-items-table-container">
+              <table class="assigned-items-table">
+                <thead>
+                  <tr>
+                    <th>Código</th>
+                    <th>Nombre</th>
+                    <th>Cantidad</th>
+                    <th style="width: 50px;"></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (item of assignedItemsTemp(); track $index) {
+                    <tr>
+                      <td class="font-mono">{{ item.codeValue }}</td>
+                      <td>{{ item.name }}</td>
+                      <td class="font-mono">{{ item.cantidad }}</td>
+                      <td>
+                        <button class="btn-delete-row" (click)="removeTempItem($index)">×</button>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="4" class="empty-table-cell">No hay elementos seleccionados.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Alertas -->
+        @if (errorMessage()) {
+          <div class="alert-box error-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+            <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+          </div>
+        }
+        @if (successMessage()) {
+          <div class="alert-box success-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+            <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+          </div>
+        }
+
+        <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+          <button type="button" class="btn btn-secondary" (click)="closeInventoryModal()">Cancelar</button>
+          <button type="button" class="btn btn-primary" [disabled]="modalLoading()" (click)="onInventorySubmit()">
+            Confirmar y Asignar
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: FICHA DETALLADA DEL ESPACIO FÍSICO (UNIFICADO) -->
+  @if (showDetailModal() && selectedSpace()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide modal-card-lg">
+        <div class="modal-header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <div class="user-card-avatar" style="background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.3); display: flex; align-items: center; justify-content: center; width: 42px; height: 42px;">
+              <span class="material-icons-round" style="color: var(--color-primary); font-size: 1.3rem;">meeting_room</span>
+            </div>
+            <div>
+              <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Ficha del Espacio: {{ selectedSpace()!.name }}</h3>
+              <span style="font-size: 0.8rem; color: var(--text-secondary); font-family: monospace;">Código: {{ selectedSpace()!.roomNumber }}</span>
+            </div>
+          </div>
+          <button class="close-btn" (click)="closeSpaceDetails()">×</button>
+        </div>
+
+        <!-- Pestañas de Navegación -->
+        <div class="modal-tabs" style="display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 10px;">
+          <button class="tab-btn" [class.active]="activeTab() === 'info'" (click)="activeTab.set('info')" 
+                  style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            <span class="material-icons-round" style="font-size: 1.1rem;">info</span>
+            Ficha Técnica
+          </button>
+          <button class="tab-btn" [class.active]="activeTab() === 'docentes'" (click)="activeTab.set('docentes')"
+                  style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            <span class="material-icons-round" style="font-size: 1.1rem;">group</span>
+            Docentes Responsables
+          </button>
+          <button class="tab-btn" [class.active]="activeTab() === 'inventario'" (click)="activeTab.set('inventario')"
+                  style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+            <span class="material-icons-round" style="font-size: 1.1rem;">inventory_2</span>
+            Inventario Asignado
+          </button>
+        </div>
+
+
+        <!-- Contenido de las Pestañas -->
+        <div class="tab-content" style="min-height: 250px;">
+          <!-- 1. Pestaña: Ficha Técnica -->
+          @if (activeTab() === 'info') {
+            <div style="display: flex; flex-direction: column; gap: 20px;">
+              <div class="grid-2" style="gap: 20px;">
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px;">
+                  <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Nombre del Aula</span>
+                  <p style="margin: 5px 0 0 0; font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">{{ selectedSpace()!.name }}</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px;">
+                  <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Código Identificador</span>
+                  <p style="margin: 5px 0 0 0; font-size: 1.05rem; font-weight: 700; font-family: monospace; color: var(--text-primary);">{{ selectedSpace()!.roomNumber }}</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px;">
+                  <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Ubicación Física</span>
+                  <p style="margin: 5px 0 0 0; font-size: 0.95rem; color: var(--text-secondary);">{{ selectedSpace()!.location }}</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px;">
+                  <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Capacidad Autorizada</span>
+                  <p style="margin: 5px 0 0 0; font-size: 0.95rem; font-weight: 600; color: var(--text-secondary);">{{ selectedSpace()!.capacity }} estudiantes</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px;">
+                  <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Tipo de Espacio</span>
+                  <p style="margin: 5px 0 0 0; font-size: 0.95rem; color: var(--text-secondary);">{{ formatType(selectedSpace()!.type) }}</p>
+                </div>
+                <div style="background: rgba(255,255,255,0.01); border: 1px solid var(--border-color); padding: 15px; border-radius: 12px;">
+                  <span style="font-size: 0.75rem; text-transform: uppercase; color: var(--text-muted); font-weight: 700; letter-spacing: 0.05em;">Jornadas Académicas</span>
+                  <div style="margin-top: 6px; display: flex; flex-wrap: wrap; gap: 6px;">
+                    @for (jornada of selectedSpace()!.jornadas; track $index) {
+                      <span class="sub-tag" style="background: rgba(16, 185, 129, 0.12); color: #10b981; margin: 0; padding: 4px 8px; font-size: 0.75rem;">{{ jornada }}</span>
+                    }
+                  </div>
+                </div>
+              </div>
+
+              <!-- Botones de administración -->
+              <div style="display: flex; gap: 12px; margin-top: 15px; justify-content: flex-end; border-top: 1px solid var(--border-color); padding-top: 20px;">
+                <button class="btn btn-secondary" (click)="openEditModal(selectedSpace()!)" style="display: flex; align-items: center; gap: 8px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">edit</span>
+                  Editar Espacio
+                </button>
+                <button class="btn btn-danger" (click)="deleteSpace(selectedSpace()!)" style="display: flex; align-items: center; gap: 8px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">delete</span>
+                  Eliminar Espacio
+                </button>
+              </div>
+            </div>
+          }
+
+          <!-- 2. Pestaña: Docentes Responsables -->
+          @if (activeTab() === 'docentes') {
+            <form [formGroup]="teachersForm" (ngSubmit)="onTeachersSubmit()" class="modal-form">
+              <p class="modal-hint" style="margin-bottom: 12px;">Selecciona los docentes asignados al espacio físico actual.</p>
+              
+              <div class="form-group" style="margin-bottom: 12px;">
+                <label class="form-label" style="font-size: 0.72rem;">Buscar Docente</label>
+                <input type="text" class="form-input" placeholder="Buscar por nombre, cédula o correo..." 
+                       #teacherSearchField (input)="updateTeacherSearch(teacherSearchField.value)" style="padding: 8px 12px;" />
+              </div>
+
+              <div class="teachers-selection-scroll" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+                @for (t of filteredTeachers(); track t.id) {
+                  <label class="teacher-checkbox-row" style="display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer;">
+                    <input type="checkbox" [formControlName]="t.id" />
+                    <div class="teacher-row-info" style="display: flex; flex-direction: column;">
+                      <span class="teacher-name" style="font-weight: 600; font-size: 0.9rem;">{{ t.nombres }} {{ t.apellidos }}</span>
+                      <span class="teacher-meta" style="font-size: 0.75rem; color: var(--text-muted);">Cédula: {{ t.cedula }} | {{ t.correoInstitucional }}</span>
+                    </div>
+                  </label>
+                } @empty {
+                  <div class="empty-state" style="padding: 20px; text-align: center; color: var(--text-muted);">
+                    <p>No se encontraron docentes que coincidan con la búsqueda.</p>
+                  </div>
+                }
+              </div>
+
+
+              <!-- Alertas -->
+              @if (errorMessage()) {
+                <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                  <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+                </div>
+              }
+              @if (successMessage()) {
+                <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                  <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+                </div>
+              }
+
+              <div class="modal-actions" style="margin-top: 15px;">
+                <button type="submit" class="btn btn-primary" [disabled]="modalLoading()">
+                  Guardar Vinculación
+                </button>
+              </div>
+            </form>
+          }
+
+          <!-- 3. Pestaña: Inventario Asignado -->
+          @if (activeTab() === 'inventario') {
+            <div class="modal-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+              <!-- Lado Izquierdo: Agregar Item -->
+              <div class="modal-column">
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 10px;">Asignar Nuevo Elemento</h4>
+                <div class="form-grid-2" style="display: grid; grid-template-columns: 120px 1fr; gap: 10px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size: 0.72rem;">Tipo</label>
+                    <select class="form-select" (change)="updateItemFilterView($any($event.target).value)" style="padding: 8px 12px; font-size: 0.8rem;">
+                      <option value="">Todos</option>
+                      @for (view of inventoryViews(); track view.id) {
+                        <option [value]="view.id" [selected]="selectedFilterView() === view.id">
+                          {{ view.name }}
+                        </option>
+                      }
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label class="form-label" style="font-size: 0.72rem;">Buscar Artículo</label>
+                    <input type="text" class="form-input" placeholder="Buscar por código o nombre..." 
+                           #searchField [value]="itemSearchQuery()" (input)="updateItemSearch(searchField.value)" style="padding: 8px 12px;" />
+                  </div>
+                </div>
+
+                <form [formGroup]="inventoryForm" (ngSubmit)="addTempItem()" class="modal-form" style="gap: 12px; margin-top: 10px;">
+                  <div class="form-group">
+                    <label class="form-label" style="font-size: 0.72rem;">Seleccionar Artículo*</label>
+                    <select class="form-select" formControlName="selectedItemId" style="padding: 8px 12px;">
+                      <option value="">-- Elige un artículo --</option>
+                      @for (item of filteredInventoryItems(); track item.id) {
+                        <option [value]="item.id">
+                          [{{ item.codigoYavirac }}] {{ item.name }} - {{ item.subcategoria?.nombre || 'General' }} (Stock: {{ item.cantidad || 1 }})
+                        </option>
+                      }
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label class="form-label" style="font-size: 0.72rem;">Cantidad a Trasladar*</label>
+                    <input type="number" class="form-input" min="1" max="500" step="1" formControlName="assignQuantity" style="padding: 8px 12px;" />
+                    <span class="error-text" *ngIf="inventoryForm.get('assignQuantity')?.touched && inventoryForm.get('assignQuantity')?.invalid" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger);">
+                      Rango permitido: 1 a 500
+                    </span>
+                  </div>
+
+                  <button type="submit" class="btn btn-secondary btn-block" [disabled]="inventoryForm.invalid">
+                    + Añadir a la lista temporal
+                  </button>
+                </form>
+              </div>
+
+              <!-- Lado Derecho: Lista temporal / Actual -->
+              <div class="modal-column">
+                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 10px;">Artículos a ser Asignados</h4>
+                
+                <div class="assigned-items-table-container" style="max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); border-radius: 8px;">
+                  <table class="assigned-items-table" style="width: 100%; border-collapse: collapse;">
+                    <thead>
+                      <tr style="border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02);">
+                        <th style="padding: 8px; text-align: left; font-size: 0.75rem; color: var(--text-secondary);">Código</th>
+                        <th style="padding: 8px; text-align: left; font-size: 0.75rem; color: var(--text-secondary);">Nombre</th>
+                        <th style="padding: 8px; text-align: left; font-size: 0.75rem; color: var(--text-secondary);">Cantidad</th>
+                        <th style="width: 40px;"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (item of assignedItemsTemp(); track $index) {
+                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
+                          <td class="font-mono" style="padding: 8px; font-size: 0.8rem;">{{ item.codeValue }}</td>
+                          <td style="padding: 8px; font-size: 0.8rem;">{{ item.name }}</td>
+                          <td class="font-mono" style="padding: 8px; font-size: 0.8rem;">{{ item.cantidad }}</td>
+                          <td style="padding: 8px;">
+                            <button class="btn-delete-row" (click)="removeTempItem($index)" style="background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 1.1rem; line-height: 1;">×</button>
+                          </td>
+                        </tr>
+                      } @empty {
+                        <tr>
+                          <td colspan="4" class="empty-table-cell" style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No hay elementos seleccionados.</td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+
+            <!-- Alertas -->
+            @if (errorMessage()) {
+              <div class="alert-box error-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+                <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+              </div>
+            }
+            @if (successMessage()) {
+              <div class="alert-box success-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+                <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+              </div>
+            }
+
+            <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+              <button type="button" class="btn btn-primary" [disabled]="modalLoading()" (click)="onInventorySubmit()">
+                Confirmar y Asignar
+              </button>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: REGISTRAR / EDITAR ESPACIO -->
+  @if (showCreateModal() || showEditModal()) {
+    <div class="modal-overlay animate-fade" style="z-index: 20000 !important;">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>{{ showCreateModal() ? 'Registrar Espacio Físico' : 'Editar Espacio Físico' }}</h3>
+          <button class="close-btn" (click)="showCreateModal() ? closeCreateModal() : closeEditModal()">×</button>
+        </div>
+        <form [formGroup]="spaceForm" (ngSubmit)="showCreateModal() ? onCreateSubmit() : onEditSubmit()" class="modal-form">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="roomNumber">Código / Número de Aula*</label>
+              <input id="roomNumber" type="text" class="form-input" placeholder="Ej: LAB-4" formControlName="roomNumber" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="name">Nombre descriptivo*</label>
+              <input id="name" type="text" class="form-input" placeholder="Ej: Laboratorio de Redes" formControlName="name" />
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="type">Tipo de Espacio*</label>
+              <select id="type" class="form-select" formControlName="type">
+                <option value="AULA">Aula común</option>
+                <option value="LABORATORIO">Laboratorio</option>
+                <option value="TALLER">Taller de prácticas</option>
+                <option value="OFICINA">Oficina administrativa</option>
+                <option value="BODEGA">Bodega</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="capacity">Capacidad Aforo*</label>
+              <input id="capacity" type="number" class="form-input" min="1" max="500" step="1" formControlName="capacity" />
+              <span class="error-text" *ngIf="spaceForm.get('capacity')?.touched && spaceForm.get('capacity')?.invalid" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger);">
+                Rango permitido: 1 a 500
+              </span>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="location">Ubicación física exacta*</label>
+            <input id="location" type="text" class="form-input" placeholder="Ej: Piso 2, Bloque Principal" formControlName="location" />
+          </div>
+
+          <div class="form-group" formGroupName="jornadas">
+            <label class="form-label">Jornadas académicas autorizadas*</label>
+            <div class="checkbox-group-grid">
+              <label class="checkbox-option">
+                <input type="checkbox" formControlName="MATUTINA" />
+                <span>Matutina</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" formControlName="VESPERTINA" />
+                <span>Vespertina</span>
+              </label>
+              <label class="checkbox-option">
+                <input type="checkbox" formControlName="NOCTURNA" />
+                <span>Nocturna</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="showCreateModal() ? closeCreateModal() : closeEditModal()">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="spaceForm.invalid || modalLoading()">
+              Guardar Espacio
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>
+
+

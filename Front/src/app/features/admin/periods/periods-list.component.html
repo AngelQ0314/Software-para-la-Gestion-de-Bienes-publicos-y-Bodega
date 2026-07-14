@@ -1,0 +1,148 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Gestión de Períodos Académicos</h2>
+      <p>Administra los períodos académicos del sistema, controla su inicio, cierre, y revisa el historial consolidado.</p>
+    </div>
+    <div class="header-buttons">
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="material-icons-round" style="font-size:1.1rem">add</span>
+        Configurar Nuevo Período
+      </button>
+    </div>
+  </div>
+
+  <!-- Rejilla de Períodos -->
+  <div class="cards-layout-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-container">
+          <div class="spinner-core"></div>
+        </div>
+        <p>Cargando períodos académicos...</p>
+      </div>
+    } @else {
+      @if (periods().length > 0) {
+        <div class="users-grid">
+          @for (period of periods(); track period.id) {
+            <div class="glass-card user-profile-card" [class.active-period-card]="period.status === 'ACTIVO'">
+              <div class="user-card-header">
+                <div class="user-card-avatar" 
+                     [style.background]="period.status === 'ACTIVO' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)'"
+                     [style.border-color]="period.status === 'ACTIVO' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(255, 255, 255, 0.1)'">
+                  <span class="material-icons-round"
+                    [style.color]="period.status === 'ACTIVO' ? '#10b981' : 'var(--text-muted)'">
+                    calendar_today
+                  </span>
+                </div>
+                <div class="user-card-title-group">
+                  <h3 class="user-card-fullname">{{ period.name }}</h3>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge" [ngClass]="{
+                      'badge-activo': period.status === 'ACTIVO',
+                      'badge-inactivo': period.status === 'CONFIGURADO',
+                      'badge-dado-de-baja': period.status === 'CERRADO'
+                    }">
+                      {{ formatStatus(period.status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-card-body">
+                <div class="info-row">
+                  <span class="info-label">Fecha de Inicio:</span>
+                  <span class="info-value font-mono">{{ period.startDate | date:'dd/MM/yyyy' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Fecha de Cierre:</span>
+                  <span class="info-value font-mono">{{ period.endDate | date:'dd/MM/yyyy' }}</span>
+                </div>
+                @if (period.status === 'CERRADO' && period.closedAt) {
+                  <div class="info-row">
+                    <span class="info-label">Clausurado el:</span>
+                    <span class="info-value font-mono" style="color: #fb7185;">{{ period.closedAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="user-card-actions" style="margin-top: 15px;">
+                @if (period.status === 'CONFIGURADO') {
+                  <button class="btn btn-primary btn-block" (click)="activatePeriod(period)">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">play_arrow</span>
+                    Activar Período
+                  </button>
+                } @else if (period.status === 'ACTIVO') {
+                  <button class="btn btn-danger btn-block" (click)="closePeriod(period)">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">lock</span>
+                    Cerrar Período
+                  </button>
+                } @else {
+                  <button class="btn btn-secondary btn-block" style="background: rgba(251, 113, 133, 0.08); color: #fb7185; border: 1px solid rgba(251, 113, 133, 0.2); transition: all 0.2s;" (click)="downloadClosureReport(period.id)">
+                    <span class="material-icons-round" style="font-size: 1.1rem; vertical-align: middle; margin-right: 4px;">description</span>
+                    Reporte de Cierre PDF
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-panel">
+          <p>No se encontraron períodos académicos registrados.</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- MODAL: REGISTRAR / CONFIGURAR PERÍODO -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Configurar Período Académico</h3>
+          <button class="close-btn" (click)="closeCreateModal()">×</button>
+        </div>
+        <form [formGroup]="periodForm" (ngSubmit)="onCreateSubmit()" class="modal-form">
+          <div class="form-group">
+            <label class="form-label" for="periodName">Nombre del Período*</label>
+            <input id="periodName" type="text" class="form-input" placeholder="Ej: PERÍODO 2026-II" formControlName="name" />
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label" for="startDate">Fecha de Inicio*</label>
+              <input id="startDate" type="datetime-local" class="form-input" formControlName="startDate" />
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="endDate">Fecha de Cierre*</label>
+              <input id="endDate" type="datetime-local" class="form-input" formControlName="endDate" />
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">
+              Cancelar
+            </button>
+            <button type="submit" class="btn btn-primary" [disabled]="periodForm.invalid || modalLoading()">
+              Registrar Período
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

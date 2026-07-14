@@ -1,0 +1,152 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado de la página -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Mis Aulas y Espacios Asignados</h2>
+      <p>Consulta los espacios físicos bajo tu cargo y supervisa el inventario por jornada académica.</p>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="loading-state">
+      <div class="spinner-container">
+        <div class="spinner-core"></div>
+      </div>
+      <p>Cargando espacios asignados...</p>
+    </div>
+  } @else {
+    @if (!selectedSpace()) {
+      <!-- Grilla de Espacios Asignados -->
+      <div class="cards-layout-panel">
+        @if (spaces().length > 0) {
+          <div class="users-grid">
+            @for (space of spaces(); track space.id) {
+              <div class="glass-card user-profile-card hover-pointer" (click)="selectSpace(space)">
+                <div class="user-card-header">
+                  <div class="user-card-avatar" style="background: rgba(249, 115, 22, 0.12); border-color: rgba(249, 115, 22, 0.25);">
+                    <span class="material-icons-round" style="color: var(--color-primary)">meeting_room</span>
+                  </div>
+                  <div class="user-card-title-group">
+                    <h3 class="user-card-fullname">{{ space.name }}</h3>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="user-card-role-badge" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">
+                        {{ space.roomNumber }}
+                      </span>
+                      <span class="badge badge-activo">{{ formatType(space.type) }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="user-card-body">
+                  <div class="info-row">
+                    <span class="info-label">Ubicación:</span>
+                    <span class="info-value">{{ space.location }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Capacidad:</span>
+                    <span class="info-value font-mono">{{ space.capacity }} estudiantes</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Jornadas Autorizadas:</span>
+                    <span class="info-value">
+                      @for (jornada of space.jornadas; track $index) {
+                        <span class="sub-tag" style="background: rgba(16, 185, 129, 0.12); color: #10b981; margin-right: 4px;">{{ jornada }}</span>
+                      }
+                    </span>
+                  </div>
+                </div>
+
+                <div class="user-card-actions">
+                  <button class="btn btn-primary btn-block" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">inventory</span>
+                    Ver Inventario Asignado
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-state glass-panel">
+            <p>No tienes ningún espacio físico asignado bajo tu responsabilidad.</p>
+          </div>
+        }
+      </div>
+    } @else {
+      <!-- Detalle del Espacio e Inventario por Jornada -->
+      <div class="glass-panel detail-panel animate-fade">
+        <div class="detail-header">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="btn btn-secondary btn-sm" (click)="closeDetails()" style="display: flex; align-items: center; gap: 6px;">
+              <span class="material-icons-round" style="font-size: 1.1rem;">arrow_back</span> Volver
+            </button>
+            <div>
+              <h3>{{ selectedSpace()?.name }} ({{ selectedSpace()?.roomNumber }})</h3>
+              <p style="font-size: 0.82rem; color: var(--text-muted); margin-top: 2px;">{{ selectedSpace()?.location }} | Capacidad: {{ selectedSpace()?.capacity }}</p>
+            </div>
+          </div>
+          
+          <!-- Filtro de Jornada (Tabs) -->
+          <div class="shift-tabs">
+            @for (jornada of selectedSpace()?.jornadas; track jornada) {
+              <button class="tab-btn" [class.active]="selectedJornada() === jornada" (click)="changeJornada(jornada)">
+                {{ jornada }}
+              </button>
+            }
+          </div>
+        </div>
+
+        <div class="detail-body">
+          <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 15px;">
+            Artículos Registrados en Jornada: <span style="color: #fb7185;">{{ selectedJornada() }}</span>
+          </h4>
+
+          @if (inventoryLoading()) {
+            <div class="loading-state">
+              <div class="spinner-container">
+                <div class="spinner-core"></div>
+              </div>
+              <p>Consultando inventario por jornada...</p>
+            </div>
+          } @else {
+            <div class="assigned-items-table-container">
+              <table class="assigned-items-table">
+                <thead>
+                  <tr>
+                    <th>Código Yavirac</th>
+                    <th>Nombre del Artículo</th>
+                    <th>Categoría</th>
+                    <th>Cantidad</th>
+                    <th>Estado Físico</th>
+                    <th>Observación (en esta jornada)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of spaceInventory(); track row.id) {
+                    <tr>
+                      <td class="font-mono" style="font-weight: 700;">{{ row.codeValue || '--' }}</td>
+                      <td>{{ row.name || 'Artículo sin nombre' }}</td>
+                      <td>{{ row.category || 'General' }}</td>
+                      <td class="font-mono">{{ row.cantidad }}</td>
+                      <td>
+                        <span class="badge" [ngClass]="'badge-' + (row.estadoFisico || 'BUENO').toLowerCase()">
+                          {{ row.estadoFisico || 'BUENO' }}
+                        </span>
+                      </td>
+                      <td class="italic" style="font-size: 0.85rem; color: var(--text-secondary);">
+                        {{ row.observacion || 'Sin observaciones' }}
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6" class="empty-table-cell">No se registran artículos asignados a esta jornada académica.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  }
+</div>

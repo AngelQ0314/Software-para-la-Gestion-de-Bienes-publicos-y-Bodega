@@ -684,19 +684,42 @@ export class SpacesService {
       });
     }
 
-    return items.map((item) => ({
-      id: item.id,
-      name: item.name,
-      codeValue: item.codeValue,
-      codeType: item.codeType?.name || '',
-      category: item.subcategory?.category?.name || '',
-      subcategory: item.subcategory?.name || '',
-      view: item.subcategory?.category?.inventoryView?.name || '',
-      spaceId: item.physicalSpaceId,
-      roomNumber: item.physicalSpace?.roomNumber || '',
-      spaceName: item.physicalSpace?.name || '',
-      cantidad: item.cantidad,
-      status: item.status,
-    }));
+    // Si no se filtra por jornada, expandimos por cada jornada que tenga configurada el espacio físico
+    const allShifts = await this.shiftRepo.find({
+      where: spaceIdsToQuery.length > 0 ? { spaceId: In(spaceIdsToQuery) } : {},
+    });
+
+    const expandedItems: any[] = [];
+    for (const item of items) {
+      const spaceObj = item.physicalSpace;
+      const jornadas = (spaceObj && spaceObj.jornadas && spaceObj.jornadas.length > 0) 
+        ? spaceObj.jornadas 
+        : ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
+
+      for (const j of jornadas) {
+        const shiftInfo = allShifts.find((s) => s.itemId === item.id && s.spaceId === item.physicalSpaceId && s.jornada === j);
+        expandedItems.push({
+          id: `${item.id}-${j}`,
+          itemId: item.id,
+          name: item.name,
+          codeValue: item.codeValue,
+          codeType: item.codeType?.name || '',
+          category: item.subcategory?.category?.name || '',
+          subcategory: item.subcategory?.name || '',
+          view: item.subcategory?.category?.inventoryView?.name || '',
+          spaceId: item.physicalSpaceId,
+          roomNumber: item.physicalSpace?.roomNumber || '',
+          spaceName: item.physicalSpace?.name || '',
+          cantidad: item.cantidad,
+          jornada: j,
+          estadoFisico: shiftInfo ? shiftInfo.estadoFisico : 'BUENO',
+          observacion: shiftInfo ? shiftInfo.observacion : null,
+          novedades: shiftInfo ? shiftInfo.novedades : null,
+        });
+      }
+    }
+
+    // Filtrar localmente por búsqueda si se provee (por si acaso el buscador del docente actúa en memoria o backend)
+    return expandedItems;
   }
 }

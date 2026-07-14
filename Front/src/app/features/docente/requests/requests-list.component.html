@@ -1,0 +1,349 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Mis Solicitudes de Inventario</h2>
+      <p>Genera solicitudes para transferencias de bienes entre tus aulas, o solicita nuevos materiales e insumos desde Bodega.</p>
+    </div>
+    <div class="header-buttons">
+      <button class="btn btn-primary" (click)="openCreateModal()">
+        <span class="material-icons-round" style="font-size:1.1rem">post_add</span>
+        Crear Nueva Solicitud
+      </button>
+    </div>
+  </div>
+
+  <!-- Listado de Solicitudes -->
+  <div class="cards-layout-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-container">
+          <div class="spinner-core"></div>
+        </div>
+        <p>Cargando tus solicitudes...</p>
+      </div>
+    } @else {
+      @if (requests().length > 0) {
+        <div class="users-grid">
+          @for (req of requests(); track req.id) {
+            <div class="glass-card user-profile-card">
+              <div class="user-card-header">
+                <div class="user-card-avatar" 
+                     [style.background]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(244, 63, 94, 0.15)'"
+                     [style.border-color]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(244, 63, 94, 0.3)'">
+                  <span class="material-icons-round"
+                    [style.color]="req.type === 'TRANSFERENCIA' ? '#38bdf8' : '#f43f5e'">
+                    {{ req.type === 'TRANSFERENCIA' ? 'swap_horiz' : 'add_circle_outline' }}
+                  </span>
+                </div>
+                <div class="user-card-title-group">
+                  <h3 class="user-card-fullname">{{ formatType(req.type) }}</h3>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge" [ngClass]="{
+                      'badge-activo': req.status === 'APROBADA',
+                      'badge-inactivo': req.status === 'EN_PROCESO',
+                      'badge-dado-de-baja': req.status === 'RECHAZADA'
+                    }">
+                      {{ formatStatus(req.status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-card-body">
+                <div class="info-row">
+                  <span class="info-label">Aula Origen:</span>
+                  <span class="info-value font-mono">{{ req.space?.roomNumber }}</span>
+                </div>
+                @if (req.type === 'TRANSFERENCIA' && req.destinationSpace) {
+                  <div class="info-row">
+                    <span class="info-label">Aula Destino:</span>
+                    <span class="info-value font-mono">{{ req.destinationSpace?.roomNumber }}</span>
+                  </div>
+                }
+                <div class="info-row">
+                  <span class="info-label">Fecha:</span>
+                  <span class="info-value">{{ req.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Artículos:</span>
+                  <span class="info-value font-mono" style="font-weight: 700; color: #fb7185;">
+                    {{ req.items?.length || 0 }} items
+                  </span>
+                </div>
+                @if (req.status === 'RECHAZADA' && req.rejectionReason) {
+                  <div class="rejection-box" style="margin-top: 10px;">
+                    <strong>Motivo de Rechazo:</strong>
+                    <p>{{ req.rejectionReason }}</p>
+                  </div>
+                }
+              </div>
+
+              <div class="user-card-actions">
+                <button class="btn btn-secondary btn-block" (click)="openDetailModal(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                  Ver Detalle
+                </button>
+                @if (req.status === 'APROBADA') {
+                  <button class="btn btn-primary btn-block" (click)="downloadActa(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
+                    Descargar Acta
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-panel">
+          <p>No has realizado ninguna solicitud de inventario todavía.</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- MODAL: CREAR SOLICITUD -->
+  @if (showCreateModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide modal-card-lg" style="max-width: 900px; padding: 25px; border-radius: 16px; background: var(--card-bg, #ffffff); box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(0,0,0,0.1));">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;">
+          <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0;">Crear Solicitud de Inventario</h3>
+          <button class="close-btn" (click)="closeCreateModal()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
+        </div>
+
+        <form [formGroup]="requestForm" (ngSubmit)="onSubmitRequest()" class="modal-form">
+          <div class="modal-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+            <!-- Columna Izquierda: Información Solicitud -->
+            <div class="modal-column">
+              <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Datos de la Solicitud</h4>
+              
+              <div class="form-group" style="margin-top: 15px; margin-bottom: 15px;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">Tipo de Movimiento*</label>
+                <select class="form-select" formControlName="type" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                  <option value="NUEVO_INVENTARIO">Nuevo Inventario (desde Bodega)</option>
+                  <option value="TRANSFERENCIA">Transferencia entre mis Espacios (Aulas/Laboratorios)</option>
+                  <option value="TRASPASO_DOCENTE">Traspaso a otro Espacio (Otro Docente)</option>
+                  <option value="SOLICITUD_TRASPASO">Solicitar traspaso desde otro Espacio (Otro Docente / Biblioteca)</option>
+                </select>
+              </div>
+
+              <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                  {{ (requestForm.value.type === 'SOLICITUD_TRASPASO') ? 'Espacio Físico Origen (Otro Docente / Biblioteca)*' : ((requestForm.value.type === 'TRANSFERENCIA' || requestForm.value.type === 'TRASPASO_DOCENTE') ? 'Espacio Físico Origen*' : 'Espacio Físico Asignado*') }}
+                </label>
+                <select class="form-select" formControlName="spaceId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                  <option value="">-- Seleccionar Espacio --</option>
+                  @for (s of sourceSpacesList(); track s.id) {
+                    <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }} ({{ s.type }})</option>
+                  }
+                </select>
+              </div>
+
+              @if (requestForm.value.type === 'TRANSFERENCIA' || requestForm.value.type === 'TRASPASO_DOCENTE' || requestForm.value.type === 'SOLICITUD_TRASPASO') {
+                <div class="form-group animate-fade" style="margin-bottom: 15px;">
+                  <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">
+                    {{ (requestForm.value.type === 'SOLICITUD_TRASPASO') ? 'Mi Espacio Físico de Destino*' : 'Espacio Físico de Destino*' }}
+                  </label>
+                  <select class="form-select" formControlName="destinationSpaceId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">-- Seleccionar Espacio Destino --</option>
+                    @for (s of filteredDestinationSpaces(); track s.id) {
+                      <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }} (Resp: {{ formatResponsibles(s) }})</option>
+                    }
+                  </select>
+                </div>
+              }
+
+              <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" for="motive" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">Justificación / Motivo*</label>
+                <textarea id="motive" class="form-input" rows="3" placeholder="Describe brevemente la necesidad..." formControlName="motive" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); resize: none;"></textarea>
+                @if (requestForm.get('motive')?.touched && requestForm.get('motive')?.invalid) {
+                  <span class="error-text" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger, #f43f5e);">
+                    La justificación es obligatoria (mínimo 10 caracteres).
+                  </span>
+                }
+              </div>
+            </div>
+
+            <!-- Columna Derecha: Selección de Artículos -->
+            <div class="modal-column">
+              <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Artículos Solicitados</h4>
+
+              <div class="item-selection-box" style="margin-top: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color);" [formGroup]="itemForm">
+                
+                <!-- Buscador de Artículos (Nombre o Código) -->
+                <div class="form-group" style="margin-bottom: 12px;">
+                  <label class="form-label" style="font-weight: 600; font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 4px;">Buscar Artículo (Nombre o Código)</label>
+                  <input type="text" class="form-input" placeholder="Escribe nombre o código..." [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+                </div>
+
+                <div class="form-row" style="display: flex; gap: 15px;">
+                  <div class="form-group" style="flex: 2;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 4px;">Artículo*</label>
+                    <select class="form-select" formControlName="selectedItemId" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                      <option value="">-- Elige un artículo --</option>
+                      @for (i of filteredAvailableItems(); track i.id) {
+                        <option [value]="i.id">
+                          [{{ i.codigoYavirac || i.codeValue }}] {{ i.name || i.dynamicValues?.['nombre'] }} 
+                          ({{ (requestForm.value.type === 'TRANSFERENCIA' || requestForm.value.type === 'TRASPASO_DOCENTE' || requestForm.value.type === 'SOLICITUD_TRASPASO') ? 'Stock: ' + i.stockDisponible : 'Bodega' }})
+                        </option>
+                      }
+                    </select>
+                  </div>
+                  <div class="form-group" style="flex: 1;">
+                    <label class="form-label" style="font-weight: 600; font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 4px;">Cantidad*</label>
+                    <input type="number" class="form-input" min="1" step="1" formControlName="cantidad" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+                  </div>
+                </div>
+                <button type="button" class="btn btn-secondary btn-block" style="margin-top: 12px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;"
+                        [disabled]="itemForm.invalid || !requestForm.value.spaceId" (click)="addTempItem()">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">add</span>
+                  Añadir Artículo
+                </button>
+              </div>
+
+              <!-- Lista temporal de seleccionados (Tabla Rediseñada Premium) -->
+              <div class="table-container" style="margin-top: 15px; max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
+                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
+                  <thead>
+                    <tr style="background: var(--table-header-bg, #1e293b); color: #ffffff;">
+                      <th style="padding: 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">Código</th>
+                      <th style="padding: 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">Nombre</th>
+                      <th style="padding: 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">Cantidad</th>
+                      <th style="width: 40px; padding: 10px;"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (item of selectedItemsTemp(); track $index) {
+                      <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td class="font-mono" style="padding: 10px; font-weight: 600; color: var(--text-primary);">{{ item.codeValue }}</td>
+                        <td style="padding: 10px; color: var(--text-primary);">{{ item.name }}</td>
+                        <td class="font-mono" style="padding: 10px; font-weight: 600; color: var(--text-primary);">{{ item.cantidad }}</td>
+                        <td style="padding: 10px; text-align: center;">
+                          <button type="button" class="btn-delete-row" (click)="removeTempItem($index)" style="background: transparent; border: none; color: #f43f5e; font-size: 1.25rem; cursor: pointer; padding: 0;">&times;</button>
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr>
+                        <td colspan="4" class="empty-table-cell" style="text-align: center; padding: 25px; color: var(--text-muted); font-style: italic; background: rgba(0,0,0,0.01);">
+                          Agrega artículos a la solicitud.
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="requestForm.invalid || selectedItemsTemp().length === 0 || modalLoading()">
+              Enviar Solicitud
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: DETALLE DE LA SOLICITUD -->
+  @if (showDetailModal() && selectedRequest()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Detalle de la Solicitud</h3>
+          <button class="close-btn" (click)="closeDetailModal()">×</button>
+        </div>
+        
+        <div class="modal-form">
+          <div class="info-row">
+            <span class="info-label">Tipo:</span>
+            <span class="info-value font-bold" style="color: #fb7185;">{{ formatType(selectedRequest()!.type) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Estado:</span>
+            <span class="badge" [ngClass]="{
+              'badge-activo': selectedRequest()!.status === 'APROBADA',
+              'badge-inactivo': selectedRequest()!.status === 'EN_PROCESO',
+              'badge-dado-de-baja': selectedRequest()!.status === 'RECHAZADA'
+            }">
+              {{ formatStatus(selectedRequest()!.status) }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Espacio Físico de Origen:</span>
+            <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+          </div>
+          @if (selectedRequest()!.type === 'TRANSFERENCIA' || selectedRequest()!.type === 'TRASPASO_DOCENTE' || selectedRequest()!.type === 'SOLICITUD_TRASPASO') {
+            <div class="info-row">
+              <span class="info-label">Espacio Físico de Destino:</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+          <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+            <span class="info-label">Justificación:</span>
+            <span class="info-value" style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; width: 100%;">
+              {{ selectedRequest()!.motive }}
+            </span>
+          </div>
+          
+          <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Artículos Solicitados</h4>
+          <div class="assigned-items-table-container">
+            <table class="assigned-items-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Artículo</th>
+                  <th>Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of selectedRequest()!.items; track item.id) {
+                  <tr>
+                    <td class="font-mono" style="font-weight: 600;">
+                      {{ item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue || 'S/C' }}
+                    </td>
+                    <td style="font-weight: 500;">
+                      {{ item.item?.name || item.item?.dynamicValues?.['nombre'] || item.inventoryItem?.name || item.inventoryItem?.dynamicValues?.['nombre'] || 'Artículo' }}
+                    </td>
+                    <td class="font-mono" style="font-weight: 600;">
+                      {{ item.cantidad }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (selectedRequest()!.status === 'RECHAZADA' && selectedRequest()!.rejectionReason) {
+            <div class="rejection-box" style="margin-top: 15px;">
+              <strong>Motivo de Rechazo:</strong>
+              <p>{{ selectedRequest()!.rejectionReason }}</p>
+            </div>
+          }
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeDetailModal()">Cerrar</button>
+            @if (selectedRequest()!.status === 'APROBADA') {
+              <button type="button" class="btn btn-primary" (click)="downloadActa(selectedRequest()!)">
+                Descargar Acta
+              </button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

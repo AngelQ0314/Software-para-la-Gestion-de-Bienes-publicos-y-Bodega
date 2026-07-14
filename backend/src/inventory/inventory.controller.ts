@@ -11,7 +11,12 @@ import {
   ParseUUIDPipe,
   BadRequestException,
   Request,
+  UseInterceptors,
+  UploadedFile,
+  Res,
 } from '@nestjs/common';
+import { Response } from 'express';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { InventoryService } from './inventory.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -235,4 +240,33 @@ export class InventoryController {
     await this.inventoryService.deleteInventoryItem(id);
     return { message: 'Elemento eliminado del inventario correctamente.' };
   }
+
+  @Get('template')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
+  async downloadTemplate(@Res() res: Response) {
+    const buffer = await this.inventoryService.generateExcelTemplate();
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      'attachment; filename=plantilla_inventario_unificada.xlsx',
+    );
+    return res.send(buffer);
+  }
+
+  @Post('items/import')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
+  @UseInterceptors(FileInterceptor('file'))
+  async importItems(
+    @UploadedFile() file: any,
+    @Query('inventoryViewId') inventoryViewId?: string,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Debe subir un archivo de Excel (.xlsx).');
+    }
+    return this.inventoryService.importItemsFromExcel(file.buffer, inventoryViewId);
+  }
 }
+

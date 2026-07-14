@@ -3,6 +3,7 @@ import { authGuard } from './core/guards/auth.guard';
 import { roleGuard } from './core/guards/role.guard';
 
 import { AdminLayoutComponent } from './features/admin/layout/admin-layout.component';
+import { DocenteLayoutComponent } from './features/docente/layout/docente-layout.component';
 
 export const routes: Routes = [
   // Rutas Públicas / Autenticación (protegidas para redirigir si ya está logueado)
@@ -80,18 +81,87 @@ export const routes: Routes = [
             (m) => m.InventoryConfigComponent
           ),
       },
+      {
+        path: 'spaces',
+        loadComponent: () =>
+          import('./features/admin/spaces/spaces-list.component').then(
+            (m) => m.SpacesListComponent
+          ),
+      },
+      {
+        path: 'periods',
+        loadComponent: () =>
+          import('./features/admin/periods/periods-list.component').then(
+            (m) => m.PeriodsListComponent
+          ),
+      },
+      {
+        path: 'requests',
+        loadComponent: () =>
+          import('./features/admin/requests/requests-list.component').then(
+            (m) => m.RequestsListComponent
+          ),
+      },
+      {
+        path: 'incidents',
+        loadComponent: () =>
+          import('./features/admin/incidents/incidents-list.component').then(
+            (m) => m.IncidentsListComponent
+          ),
+      },
+      {
+        path: 'reports',
+        loadComponent: () =>
+          import('./features/admin/reports/reports-list.component').then(
+            (m) => m.ReportsListComponent
+          ),
+      },
     ],
   },
 
   // Rutas Protegidas de Docente
   {
     path: 'docente',
-    loadComponent: () =>
-      import('./features/docente/dashboard/docente-dashboard.component').then(
-        (m) => m.DocenteDashboardComponent
-      ),
+    component: DocenteLayoutComponent,
     canActivate: [authGuard, roleGuard],
     data: { roles: ['DOCENTE'] },
+    children: [
+      {
+        path: '',
+        loadComponent: () =>
+          import('./features/docente/dashboard/docente-dashboard.component').then(
+            (m) => m.DocenteDashboardComponent
+          ),
+      },
+      {
+        path: 'spaces',
+        loadComponent: () =>
+          import('./features/docente/spaces/spaces-list.component').then(
+            (m) => m.DocenteSpacesListComponent
+          ),
+      },
+      {
+        path: 'requests',
+        loadComponent: () =>
+          import('./features/docente/requests/requests-list.component').then(
+            (m) => m.DocenteRequestsComponent
+          ),
+      },
+      {
+        path: 'incidents',
+        loadComponent: () =>
+          import('./features/docente/incidents/incidents-list.component').then(
+            (m) => m.DocenteIncidentsComponent
+          ),
+      },
+      {
+        path: 'inventory',
+        loadComponent: () =>
+          import('./features/docente/inventory/inventory-list.component').then(
+            (m) => m.DocenteInventoryComponent
+          ),
+      },
+    ],
   },
 
   // Redirecciones por defecto

@@ -3,7 +3,7 @@
   <aside class="sidebar glass-panel">
     <div class="sidebar-header">
       <div class="brand-logo-small">
-        <span class="logo-icon-small">🎓</span>
+        <span class="material-icons-round" style="color: var(--color-primary);">school</span>
       </div>
       <div class="brand-meta">
         <h1 class="brand-name">IST Yavirac</h1>
@@ -13,45 +13,36 @@
 
     <nav class="sidebar-nav">
       <a routerLink="/admin" routerLinkActive="active" [routerLinkActiveOptions]="{exact: true}" class="nav-item">
-        Dashboard
+        <span class="material-icons-round">dashboard</span> Dashboard
       </a>
       
       <a routerLink="/admin/users" routerLinkActive="active" class="nav-item">
-        Usuarios
+        <span class="material-icons-round">people</span> Usuarios
       </a>
       
-      <div class="nav-dropdown-wrapper">
-        <a routerLink="/admin/inventory/config" routerLinkActive="active" class="nav-item">
-          Configuración
-        </a>
-      </div>
-
-      <a routerLink="/admin/inventory" [queryParams]="{view: 'BIENES_PUBLICOS'}" routerLinkActive="active" class="nav-item">
-        Bienes Públicos
+      <a routerLink="/admin/inventory" routerLinkActive="active" class="nav-item">
+        <span class="material-icons-round">inventory_2</span> Inventario
       </a>
 
-      <a routerLink="/admin/inventory" [queryParams]="{view: 'INSUMOS'}" routerLinkActive="active" class="nav-item">
-        Insumos
+
+      <a routerLink="/admin/spaces" routerLinkActive="active" class="nav-item">
+        <span class="material-icons-round">corporate_fare</span> Espacios físicos
       </a>
 
-      <a routerLink="/admin/inventory" [queryParams]="{view: 'BIBLIOTECA'}" routerLinkActive="active" class="nav-item">
-        Biblioteca
+      <a routerLink="/admin/periods" routerLinkActive="active" class="nav-item">
+        <span class="material-icons-round">calendar_today</span> Período académico
       </a>
 
-      <a class="nav-item disabled-item">
-        Espacios físicos
+      <a routerLink="/admin/requests" routerLinkActive="active" class="nav-item">
+        <span class="material-icons-round">assignment</span> Solicitudes
       </a>
 
-      <a class="nav-item disabled-item">
-        Período académico
+      <a routerLink="/admin/incidents" routerLinkActive="active" class="nav-item">
+        <span class="material-icons-round">warning_amber</span> Reporte de novedades
       </a>
 
-      <a class="nav-item disabled-item">
-        Solicitudes
-      </a>
-
-      <a class="nav-item disabled-item">
-        Reportes
+      <a routerLink="/admin/reports" routerLinkActive="active" class="nav-item">
+        <span class="material-icons-round">bar_chart</span> Reportes consolidado
       </a>
     </nav>
 
@@ -66,12 +57,12 @@
         </div>
       </div>
       
-      <button class="btn-profile" (click)="openProfileModal()">
-        Mi Perfil
+      <button class="btn btn-secondary" (click)="openProfileModal()" style="width: 100%; justify-content: flex-start; padding: 10px 15px;">
+        <span class="material-icons-round">person</span> Mi Perfil
       </button>
 
       <button class="btn-logout" (click)="onLogout()">
-        Cerrar sesión
+        <span class="material-icons-round">logout</span> Cerrar sesión
       </button>
     </div>
   </aside>
@@ -81,20 +72,52 @@
     <!-- BARRA SUPERIOR DE ENCABEZADO -->
     <header class="top-header glass-panel">
       <div class="breadcrumb-area">
-        <span class="home-icon">🏠</span>
+        <span class="material-icons-round" style="font-size: 1.1rem; color: var(--color-primary);">home</span>
         <span class="breadcrumb-separator">/</span>
         <span class="breadcrumb-active">{{ activeRouteTitle() }}</span>
       </div>
 
       <div class="header-right-side">
-        <div class="search-bar-wrapper">
-          <span class="search-icon">🔍</span>
-          <input type="text" class="search-input" placeholder="Buscar en el sistema..." />
-        </div>
+        <button class="theme-toggle-btn" (click)="toggleTheme()" [title]="isDarkMode() ? 'Modo Claro' : 'Modo Oscuro'">
+          <span class="material-icons-round">{{ isDarkMode() ? 'light_mode' : 'dark_mode' }}</span>
+        </button>
 
-        <div class="notification-bell">
-          <span class="bell-icon">🔔</span>
-          <span class="notification-badge">2</span>
+        <div class="notification-bell-container" style="position: relative;">
+          <div class="notification-bell" (click)="toggleNotifications()" style="cursor: pointer;">
+            <span class="material-icons-round">notifications</span>
+            @if (unreadCount() > 0) {
+              <span class="notification-badge">{{ unreadCount() }}</span>
+            }
+          </div>
+
+          <!-- Dropdown de Notificaciones -->
+          @if (showNotifications()) {
+            <div class="notification-dropdown glass-panel animate-fade">
+              <div class="dropdown-header">
+                <h4>Notificaciones</h4>
+                @if (unreadCount() > 0) {
+                  <button class="btn-clear-notifications" (click)="markAllAsRead()">Leídas</button>
+                }
+              </div>
+
+              <div class="dropdown-body">
+                @for (notif of notifications(); track notif.id) {
+                  <div class="notification-item" [class.unread]="!notif.read" (click)="onNotificationClick(notif)">
+                    <span class="notif-icon">{{ notif.icon }}</span>
+                    <div class="notif-content">
+                      <p class="notif-message">{{ notif.message }}</p>
+                      <span class="notif-time">{{ notif.time | date:'shortTime' }}</span>
+                    </div>
+                  </div>
+                } @empty {
+                  <div class="empty-notifications">
+                    <span class="material-icons-round empty-icon">done_all</span>
+                    <p>¡Todo al día!</p>
+                  </div>
+                }
+              </div>
+            </div>
+          }
         </div>
       </div>
     </header>
@@ -121,7 +144,9 @@
 
           <div class="form-group">
             <label class="form-label">Correo Institucional (No editable)</label>
-            <input type="text" class="form-input readonly-input" [value]="currentUser()?.correoInstitucional" readonly />
+            <input type="text" class="form-input readonly-input"
+              [value]="currentUser()?.correoInstitucional || 'No registrado'"
+              readonly />
           </div>
 
           <div class="form-group">

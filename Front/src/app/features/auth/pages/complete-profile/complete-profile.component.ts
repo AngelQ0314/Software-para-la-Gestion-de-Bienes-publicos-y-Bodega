@@ -1,17 +1,20 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, ViewEncapsulation } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormControl } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-complete-profile',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './complete-profile.component.html',
-  styleUrl: './complete-profile.component.css'
+  styleUrl: './complete-profile.component.css',
+  encapsulation: ViewEncapsulation.None
 })
 export class CompleteProfileComponent implements OnInit {
+  isDarkMode = computed(() => this.themeService.isDarkMode());
   profileForm: FormGroup;
   isLoading = signal(false);
   errorMessage = signal<string | null>(null);
@@ -40,7 +43,8 @@ export class CompleteProfileComponent implements OnInit {
   constructor(
     private readonly fb: FormBuilder,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly themeService: ThemeService
   ) {
     this.profileForm = this.fb.group({
       nombres: ['', [Validators.required, Validators.minLength(2)]],
@@ -51,6 +55,10 @@ export class CompleteProfileComponent implements OnInit {
     });
 
     this.profileForm.get('horarioIngles')?.disable();
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   ngOnInit(): void {

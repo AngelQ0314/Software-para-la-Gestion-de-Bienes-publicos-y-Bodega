@@ -7,7 +7,8 @@
     </div>
     <div class="header-buttons">
       <button class="btn btn-primary" (click)="openCreateModal()">
-        + Registrar Nuevo Usuario
+        <span class="material-icons-round" style="font-size:1.1rem">person_add</span>
+        Registrar Nuevo Usuario
       </button>
     </div>
   </div>
@@ -19,128 +20,121 @@
         <label class="form-label">Cédula</label>
         <input type="text" class="form-input" placeholder="Cédula..." formControlName="cedula" />
       </div>
-
       <div class="filter-group">
         <label class="form-label">Correo</label>
         <input type="text" class="form-input" placeholder="Correo..." formControlName="correoInstitucional" />
       </div>
-
       <div class="filter-group">
         <label class="form-label">Rol</label>
         <select class="form-select" formControlName="rol">
-          <option value="">Todos</option>
-          <option value="ADMINISTRADOR">Administrador</option>
+          <option value="">Todos los roles</option>
           <option value="DOCENTE">Docente</option>
           <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
         </select>
       </div>
-
       <div class="filter-group">
         <label class="form-label">Estado</label>
         <select class="form-select" formControlName="estado">
-          <option value="">Todos</option>
+          <option value="">Todos los estados</option>
           <option value="PENDIENTE">Pendiente</option>
           <option value="ACTIVO">Activo</option>
           <option value="INACTIVO">Inactivo</option>
           <option value="DADO_DE_BAJA">Dado de Baja</option>
         </select>
       </div>
-
+      <div class="filter-group">
+        <label class="form-label">Carrera/Área</label>
+        <select class="form-select" formControlName="area">
+          <option value="">Todas las áreas</option>
+          <option value="DESARROLLO DE SOFTWARE">Desarrollo de Software</option>
+          <option value="DISEÑO DE MODAS">Diseño de Modas</option>
+          <option value="GUIA NACIONAL DE TURISMO">Guía Nacional de Turismo</option>
+          <option value="ARTE CULINARIO ECUATORIANO">Arte Culinario Ecuatoriano</option>
+          <option value="MARKETING DIGITAL">Marketing Digital</option>
+          <option value="INGLES">Inglés</option>
+        </select>
+      </div>
+      <div class="filter-group">
+        <label class="form-label">Jornada</label>
+        <select class="form-select" formControlName="jornada">
+          <option value="">Todas las jornadas</option>
+          <option value="MATUTINA">Matutina</option>
+          <option value="VESPERTINA">Vespertina</option>
+          <option value="NOCTURNA">Nocturna</option>
+        </select>
+      </div>
       <div class="filter-actions">
-        <button type="submit" class="btn btn-primary btn-filter">Filtrar</button>
-        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">Limpiar</button>
+        <button type="submit" class="btn btn-primary btn-filter">
+          <span class="material-icons-round" style="font-size:1.1rem">search</span>
+          Filtrar
+        </button>
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
       </div>
     </form>
   </div>
 
-  <!-- Grilla de Tarjetas de Usuarios (Reemplaza a la tabla antigua) -->
+  <!-- Grilla de Tarjetas -->
   <div class="cards-layout-panel">
-    @if (users().length > 0) {
+    @if (loading()) {
+      <div class="loading-state">
+        <div class="spinner-container"><div class="spinner-core"></div></div>
+        <p>Cargando usuarios...</p>
+      </div>
+    } @else if (filteredUsers().length > 0) {
       <div class="users-grid">
-        @for (user of users(); track user.id) {
-          <div class="glass-card user-profile-card" [class.my-account-card]="user.id === authService.currentUser()?.id">
-            <!-- Encabezado de la tarjeta -->
-            <div class="user-card-header">
-              <div class="user-card-avatar">
+        @for (user of filteredUsers(); track user.id) {
+          <div class="glass-card user-card-slim" (click)="openDetailModal(user)"
+               [class.is-own-account]="user.id === authService.currentUser()?.id">
+
+            <!-- Header compacto -->
+            <div class="slim-header">
+              <div class="slim-avatar">
                 {{ user.nombres ? user.nombres[0].toUpperCase() : 'U' }}
               </div>
-              <div class="user-card-title-group">
-                <h3 class="user-card-fullname" [class.placeholder-name]="!user.nombres">
+              <div class="slim-info">
+                <h3 class="slim-name" [class.placeholder-name]="!user.nombres">
                   {{ user.nombres ? (user.nombres + ' ' + user.apellidos) : 'Perfil sin completar' }}
                 </h3>
-                <div style="display: flex; align-items: center; gap: 8px;">
-                  <span class="user-card-role-badge">{{ formatRole(user.rol) }}</span>
+                <div class="slim-badges">
+                  <span class="role-chip">{{ formatRole(user.rol) }}</span>
                   @if (user.id === authService.currentUser()?.id) {
-                    <span class="badge-my-account">Mi Cuenta</span>
+                    <span class="own-chip">Mi cuenta</span>
                   }
                 </div>
               </div>
+              <button class="detail-btn" (click)="openDetailModal(user); $event.stopPropagation()" title="Ver detalles">
+                <span class="material-icons-round">open_in_new</span>
+              </button>
             </div>
 
-            <!-- Cuerpo de la tarjeta con todos sus datos -->
-            <div class="user-card-body">
-              <div class="info-row">
-                <span class="info-label">Cédula:</span>
-                <span class="info-value font-mono">{{ user.cedula }}</span>
+            <!-- Datos clave -->
+            <div class="slim-body">
+              <div class="slim-row">
+                <span class="material-icons-round slim-icon">badge</span>
+                <span class="slim-val font-mono">{{ user.cedula }}</span>
               </div>
-              <div class="info-row">
-                <span class="info-label">Correo:</span>
-                <span class="info-value email-value" [title]="user.correoInstitucional">{{ user.correoInstitucional }}</span>
+              <div class="slim-row">
+                <span class="material-icons-round slim-icon">mail</span>
+                <span class="slim-val email-clip" [title]="user.correoInstitucional">{{ user.correoInstitucional }}</span>
               </div>
-              <div class="info-row">
-                <span class="info-label">Estado:</span>
-                <span class="badge" [ngClass]="'badge-' + user.estado.toLowerCase()">
-                  {{ user.estado }}
-                </span>
+              <div class="slim-row">
+                <span class="material-icons-round slim-icon">circle</span>
+                <span class="badge badge-{{ user.estado.toLowerCase().replace('_', '-') }}">{{ user.estado }}</span>
               </div>
-              @if (user.rol === 'DOCENTE') {
-                <div class="info-row">
-                  <span class="info-label">Perfil:</span>
-                  <span class="profile-status" [class.completed]="user.profileCompleted">
-                    {{ user.profileCompleted ? 'Completo' : 'Incompleto' }}
-                  </span>
-                </div>
-              }
-
-              <!-- Mostrar detalles específicos de Docentes si ya completaron el perfil -->
-              @if (user.rol === 'DOCENTE' && user.profileCompleted) {
-                <div class="docente-details-box">
-                  @if (user.areas && user.areas.length > 0) {
-                    <div class="info-row">
-                      <span class="info-label">Áreas:</span>
-                      <span class="info-value small-text">{{ user.areas.join(', ') }}</span>
-                    </div>
-                  }
-                  @if (user.jornadas && user.jornadas.length > 0) {
-                    <div class="info-row">
-                      <span class="info-label">Jornadas:</span>
-                      <span class="info-value small-text">{{ user.jornadas.join(', ') }}</span>
-                    </div>
-                  }
-                  @if (user.horarioIngles) {
-                    <div class="info-row">
-                      <span class="info-label">Horario Inglés:</span>
-                      <span class="info-value small-text">{{ user.horarioIngles }}</span>
-                    </div>
-                  }
-                </div>
-              }
             </div>
 
-            <!-- Footer con Botones de Acciones y Auditoría -->
-            <div class="user-card-footer">
-              <button class="action-btn btn-view" title="Ver Historial" (click)="viewLogs(user)">Logs</button>
-              <button class="action-btn btn-edit" title="Cambiar Rol" (click)="openRoleModal(user)">Rol</button>
-              <button class="action-btn btn-status" title="Cambiar Estado" (click)="openStatusModal(user)">Estado</button>
-              <button class="action-btn btn-reset" title="Restablecer Clave" (click)="resetPassword(user)">Clave</button>
-            </div>
           </div>
         }
       </div>
-    } @else if (!loading()) {
-      <div class="glass-panel text-center empty-grid-card">
-        <span class="empty-icon">👥</span>
-        <p class="no-data">No se encontraron usuarios que coincidan con los filtros.</p>
+    } @else {
+      <div class="glass-panel empty-state">
+        <div class="empty-icon-wrap">
+          <span class="material-icons-round">group_off</span>
+        </div>
+        <p>No se encontraron usuarios con los filtros aplicados.</p>
       </div>
     }
   </div>
@@ -152,24 +146,18 @@
         Página <strong>{{ currentPage() }}</strong> de <strong>{{ totalPages() }}</strong>
       </span>
       <div class="pagination-controls">
-        <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">
-          Anterior
-        </button>
-        <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">
-          Siguiente
-        </button>
+        <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">Anterior</button>
+        <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">Siguiente</button>
       </div>
     </div>
   }
 
-  <!-- ==========================================================
-       MODALES INTERNOS (Usando Signals para Controlar Estado)
-       ========================================================== -->
-
-  <!-- 1. MODAL REGISTRO DE USUARIO -->
+  <!-- =================================================================
+       MODAL 1 — REGISTRAR NUEVO USUARIO
+       ================================================================= -->
   @if (showCreateModal()) {
-    <div class="modal-overlay">
-      <div class="glass-panel modal-card animate-slide">
+    <div class="modal-overlay" (click)="closeCreateModal()">
+      <div class="glass-panel modal-card animate-slide" (click)="$event.stopPropagation()">
         <div class="modal-header">
           <h3>Registrar Nuevo Usuario</h3>
           <button class="close-btn" (click)="closeCreateModal()">×</button>
@@ -178,39 +166,30 @@
           <div class="form-group">
             <label class="form-label" for="newCedula">Cédula de Identidad</label>
             <input id="newCedula" type="text" class="form-input" placeholder="Ej. 1723376602" formControlName="cedula" />
-            <span class="error-text" *ngIf="isCreateFieldInvalid('cedula')">
-              Ingresa una cédula de 10 dígitos válida
-            </span>
+            <span class="error-text" *ngIf="isCreateFieldInvalid('cedula')">Ingresa una cédula de 10 dígitos válida</span>
           </div>
-
           <div class="form-group">
             <label class="form-label" for="newCorreo">Correo Institucional</label>
             <input id="newCorreo" type="email" class="form-input" placeholder="ejemplo@yavirac.edu.ec" formControlName="correoInstitucional" />
-            <span class="error-text" *ngIf="isCreateFieldInvalid('correoInstitucional')">
-              Ingresa un correo institucional &#64;yavirac.edu.ec válido
-            </span>
+            <span class="error-text" *ngIf="isCreateFieldInvalid('correoInstitucional')">Ingresa un correo &#64;yavirac.edu.ec válido</span>
           </div>
-
           <div class="form-group">
             <label class="form-label" for="newRol">Rol del Usuario</label>
             <select id="newRol" class="form-select" formControlName="rol">
               <option value="DOCENTE">Docente</option>
               <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
-              <option value="ADMINISTRADOR">Administrador</option>
             </select>
           </div>
-
-          <!-- Alerta Error Modal -->
           @if (modalErrorMessage()) {
             <div class="alert-box error-alert">
-              <span>⚠️</span> {{ modalErrorMessage() }}
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ modalErrorMessage() }}
             </div>
           }
-
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" (click)="closeCreateModal()">Cancelar</button>
             <button type="submit" class="btn btn-primary" [disabled]="createUserForm.invalid || modalLoading()">
-              Guardar
+              <span class="material-icons-round" style="font-size:1rem">person_add</span>
+              Registrar
             </button>
           </div>
         </form>
@@ -218,148 +197,293 @@
     </div>
   }
 
-  <!-- 2. MODAL CAMBIAR ROL -->
-  @if (showRoleModal()) {
-    <div class="modal-overlay">
-      <div class="glass-panel modal-card animate-slide">
-        <div class="modal-header">
-          <h3>Cambiar Rol Administrativo</h3>
-          <button class="close-btn" (click)="closeRoleModal()">×</button>
-        </div>
-        @if (selectedUser()) {
-          <div class="modal-body">
-            <p class="modal-desc">
-              Usuario: <strong>{{ selectedUser()?.correoInstitucional }}</strong>
-            </p>
-            <div class="form-group">
-              <label class="form-label">Seleccionar Nuevo Rol</label>
-              <select class="form-select" [(ngModel)]="tempRole" [ngModelOptions]="{standalone: true}">
-                <option value="DOCENTE">Docente</option>
-                <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
-                <option value="ADMINISTRADOR">Administrador</option>
-              </select>
-            </div>
-            
-            @if (modalErrorMessage()) {
-              <div class="alert-box error-alert">
-                <span>⚠️</span> {{ modalErrorMessage() }}
-              </div>
-            }
+  <!-- =================================================================
+       MODAL 2 — DETALLES DE USUARIO (Tabs: Info | Acciones | Bitácora)
+       ================================================================= -->
+  @if (showDetailModal() && selectedUser()) {
+    <div class="modal-overlay" (click)="closeDetailModal()">
+      <div class="glass-panel detail-modal-card animate-slide" (click)="$event.stopPropagation()">
 
-            <div class="modal-actions">
-              <button class="btn btn-secondary" (click)="closeRoleModal()">Cancelar</button>
-              <button class="btn btn-primary" [disabled]="modalLoading()" (click)="onUpdateRole()">
-                Actualizar Rol
-              </button>
+        <!-- Hero del usuario -->
+        <div class="detail-hero">
+          <div class="detail-hero-avatar">
+            {{ selectedUser()!.nombres ? selectedUser()!.nombres![0].toUpperCase() : 'U' }}
+          </div>
+          <div class="detail-hero-info">
+            <h3 class="detail-hero-name">
+              {{ selectedUser()!.nombres ? (selectedUser()!.nombres + ' ' + selectedUser()!.apellidos) : 'Perfil sin completar' }}
+            </h3>
+            <div class="detail-hero-meta">
+              <span class="role-chip">{{ formatRole(selectedUser()!.rol) }}</span>
+              <span class="badge badge-{{ selectedUser()!.estado.toLowerCase().replace('_', '-') }}">{{ selectedUser()!.estado }}</span>
             </div>
           </div>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- 3. MODAL CAMBIAR ESTADO -->
-  @if (showStatusModal()) {
-    <div class="modal-overlay">
-      <div class="glass-panel modal-card animate-slide">
-        <div class="modal-header">
-          <h3>Cambiar Estado de la Cuenta</h3>
-          <button class="close-btn" (click)="closeStatusModal()">×</button>
+          <button class="close-btn" (click)="closeDetailModal()">×</button>
         </div>
-        @if (selectedUser()) {
-          <div class="modal-body">
-            <p class="modal-desc">
-              Usuario: <strong>{{ selectedUser()?.correoInstitucional }}</strong>
-            </p>
-            
-            <div class="form-group">
-              <label class="form-label">Estado</label>
-              <select class="form-select" [(ngModel)]="tempStatus" [ngModelOptions]="{standalone: true}">
-                <option value="ACTIVO">Activo</option>
-                <option value="INACTIVO">Inactivo</option>
-                <option value="DADO_DE_BAJA">Dado de Baja</option>
-              </select>
-            </div>
 
-            <!-- Justificación obligatoria para INACTIVO y DADO DE BAJA -->
-            @if (tempStatus !== 'ACTIVO') {
-              <div class="form-group animate-fade">
-                <label class="form-label">Justificación / Observación (Obligatorio)</label>
-                <textarea class="form-textarea" placeholder="Describe el motivo de la inhabilitación..." rows="3" [(ngModel)]="tempObservation" [ngModelOptions]="{standalone: true}"></textarea>
-                @if (!tempObservation.trim()) {
-                  <span class="error-text">
-                    La observación es requerida para inhabilitar la cuenta
-                  </span>
-                }
-              </div>
-            }
-
-            @if (modalErrorMessage()) {
-              <div class="alert-box error-alert">
-                <span>⚠️</span> {{ modalErrorMessage() }}
-              </div>
-            }
-
-            <div class="modal-actions">
-              <button class="btn btn-secondary" (click)="closeStatusModal()">Cancelar</button>
-              <button class="btn btn-primary" [disabled]="modalLoading() || (tempStatus !== 'ACTIVO' && !tempObservation.trim())" (click)="onUpdateStatus()">
-                Actualizar Estado
-              </button>
-            </div>
-          </div>
-        }
-      </div>
-    </div>
-  }
-
-  <!-- 4. MODAL HISTORIAL / LOGS DE AUDITORÍA -->
-  @if (showLogsModal()) {
-    <div class="modal-overlay">
-      <div class="glass-panel modal-card animate-slide wide-modal">
-        <div class="modal-header">
-          <h3>Bitácora de Auditoría</h3>
-          <button class="close-btn" (click)="closeLogsModal()">×</button>
+        <!-- Tabs de navegación -->
+        <div class="detail-tabs">
+          <button class="detail-tab" [class.active]="activeDetailTab() === 'info'" (click)="setDetailTab('info')">
+            <span class="material-icons-round">person</span> Información
+          </button>
+          <button class="detail-tab" [class.active]="activeDetailTab() === 'actions'" (click)="setDetailTab('actions')">
+            <span class="material-icons-round">settings</span> Acciones
+          </button>
+          <button class="detail-tab" [class.active]="activeDetailTab() === 'logs'" (click)="setDetailTab('logs')">
+            <span class="material-icons-round">history</span> Bitácora
+          </button>
         </div>
-        <div class="modal-body">
-          <p class="modal-desc">
-            Historial de cambios para: <strong>{{ selectedUser()?.correoInstitucional }}</strong>
-          </p>
 
-          @if (userLogs().length > 0) {
-            <div class="logs-timeline">
-              @for (log of userLogs(); track log.id) {
-                <div class="timeline-item">
-                  <div class="log-meta">
-                    <span class="log-date">{{ log.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-                    <span class="log-action">{{ log.accion }}</span>
+        <!-- Panel de contenido -->
+        <div class="detail-body">
+
+          <!-- TAB: INFORMACIÓN -->
+          @if (activeDetailTab() === 'info') {
+            <div class="detail-section">
+              <div class="detail-grid-2">
+                <div class="detail-field">
+                  <label>Cédula</label>
+                  <p class="font-mono">{{ selectedUser()!.cedula }}</p>
+                </div>
+                <div class="detail-field">
+                  <label>Estado de Cuenta</label>
+                  <p><span class="badge badge-{{ selectedUser()!.estado.toLowerCase().replace('_', '-') }}">{{ selectedUser()!.estado }}</span></p>
+                </div>
+                <div class="detail-field" style="grid-column: span 2;">
+                  <label>Correo Institucional</label>
+                  <p>{{ selectedUser()!.correoInstitucional }}</p>
+                </div>
+                <div class="detail-field">
+                  <label>Correo Secundario</label>
+                  <p>{{ selectedUser()!.correoSecundario || 'No registrado' }}</p>
+                </div>
+                <div class="detail-field">
+                  <label>Teléfono</label>
+                  <p>{{ selectedUser()!.telefono || 'No registrado' }}</p>
+                </div>
+                <div class="detail-field">
+                  <label>Rol Asignado</label>
+                  <p>{{ formatRole(selectedUser()!.rol) }}</p>
+                </div>
+                <div class="detail-field">
+                  <label>Perfil Completado</label>
+                  <p [style.color]="selectedUser()!.profileCompleted ? '#10b981' : '#f59e0b'">
+                    {{ selectedUser()!.profileCompleted ? 'Sí' : 'Pendiente' }}
+                  </p>
+                </div>
+              </div>
+
+              @if (selectedUser()!.rol === 'DOCENTE') {
+                <div class="detail-divider"></div>
+                <h4 class="detail-sub-title">
+                  <span class="material-icons-round" style="font-size:1rem">school</span>
+                  Datos Docentes
+                </h4>
+                <div class="detail-grid-2">
+                  <div class="detail-field" style="grid-column: span 2;">
+                    <label>Áreas Asignadas</label>
+                    <div class="tag-row">
+                      @for (area of selectedUser()!.areas; track area) {
+                        <span class="tag-chip tag-area">{{ area }}</span>
+                      } @empty {
+                        <span class="tag-empty" style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">Ninguna área asignada</span>
+                      }
+                    </div>
                   </div>
-                  <div class="log-details">
-                    <p class="log-desc">{{ log.detalle }}</p>
-                    @if (log.observacion) {
-                      <p class="log-obs">
-                        <em>Observación: "{{ log.observacion }}"</em>
-                      </p>
-                    }
-                    @if (log.ejecutor) {
-                      <p class="log-actor">
-                        Realizado por: {{ log.ejecutor.nombres }} {{ log.ejecutor.apellidos }} (C.I. {{ log.ejecutor.cedula }})
-                      </p>
-                    }
+                  <div class="detail-field" style="grid-column: span 2;">
+                    <label>Jornadas</label>
+                    <div class="tag-row">
+                      @for (j of selectedUser()!.jornadas; track j) {
+                        <span class="tag-chip tag-jornada">{{ j }}</span>
+                      } @empty {
+                        <span class="tag-empty" style="font-size: 0.82rem; color: var(--text-muted); font-style: italic;">Ninguna jornada asignada</span>
+                      }
+                    </div>
                   </div>
+                  @if (selectedUser()!.horarioIngles) {
+                    <div class="detail-field">
+                      <label>Horario Inglés</label>
+                      <p>{{ selectedUser()!.horarioIngles }}</p>
+                    </div>
+                  }
                 </div>
               }
             </div>
-          } @else if (!modalLoading()) {
-            <div class="text-center no-data">
-              No hay movimientos registrados para esta cuenta.
+          }
+
+          <!-- TAB: ACCIONES -->
+          @if (activeDetailTab() === 'actions') {
+            <div class="detail-section">
+
+              <!-- Cambiar Rol -->
+              <div class="action-block">
+                <div class="action-block-header">
+                  <span class="material-icons-round">manage_accounts</span>
+                  <div>
+                    <h4>Cambiar Rol Administrativo</h4>
+                    <p>Rol actual: <strong>{{ formatRole(selectedUser()!.rol) }}</strong></p>
+                  </div>
+                </div>
+                <div class="action-block-body">
+                  <select class="form-select" [(ngModel)]="tempRole" [ngModelOptions]="{standalone: true}">
+                    <option value="DOCENTE">Docente</option>
+                    <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
+                  </select>
+                  <button class="btn btn-primary" [disabled]="modalLoading()" (click)="onUpdateRole()">
+                    Actualizar Rol
+                  </button>
+                </div>
+              </div>
+
+              <div class="action-divider"></div>
+
+              <!-- Cambiar Estado -->
+              <div class="action-block">
+                <div class="action-block-header">
+                  <span class="material-icons-round">toggle_on</span>
+                  <div>
+                    <h4>Cambiar Estado de Cuenta</h4>
+                    <p>Estado actual: <span class="badge badge-{{ selectedUser()!.estado.toLowerCase().replace('_', '-') }}">{{ selectedUser()!.estado }}</span></p>
+                  </div>
+                </div>
+                <div class="action-block-body" style="flex-direction: column; align-items: flex-start; gap: 12px;">
+                  <select class="form-select" [(ngModel)]="tempStatus" [ngModelOptions]="{standalone: true}" style="width: 100%;">
+                    <option value="ACTIVO">Activo</option>
+                    <option value="INACTIVO">Inactivo</option>
+                    <option value="DADO_DE_BAJA">Dado de Baja</option>
+                  </select>
+                  @if (tempStatus !== 'ACTIVO') {
+                    <textarea class="form-textarea" rows="2" placeholder="Justificación obligatoria..." [(ngModel)]="tempObservation" [ngModelOptions]="{standalone: true}"></textarea>
+                  }
+                  <button class="btn btn-warning" [disabled]="modalLoading() || (tempStatus !== 'ACTIVO' && !tempObservation.trim())" (click)="onUpdateStatus()">
+                    Actualizar Estado
+                  </button>
+                </div>
+              </div>
+
+              <div class="action-divider"></div>
+
+              <!-- Restablecer Contraseña -->
+              <div class="action-block">
+                <div class="action-block-header">
+                  <span class="material-icons-round">lock_reset</span>
+                  <div>
+                    <h4>Restablecer Contraseña</h4>
+                    <p>Se establecerá la cédula como contraseña temporal.</p>
+                  </div>
+                </div>
+                <div class="action-block-body">
+                  <button class="btn btn-danger" [disabled]="modalLoading()" (click)="onResetPassword()">
+                    <span class="material-icons-round" style="font-size:1rem">lock_reset</span>
+                    Restablecer Clave
+                  </button>
+                </div>
+              </div>
+
+              <!-- Carreras y Jornadas (Solo para docentes) -->
+              @if (selectedUser()!.rol === 'DOCENTE') {
+                <div class="action-divider"></div>
+                <div class="action-block">
+                  <div class="action-block-header">
+                    <span class="material-icons-round">school</span>
+                    <div>
+                      <h4>Asignación de Carreras/Áreas y Jornadas</h4>
+                      <p>Asigna las carreras a las que pertenece el docente y sus jornadas laborales.</p>
+                    </div>
+                  </div>
+                  <div class="action-block-body" style="flex-direction: column; align-items: flex-start; gap: 16px; width: 100%; padding-left: 52px;">
+                    
+                    <div style="width: 100%;">
+                      <label class="form-label" style="font-weight: 700; margin-bottom: 8px; display: block;">Carreras / Áreas asignadas</label>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        @for (area of availableAreas; track area.value) {
+                          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; color: var(--text-primary);">
+                            <input type="checkbox" [checked]="isAreaSelected(area.value)" (change)="onDetailAreaChange($event, area.value)" />
+                            {{ area.label }}
+                          </label>
+                        }
+                      </div>
+                    </div>
+
+                    @if (selectedDetailAreas().includes('INGLES')) {
+                      <div style="width: 100%;">
+                        <label class="form-label" style="font-weight: 700; margin-bottom: 6px; display: block;">Horario de Inglés</label>
+                        <input type="text" class="form-input" placeholder="Ej. Lunes a Viernes 08:00 - 12:00" [(ngModel)]="tempHorarioIngles" [ngModelOptions]="{standalone: true}" style="width: 100%;" />
+                      </div>
+                    }
+
+                    <div style="width: 100%;">
+                      <label class="form-label" style="font-weight: 700; margin-bottom: 8px; display: block;">Jornadas Laborales</label>
+                      <div style="display: flex; flex-direction: column; gap: 8px;">
+                        @for (jornada of availableJornadas; track jornada.value) {
+                          <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; cursor: pointer; color: var(--text-primary);">
+                            <input type="checkbox" [checked]="isJornadaSelected(jornada.value)" (change)="onDetailJornadaChange($event, jornada.value)" />
+                            {{ jornada.label }}
+                          </label>
+                        }
+                      </div>
+                    </div>
+
+                    <button class="btn btn-primary" [disabled]="modalLoading()" (click)="onUpdateTeacherData()">
+                      Actualizar Carreras y Jornadas
+                    </button>
+                  </div>
+                </div>
+              }
+
+              <!-- Alertas de acciones -->
+              @if (modalErrorMessage()) {
+                <div class="alert-box error-alert">
+                  <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ modalErrorMessage() }}
+                </div>
+              }
+              @if (modalSuccessMessage()) {
+                <div class="alert-box success-alert">
+                  <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ modalSuccessMessage() }}
+                </div>
+              }
             </div>
           }
 
-          <div class="modal-actions">
-            <button class="btn btn-secondary" (click)="closeLogsModal()">Cerrar</button>
-          </div>
+          <!-- TAB: BITÁCORA -->
+          @if (activeDetailTab() === 'logs') {
+            <div class="detail-section">
+              @if (userLogs().length > 0) {
+                <div class="logs-timeline">
+                  @for (log of userLogs(); track log.id) {
+                    <div class="timeline-item">
+                      <div class="log-meta">
+                        <span class="log-date">{{ log.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                        <span class="log-action">{{ log.accion }}</span>
+                      </div>
+                      <div class="log-details">
+                        <p class="log-desc">{{ log.detalle }}</p>
+                        @if (log.observacion) {
+                          <p class="log-obs"><em>Observación: "{{ log.observacion }}"</em></p>
+                        }
+                        @if (log.ejecutor) {
+                          <p class="log-actor">
+                            Por: {{ log.ejecutor.nombres }} {{ log.ejecutor.apellidos }} (C.I. {{ log.ejecutor.cedula }})
+                          </p>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              } @else {
+                <div class="empty-state" style="padding: 40px;">
+                  <div class="empty-icon-wrap">
+                    <span class="material-icons-round">history_toggle_off</span>
+                  </div>
+                  <p>No hay movimientos registrados para esta cuenta.</p>
+                </div>
+              }
+            </div>
+          }
+
         </div>
       </div>
     </div>
   }
+
 </div>

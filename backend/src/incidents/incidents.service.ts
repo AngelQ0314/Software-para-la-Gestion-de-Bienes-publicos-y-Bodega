@@ -9,6 +9,7 @@ import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
 import { CreateIncidentReportDto } from './dto/create-incident-report.dto';
 import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
+import { InventoryItemShift } from '../spaces/entities/inventory-item-shift.entity';
 
 @Injectable()
 export class IncidentsService {
@@ -25,6 +26,8 @@ export class IncidentsService {
     private readonly itemRepo: Repository<InventoryItem>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(InventoryItemShift)
+    private readonly shiftRepo: Repository<InventoryItemShift>,
   ) {}
 
   // RN001 - RN005, RN007, RN009: Registrar reporte de novedades
@@ -88,7 +91,7 @@ export class IncidentsService {
 
     const savedReport = await this.reportRepo.save(report);
 
-    // 7. Asociar artículos
+    // 7. Asociar artículos y actualizar estado en jornada (shift)
     const reportItems = dto.itemIds.map((itemId) =>
       this.reportItemRepo.create({
         incidentReportId: savedReport.id,
@@ -96,6 +99,24 @@ export class IncidentsService {
       }),
     );
     await this.reportItemRepo.save(reportItems);
+
+    for (const itemId of dto.itemIds) {
+      let shiftRecord = await this.shiftRepo.findOne({
+        where: { itemId, spaceId: dto.spaceId, jornada: dto.jornada }
+      });
+
+      if (!shiftRecord) {
+        shiftRecord = this.shiftRepo.create({
+          itemId,
+          spaceId: dto.spaceId,
+          jornada: dto.jornada,
+        });
+      }
+
+      shiftRecord.estadoFisico = dto.estadoFisico || 'REGULAR'; // Marcar con el estado físico seleccionado por el docente
+      shiftRecord.novedades = dto.description.trim();
+      await this.shiftRepo.save(shiftRecord);
+    }
 
     return this.findOneIncident(savedReport.id, teacherId, UserRole.DOCENTE);
   }
@@ -166,13 +187,31 @@ export class IncidentsService {
 
   // Actualizar estado del reporte (Seguimiento Admin)
   async updateIncidentStatus(id: string, dto: UpdateIncidentStatusDto): Promise<IncidentReport> {
-    const report = await this.reportRepo.findOne({ where: { id } });
+    const report = await this.reportRepo.findOne({
+      where: { id },
+      relations: { items: true },
+    });
     if (!report) {
       throw new NotFoundException(`El reporte de novedad con ID ${id} no existe.`);
     }
 
     report.status = dto.status;
     await this.reportRepo.save(report);
+
+    // Si se resuelve el incidente, restauramos el estado físico de los bienes a 'BUENO' y limpiamos el texto de novedades en la jornada (shift)
+    if (dto.status === 'RESUELTO') {
+      for (const reportItem of report.items) {
+        const shiftRecord = await this.shiftRepo.findOne({
+          where: { itemId: reportItem.itemId, spaceId: report.spaceId, jornada: report.jornada }
+        });
+
+        if (shiftRecord) {
+          shiftRecord.estadoFisico = 'BUENO';
+          shiftRecord.novedades = null;
+          await this.shiftRepo.save(shiftRecord);
+        }
+      }
+    }
 
     return this.findOneIncident(report.id, '', UserRole.ADMINISTRADOR);
   }

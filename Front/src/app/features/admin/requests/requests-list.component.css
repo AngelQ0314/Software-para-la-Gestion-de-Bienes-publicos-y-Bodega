@@ -1,0 +1,116 @@
+.loading-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px 0;
+  gap: 15px;
+  color: var(--text-secondary);
+}
+
+.spinner-container {
+  width: 50px;
+  height: 50px;
+  position: relative;
+}
+
+.spinner-core {
+  width: 100%;
+  height: 100%;
+  border: 4px solid rgba(244, 63, 94, 0.1);
+  border-left-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.empty-state {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+/* Badges */
+.badge-activo {
+  background: rgba(16, 185, 129, 0.12);
+  color: #10b981;
+}
+
+.badge-inactivo {
+  background: rgba(245, 158, 11, 0.12);
+  color: #f59e0b;
+}
+
+.badge-dado-de-baja {
+  background: rgba(244, 63, 94, 0.12);
+  color: #f43f5e;
+}
+
+/* Caja de rechazo */
+.rejection-box {
+  background: rgba(244, 63, 94, 0.06);
+  border: 1px solid rgba(244, 63, 94, 0.2);
+  padding: 12px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  color: #fda4af;
+  margin-top: 10px;
+}
+
+.rejection-box strong {
+  display: block;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.rejection-box p {
+  margin: 0;
+}
+
+/* Tablas */
+.assigned-items-table-container {
+  max-height: 250px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: var(--border-radius-md);
+  background: var(--card-bg, #ffffff);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+.assigned-items-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+  text-align: left;
+}
+
+.assigned-items-table th {
+  background: #1e293b !important;
+  color: #ffffff !important;
+  padding: 12px 14px;
+  font-weight: 700;
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  border-bottom: 2px solid var(--border-color);
+}
+
+.assigned-items-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-color);
+  color: var(--text-primary, #0f172a) !important;
+  font-weight: 500;
+}
+
+.empty-table-cell {
+  text-align: center;
+  color: var(--text-muted);
+  padding: 30px 10px !important;
+  font-style: italic;
+}

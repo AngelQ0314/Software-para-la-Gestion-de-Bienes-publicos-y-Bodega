@@ -29,4 +29,12 @@ export class FilterUsersDto {
   @IsOptional()
   @IsString()
   limit?: string;
+
+  @IsOptional()
+  @IsString()
+  area?: string;
+
+  @IsOptional()
+  @IsString()
+  jornada?: string;
 }

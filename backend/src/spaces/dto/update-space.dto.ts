@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsInt,
   Min,
+  Max,
   IsArray,
   IsOptional,
   IsIn,
@@ -30,6 +31,7 @@ export class UpdateSpaceDto {
 
   @IsInt({ message: 'La capacidad debe ser un número entero.' })
   @Min(1, { message: 'La capacidad mínima debe ser 1 persona.' })
+  @Max(500, { message: 'La capacidad máxima permitida es de 500 personas.' })
   @IsOptional()
   capacity?: number;
 

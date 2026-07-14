@@ -1,15 +1,17 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ViewEncapsulation, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterModule } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-login',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterModule],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.css'
+  styleUrl: './login.component.css',
+  encapsulation: ViewEncapsulation.None
 })
 export class LoginComponent {
   loginForm: FormGroup;
@@ -17,15 +19,22 @@ export class LoginComponent {
   errorMessage = signal<string | null>(null);
   currentYear = new Date().getFullYear();
 
+  isDarkMode = computed(() => this.themeService.isDarkMode());
+
   constructor(
     private readonly fb: FormBuilder,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly themeService: ThemeService
   ) {
     this.loginForm = this.fb.group({
       identifier: ['', [Validators.required, Validators.minLength(3)]],
       password: ['', [Validators.required, Validators.minLength(6)]]
     });
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   isFieldInvalid(field: string): boolean {

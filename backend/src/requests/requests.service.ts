@@ -69,24 +69,47 @@ export class RequestsService {
       throw new BadRequestException('El docente solicitante se encuentra inactivo.');
     }
 
-    const isResponsible = space.responsibleTeachers.some((t) => t.id === teacherId);
-    if (!isResponsible) {
-      throw new BadRequestException('El espacio físico asociado a la solicitud debe estar bajo tu responsabilidad.');
-    }
-
     const type = dto.type || 'NUEVO_INVENTARIO';
 
-    // Si es transferencia, validar el espacio físico destino
-    if (type === 'TRANSFERENCIA') {
+    // Validar responsabilidades de espacios según el tipo de solicitud
+    if (type === 'SOLICITUD_TRASPASO') {
       if (!dto.destinationSpaceId) {
-        throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes de transferencia.');
+        throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes de traspaso.');
       }
       if (dto.destinationSpaceId === dto.spaceId) {
         throw new BadRequestException('El espacio físico de destino no puede ser igual al de origen.');
       }
-      const destSpace = await this.spaceRepo.findOne({ where: { id: dto.destinationSpaceId } });
+      const destSpace = await this.spaceRepo.findOne({
+        where: { id: dto.destinationSpaceId },
+        relations: { responsibleTeachers: true },
+      });
       if (!destSpace) {
         throw new NotFoundException('El espacio físico de destino no existe.');
+      }
+
+      // El solicitante debe ser responsable del destino (su propia aula)
+      const isResponsibleDest = destSpace.responsibleTeachers.some((t) => t.id === teacherId);
+      if (!isResponsibleDest) {
+        throw new BadRequestException('El espacio físico de destino (tu aula) debe estar bajo tu responsabilidad.');
+      }
+    } else {
+      // Para NUEVO_INVENTARIO, TRANSFERENCIA y TRASPASO_DOCENTE: el solicitante debe ser responsable del origen
+      const isResponsible = space.responsibleTeachers.some((t) => t.id === teacherId);
+      if (!isResponsible) {
+        throw new BadRequestException('El espacio físico de origen (tu aula) debe estar bajo tu responsabilidad.');
+      }
+
+      if (type === 'TRANSFERENCIA' || type === 'TRASPASO_DOCENTE') {
+        if (!dto.destinationSpaceId) {
+          throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes de transferencia.');
+        }
+        if (dto.destinationSpaceId === dto.spaceId) {
+          throw new BadRequestException('El espacio físico de destino no puede ser igual al de origen.');
+        }
+        const destSpace = await this.spaceRepo.findOne({ where: { id: dto.destinationSpaceId } });
+        if (!destSpace) {
+          throw new NotFoundException('El espacio físico de destino no existe.');
+        }
       }
     }
 
@@ -102,7 +125,7 @@ export class RequestsService {
       status: 'EN_PROCESO',
       motive: dto.motive?.trim() || null,
       type,
-      destinationSpaceId: type === 'TRANSFERENCIA' ? dto.destinationSpaceId : null,
+      destinationSpaceId: (type === 'TRANSFERENCIA' || type === 'TRASPASO_DOCENTE' || type === 'SOLICITUD_TRASPASO') ? dto.destinationSpaceId : null,
     });
 
     const savedRequest = await this.requestRepo.save(request);
@@ -166,6 +189,8 @@ export class RequestsService {
       .leftJoinAndSelect('request.space', 'space')
       .leftJoinAndSelect('request.academicPeriod', 'academicPeriod')
       .leftJoinAndSelect('request.resolvedBy', 'resolvedBy')
+      .leftJoinAndSelect('request.items', 'items')
+      .leftJoinAndSelect('items.item', 'item')
       .orderBy('request.createdAt', 'DESC');
 
     if (filters.teacherId) {
@@ -250,7 +275,7 @@ export class RequestsService {
 
     // 1. Validar disponibilidad de stock en el origen correspondiente (bodega o espacio de origen)
     for (const reqItem of request.items) {
-      if (request.type === 'TRANSFERENCIA') {
+      if (request.type === 'TRANSFERENCIA' || request.type === 'TRASPASO_DOCENTE' || request.type === 'SOLICITUD_TRASPASO') {
         const itemInOrigin = await this.itemRepo.findOne({
           where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
         });
@@ -279,7 +304,7 @@ export class RequestsService {
 
     // 2. Procesar transferencia / asignación física de ítems al aula destino
     for (const reqItem of request.items) {
-      if (request.type === 'TRANSFERENCIA') {
+      if (request.type === 'TRANSFERENCIA' || request.type === 'TRASPASO_DOCENTE' || request.type === 'SOLICITUD_TRASPASO') {
         const itemInOrigin = await this.itemRepo.findOne({
           where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
           relations: { codeType: true, subcategory: { category: { inventoryView: true } } },

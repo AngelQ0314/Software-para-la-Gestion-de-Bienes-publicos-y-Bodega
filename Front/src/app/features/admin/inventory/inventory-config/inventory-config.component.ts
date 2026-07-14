@@ -3,6 +3,9 @@ import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormsModule } from '@angular/forms';
 import { InventoryService, Category, Subcategory, CustomField, CodeType } from '../services/inventory.service';
+import Swal from 'sweetalert2';
+import { forkJoin, of, Observable } from 'rxjs';
+
 
 @Component({
   selector: 'app-inventory-config',
@@ -119,8 +122,23 @@ export class InventoryConfigComponent implements OnInit {
   }
 
   deleteCategory(id: string): void {
-    if (!confirm('¿Seguro de que deseas eliminar esta categoría? Se borrarán subcategorías asociadas.')) return;
-    this.inventoryService.deleteCategory(id).subscribe(() => this.loadAllData());
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Se eliminará esta categoría y todas las subcategorías asociadas.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        popup: 'swal2-glass-popup',
+        confirmButton: 'btn btn-danger',
+        cancelButton: 'btn btn-secondary'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.inventoryService.deleteCategory(id).subscribe(() => this.loadAllData());
+      }
+    });
   }
 
   onSubcategorySubmit(): void {
@@ -149,9 +167,25 @@ export class InventoryConfigComponent implements OnInit {
   }
 
   deleteSubcategory(id: string): void {
-    if (!confirm('¿Deseas eliminar esta subcategoría?')) return;
-    this.inventoryService.deleteSubcategory(id).subscribe(() => this.loadAllData());
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Se eliminará esta subcategoría de forma permanente.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        popup: 'swal2-glass-popup',
+        confirmButton: 'btn btn-danger',
+        cancelButton: 'btn btn-secondary'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.inventoryService.deleteSubcategory(id).subscribe(() => this.loadAllData());
+      }
+    });
   }
+
 
   onFieldTypeChange(): void {
     this.tempOptions.set([]);
@@ -212,8 +246,23 @@ export class InventoryConfigComponent implements OnInit {
   }
 
   deleteField(id: string): void {
-    if (!confirm('¿Deseas eliminar este campo personalizado?')) return;
-    this.inventoryService.deleteCustomField(id).subscribe(() => this.loadAllData());
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Se eliminará este campo personalizado de forma permanente.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        popup: 'swal2-glass-popup',
+        confirmButton: 'btn btn-danger',
+        cancelButton: 'btn btn-secondary'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.inventoryService.deleteCustomField(id).subscribe(() => this.loadAllData());
+      }
+    });
   }
 
   onCodeTypeSubmit(): void {
@@ -242,12 +291,28 @@ export class InventoryConfigComponent implements OnInit {
   }
 
   deleteCodeType(id: string): void {
-    if (!confirm('¿Deseas eliminar este tipo de código?')) return;
-    this.inventoryService.deleteCodeType(id).subscribe(() => {
-      this.selectedCodeType.set(null);
-      this.loadAllData();
+    Swal.fire({
+      title: '¿Estás seguro?',
+      text: 'Se eliminará este tipo de código y todas las asociaciones asociadas.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar',
+      customClass: {
+        popup: 'swal2-glass-popup',
+        confirmButton: 'btn btn-danger',
+        cancelButton: 'btn btn-secondary'
+      }
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.inventoryService.deleteCodeType(id).subscribe(() => {
+          this.selectedCodeType.set(null);
+          this.loadAllData();
+        });
+      }
     });
   }
+
 
   selectCodeType(ct: CodeType): void {
     this.selectedCodeType.set(ct);
@@ -292,22 +357,82 @@ export class InventoryConfigComponent implements OnInit {
     const ct = this.selectedCodeType();
     if (!ct) return;
 
-    const payload = this.tempAssociations()
-      .filter((a) => a.selected)
-      .map((a) => ({
-        customFieldId: a.field.id,
-        orden: a.orden,
-        isMandatory: a.isMandatory,
-      }));
+    // Obtener asociaciones vigentes en base de datos
+    this.inventoryService.getCodeTypeFields(ct.id).subscribe({
+      next: (currentAssocs) => {
+        const temp = this.tempAssociations();
+        const obsList: Observable<any>[] = [];
 
-    this.inventoryService.associateCodeTypeFields(ct.id, payload).subscribe({
-      next: () => {
-        alert('Configuración de campos guardada con éxito.');
-        this.selectCodeType(ct);
+        // 1. Procesar elementos seleccionados (Crear o Actualizar)
+        temp.forEach((t) => {
+          if (t.selected) {
+            const existing = currentAssocs.find((c) => c.customFieldId === t.field.id);
+            const needsUpdate = !existing || existing.orden !== t.orden || existing.isMandatory !== t.isMandatory;
+
+            if (needsUpdate) {
+              obsList.push(
+                this.inventoryService.associateFieldToCodeTypeSingle(ct.id, {
+                  customFieldId: t.field.id,
+                  sortOrder: t.orden,
+                  isMandatory: t.isMandatory,
+                })
+              );
+            }
+          }
+        });
+
+        // 2. Procesar elementos deseleccionados (Eliminar si existían)
+        currentAssocs.forEach((c) => {
+          const selectedInTemp = temp.find((t) => t.field.id === c.customFieldId && t.selected);
+          if (!selectedInTemp) {
+            obsList.push(this.inventoryService.removeFieldFromCodeType(ct.id, c.customFieldId));
+          }
+        });
+
+        if (obsList.length === 0) {
+          Swal.fire({
+            title: 'Sin cambios',
+            text: 'No hay modificaciones pendientes en la configuración de campos.',
+            icon: 'info',
+            confirmButtonText: 'Aceptar',
+            customClass: { popup: 'swal2-glass-popup', confirmButton: 'btn btn-primary' },
+          });
+          return;
+        }
+
+        // Ejecutar todas las llamadas asíncronas en lote
+        forkJoin(obsList).subscribe({
+          next: () => {
+            Swal.fire({
+              title: '¡Configuración Guardada!',
+              text: 'Los campos y su orden se actualizaron correctamente para este tipo de código.',
+              icon: 'success',
+              confirmButtonText: 'Genial',
+              customClass: { popup: 'swal2-glass-popup', confirmButton: 'btn btn-primary' },
+            });
+            this.selectCodeType(ct);
+          },
+          error: (err) => {
+            Swal.fire({
+              title: 'Error al asociar',
+              text: err.error?.message || 'Ocurrió un error al guardar la asociación de campos.',
+              icon: 'error',
+              confirmButtonText: 'Entendido',
+              customClass: { popup: 'swal2-glass-popup', confirmButton: 'btn btn-primary' },
+            });
+          },
+        });
       },
       error: (err) => {
-        alert(err.error?.message || 'Error al guardar configuración.');
+        Swal.fire({
+          title: 'Error de carga',
+          text: 'No se pudieron consultar las asociaciones actuales.',
+          icon: 'error',
+          confirmButtonText: 'Aceptar',
+          customClass: { popup: 'swal2-glass-popup', confirmButton: 'btn btn-primary' },
+        });
       },
     });
   }
 }
+

@@ -1,68 +1,125 @@
-<div class="login-container animate-fade">
-  <div class="glass-panel login-card animate-slide">
-    <!-- Logo / Título Institucional -->
-    <div class="brand-section">
-      <div class="brand-logo">
-        <span class="logo-icon">🎓</span>
+<div class="login-wrapper animate-fade">
+
+  <!-- BOTÓN FLOTANTE DE MODO CLARO/OSCURO -->
+  <button class="theme-toggle-btn auth-theme-toggle" (click)="toggleTheme()" [title]="isDarkMode() ? 'Modo Claro' : 'Modo Oscuro'">
+    <span class="material-icons-round">{{ isDarkMode() ? 'light_mode' : 'dark_mode' }}</span>
+  </button>
+
+  <!-- PANEL IZQUIERDO: Branding -->
+  <div class="brand-panel">
+    <div class="brand-panel-content">
+      <!-- Logo institucional -->
+      <div class="inst-logo-ring">
+        <span class="material-icons-round inst-icon">school</span>
       </div>
-      <h1 class="brand-title">IST Yavirac</h1>
-      <p class="brand-subtitle">Sistema de Gestión de Inventario</p>
+
+      <div class="inst-name">
+        <span class="inst-acronym">IST</span>
+        <span class="inst-full">Yavirac</span>
+      </div>
+
+      <p class="inst-tagline">Sistema de Gestión de Inventario y Bodega</p>
+
+      <!-- Detalles decorativos -->
+      <div class="brand-features">
+        <div class="brand-feature-item">
+          <span class="material-icons-round">inventory_2</span>
+          <span>Control de bienes</span>
+        </div>
+        <div class="brand-feature-item">
+          <span class="material-icons-round">assignment</span>
+          <span>Gestión de solicitudes</span>
+        </div>
+        <div class="brand-feature-item">
+          <span class="material-icons-round">bar_chart</span>
+          <span>Reportes en tiempo real</span>
+        </div>
+      </div>
     </div>
 
-    <!-- Formulario -->
-    <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
-      <div class="form-group">
-        <label class="form-label" for="identifier">Cédula o Correo Institucional</label>
-        <input
-          id="identifier"
-          type="text"
-          class="form-input"
-          placeholder="Escribe &quot;admin&quot; o tu cédula"
-          formControlName="identifier"
-          [class.input-error]="isFieldInvalid('identifier')"
-        />
-        <span class="error-text" *ngIf="isFieldInvalid('identifier')">
-          Por favor ingresa un identificador válido
-        </span>
+    <!-- Círculos decorativos de fondo -->
+    <div class="deco-circle deco-circle-1"></div>
+    <div class="deco-circle deco-circle-2"></div>
+    <div class="deco-circle deco-circle-3"></div>
+  </div>
+
+  <!-- PANEL DERECHO: Formulario -->
+  <div class="form-panel">
+    <div class="form-panel-inner animate-slide">
+
+      <div class="form-header">
+        <h1 class="form-title">Iniciar sesión</h1>
+        <p class="form-subtitle">Ingresa tus credenciales institucionales para continuar</p>
       </div>
 
-      <div class="form-group">
-        <div class="label-wrapper">
-          <label class="form-label" for="password">Contraseña</label>
+      <form [formGroup]="loginForm" (ngSubmit)="onSubmit()" class="login-form">
+
+        <div class="form-group">
+          <label class="form-label" for="identifier">
+            <span class="material-icons-round label-icon">badge</span>
+            Cédula o Correo Institucional
+          </label>
+          <input
+            id="identifier"
+            type="text"
+            class="form-input"
+            placeholder="Ingresa tu cédula o correo"
+            formControlName="identifier"
+            [class.input-error]="isFieldInvalid('identifier')"
+            autocomplete="username"
+          />
+          <span class="error-text" *ngIf="isFieldInvalid('identifier')">
+            <span class="material-icons-round" style="font-size:0.85rem">error_outline</span>
+            Por favor ingresa un identificador válido
+          </span>
         </div>
-        <input
-          id="password"
-          type="password"
-          class="form-input"
-          placeholder="Escribe &quot;temporal&quot; para primer login"
-          formControlName="password"
-          [class.input-error]="isFieldInvalid('password')"
-        />
-        <span class="error-text" *ngIf="isFieldInvalid('password')">
-          La contraseña debe tener al menos 6 caracteres
-        </span>
+
+        <div class="form-group">
+          <label class="form-label" for="password">
+            <span class="material-icons-round label-icon">lock</span>
+            Contraseña
+          </label>
+          <input
+            id="password"
+            type="password"
+            class="form-input"
+            placeholder="Ingresa tu contraseña"
+            formControlName="password"
+            [class.input-error]="isFieldInvalid('password')"
+            autocomplete="current-password"
+          />
+          <span class="error-text" *ngIf="isFieldInvalid('password')">
+            <span class="material-icons-round" style="font-size:0.85rem">error_outline</span>
+            La contraseña debe tener al menos 6 caracteres
+          </span>
+        </div>
+
+        <!-- Error de backend -->
+        <div class="alert-box error-alert" *ngIf="errorMessage()">
+          <span class="material-icons-round">warning_amber</span>
+          <span class="alert-message">{{ errorMessage() }}</span>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block" [disabled]="isLoading() || loginForm.invalid">
+          <span class="spinner" *ngIf="isLoading()"></span>
+          <ng-container *ngIf="!isLoading()">
+            <span class="material-icons-round">login</span>
+            Iniciar sesión
+          </ng-container>
+        </button>
+
+        <div class="text-center">
+          <a routerLink="/auth/forgot-password" class="forgot-link">
+            <span class="material-icons-round" style="font-size:0.85rem; vertical-align:middle">help_outline</span>
+            ¿Olvidaste tu contraseña?
+          </a>
+        </div>
+      </form>
+
+      <div class="login-footer">
+        <p>Sistema de Inventario &copy; {{ currentYear }} &mdash; IST Yavirac</p>
       </div>
-
-      <!-- Mensaje de error general del backend -->
-      <div class="alert-box error-alert" *ngIf="errorMessage()">
-        <span class="alert-icon">⚠️</span>
-        <span class="alert-message">{{ errorMessage() }}</span>
-      </div>
-
-      <button type="submit" class="btn btn-primary btn-block" [disabled]="isLoading() || loginForm.invalid">
-        <span class="spinner" *ngIf="isLoading()"></span>
-        <span *ngIf="!isLoading()">Iniciar sesión</span>
-      </button>
-
-      <div class="text-center">
-        <a routerLink="/auth/forgot-password" class="forgot-link">¿Olvidaste tu contraseña?</a>
-      </div>
-    </form>
-
-
-
-    <div class="login-footer">
-      <p>Sistema de Inventario © {{ currentYear }}</p>
     </div>
   </div>
+
 </div>

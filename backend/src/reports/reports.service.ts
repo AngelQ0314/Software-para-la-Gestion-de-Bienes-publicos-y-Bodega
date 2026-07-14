@@ -10,6 +10,7 @@ import { PhysicalSpace } from '../spaces/entities/physical-space.entity';
 import { InventoryItemShift } from '../spaces/entities/inventory-item-shift.entity';
 import { User } from '../users/entities/user.entity';
 import { UserLog } from '../users/entities/user-log.entity';
+import { IncidentReport } from '../incidents/entities/incident-report.entity';
 import PDFDocument from 'pdfkit';
 import { Readable } from 'stream';
 
@@ -88,10 +89,10 @@ export class ReportsService {
   }
 
   // Obtener el reporte consolidado de cierre de un período académico
-  async getClosureReportByPeriod(periodId: string): Promise<ClosureReport> {
-    const report = await this.closureReportRepo.findOne({
-      where: { academicPeriodId: periodId },
-      relations: { academicPeriod: true },
+  async getClosureReportByPeriod(periodId: string): Promise<Report> {
+    const report = await this.reportRepo.findOne({
+      where: { academicPeriodId: periodId, type: ReportType.PERIODO_ACADEMICO },
+      relations: { academicPeriod: true, generatedBy: true },
     });
     if (!report) {
       throw new NotFoundException('El reporte de cierre para este período académico no existe o no ha sido generado.');
@@ -351,11 +352,28 @@ export class ReportsService {
       period = await this.userRepo.manager.getRepository(AcademicPeriod).findOne({ where: { id: periodId } });
     }
 
+    // Calcular estadísticas reales de incidentes
+    const incidentRepo = this.userRepo.manager.getRepository(IncidentReport);
+    const incidentQuery = incidentRepo.createQueryBuilder('report');
+    if (periodId) {
+      incidentQuery.where('report.academicPeriodId = :periodId', { periodId });
+    }
+    const allIncidents = await incidentQuery.getMany();
+    
+    const total = allIncidents.length;
+    const resueltas = allIncidents.filter((i) => i.status === 'RESUELTO').length;
+    const pendientes = allIncidents.filter((i) => i.status === 'PENDIENTE' || i.status === 'REVISADO').length;
+
     const reportCode = `REP-NOV-${Date.now().toString().substring(4)}`;
     const reportData = {
       generatedAt: new Date(),
       periodInfo: period ? { id: period.id, name: period.name } : 'GENERAL / TODOS',
       novelties: activeNovelties,
+      resumenNovedades: {
+        total,
+        resueltas,
+        pendientes,
+      }
     };
 
     const report = this.reportRepo.create({

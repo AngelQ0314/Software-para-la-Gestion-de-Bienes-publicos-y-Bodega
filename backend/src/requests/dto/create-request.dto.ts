@@ -21,8 +21,8 @@ export class CreateRequestDto {
   motive?: string;
 
   @IsOptional()
-  @IsIn(['NUEVO_INVENTARIO', 'TRANSFERENCIA'], {
-    message: 'El tipo de solicitud debe ser NUEVO_INVENTARIO o TRANSFERENCIA.',
+  @IsIn(['NUEVO_INVENTARIO', 'TRANSFERENCIA', 'TRASPASO_DOCENTE', 'SOLICITUD_TRASPASO'], {
+    message: 'El tipo de solicitud debe ser NUEVO_INVENTARIO, TRANSFERENCIA, TRASPASO_DOCENTE o SOLICITUD_TRASPASO.',
   })
   type?: string;
 

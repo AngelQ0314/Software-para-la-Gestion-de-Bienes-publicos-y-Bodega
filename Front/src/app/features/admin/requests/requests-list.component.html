@@ -1,0 +1,279 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Gestión de Solicitudes y Actas</h2>
+      <p>Administra las solicitudes de traspasos o entregas de bienes realizadas por los docentes, y descarga las actas PDF generadas.</p>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar">
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+      <div class="filter-group">
+        <label class="form-label">Estado</label>
+        <select class="form-select" formControlName="status">
+          <option value="">Todos</option>
+          <option value="EN_PROCESO">En Proceso</option>
+          <option value="APROBADA">Aprobada</option>
+          <option value="RECHAZADA">Rechazada</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Período Académico</label>
+        <select class="form-select" formControlName="academicPeriodId">
+          <option value="">Todos</option>
+          @for (p of periods(); track p.id) {
+            <option [value]="p.id">{{ p.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Desde</label>
+        <input type="date" class="form-input" formControlName="startDate" />
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Hasta</label>
+        <input type="date" class="form-input" formControlName="endDate" />
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-filter">
+          <span class="material-icons-round" style="font-size:1.1rem">search</span>
+          Filtrar
+        </button>
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Listado -->
+  <div class="cards-layout-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-container">
+          <div class="spinner-core"></div>
+        </div>
+        <p>Cargando bitácora de solicitudes...</p>
+      </div>
+    } @else {
+      @if (requests().length > 0) {
+        <div class="users-grid">
+          @for (req of requests(); track req.id) {
+            <div class="glass-card user-profile-card">
+              <div class="user-card-header">
+                <div class="user-card-avatar" 
+                     [style.background]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.15)' : (req.type === 'TRASPASO_DOCENTE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)')"
+                     [style.border-color]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.3)' : (req.type === 'TRASPASO_DOCENTE' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)')">
+                  <span class="material-icons-round" [style.color]="req.type === 'TRANSFERENCIA' ? '#0284c7' : (req.type === 'TRASPASO_DOCENTE' ? '#059669' : '#e11d48')" style="font-size: 1.3rem;">
+                    {{ req.type === 'TRANSFERENCIA' ? 'swap_horiz' : (req.type === 'TRASPASO_DOCENTE' ? 'forward' : 'add_shopping_cart') }}
+                  </span>
+                </div>
+                <div class="user-card-title-group">
+                  <h3 class="user-card-fullname">{{ formatType(req.type) }}</h3>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge" [ngClass]="{
+                      'badge-activo': req.status === 'APROBADA',
+                      'badge-inactivo': req.status === 'EN_PROCESO',
+                      'badge-dado-de-baja': req.status === 'RECHAZADA'
+                    }">
+                      {{ formatStatus(req.status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-card-body">
+                <div class="info-row">
+                  <span class="info-label">Docente:</span>
+                  <span class="info-value font-bold">{{ req.teacher?.nombres }} {{ req.teacher?.apellidos }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Aula:</span>
+                  <span class="info-value font-mono">{{ req.space?.roomNumber }}</span>
+                </div>
+                @if (req.type === 'TRANSFERENCIA' && req.destinationSpace) {
+                  <div class="info-row">
+                    <span class="info-label">Aula Destino:</span>
+                    <span class="info-value font-mono">{{ req.destinationSpace?.roomNumber }}</span>
+                  </div>
+                }
+                <div class="info-row">
+                  <span class="info-label">Fecha:</span>
+                  <span class="info-value">{{ req.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </div>
+
+              <div class="user-card-actions">
+                <button class="btn btn-secondary btn-block" (click)="openDetailModal(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                  Ver Detalle
+                </button>
+                @if (req.status === 'APROBADA') {
+                  <button class="btn btn-primary btn-block" (click)="downloadActa(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
+                    Descargar Acta
+                  </button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-panel">
+          <p>No se encontraron solicitudes registradas.</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- MODAL: DETALLE DE SOLICITUD -->
+  @if (showDetailModal() && selectedRequest()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Detalle de la Solicitud</h3>
+          <button class="close-btn" (click)="closeDetailModal()">×</button>
+        </div>
+        
+        <div class="modal-form">
+          <div class="info-row">
+            <span class="info-label">Docente Solicitante:</span>
+            <span class="info-value font-bold" style="color: #fb7185;">
+              {{ selectedRequest()!.teacher?.nombres }} {{ selectedRequest()!.teacher?.apellidos }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Cédula / Correo:</span>
+            <span class="info-value text-muted" style="font-size: 0.85rem;">
+              {{ selectedRequest()!.teacher?.cedula }} | {{ selectedRequest()!.teacher?.correoInstitucional }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Tipo / Estado:</span>
+            <div style="display: flex; gap: 8px;">
+              <span class="badge" style="background: rgba(255,255,255,0.05);">{{ formatType(selectedRequest()!.type) }}</span>
+              <span class="badge" [ngClass]="{
+                'badge-activo': selectedRequest()!.status === 'APROBADA',
+                'badge-inactivo': selectedRequest()!.status === 'EN_PROCESO',
+                'badge-dado-de-baja': selectedRequest()!.status === 'RECHAZADA'
+              }">
+                {{ formatStatus(selectedRequest()!.status) }}
+              </span>
+            </div>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Espacio Físico de Origen:</span>
+            <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+          </div>
+          @if (selectedRequest()!.type === 'TRANSFERENCIA' || selectedRequest()!.type === 'TRASPASO_DOCENTE' || selectedRequest()!.type === 'SOLICITUD_TRASPASO') {
+            <div class="info-row">
+              <span class="info-label">Espacio Físico de Destino:</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+          <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+            <span class="info-label" style="margin-bottom: 2px;">Justificación del Docente:</span>
+            <span class="info-value" style="background: rgba(255,255,255,0.02); padding: 10px 12px; border-radius: 8px; width: 100%; border: 1px solid var(--border-color); line-height: 1.4; color: var(--text-primary);">
+              {{ selectedRequest()!.motive }}
+            </span>
+          </div>
+
+          <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Artículos Solicitados</h4>
+          <div class="assigned-items-table-container" style="margin-bottom: 15px;">
+            <table class="assigned-items-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Artículo</th>
+                  <th>Cantidad</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of selectedRequest()!.items; track item.id) {
+                  <tr>
+                    <td class="font-mono" style="font-weight: 600;">
+                      {{ item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue || 'S/C' }}
+                    </td>
+                    <td style="font-weight: 500;">
+                      {{ item.item?.name || item.item?.dynamicValues?.['nombre'] || item.inventoryItem?.name || item.inventoryItem?.dynamicValues?.['nombre'] || 'Artículo' }}
+                    </td>
+                    <td class="font-mono" style="font-weight: 600;">
+                      {{ item.cantidad }}
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          @if (selectedRequest()!.status === 'RECHAZADA' && selectedRequest()!.rejectionReason) {
+            <div class="rejection-box">
+              <strong>Motivo del Rechazo:</strong>
+              <p>{{ selectedRequest()!.rejectionReason }}</p>
+            </div>
+          }
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeDetailModal()">Cerrar</button>
+            @if (selectedRequest()!.status === 'EN_PROCESO') {
+              <button type="button" class="btn btn-danger" (click)="openRejectModal(selectedRequest()!)">Rechazar</button>
+              <button type="button" class="btn btn-primary" (click)="approveRequest(selectedRequest()!)">Aprobar Solicitud</button>
+            }
+            @if (selectedRequest()!.status === 'APROBADA') {
+              <button type="button" class="btn btn-primary" (click)="downloadActa(selectedRequest()!)">Descargar Acta</button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: RECHAZAR SOLICITUD (JUSTIFICACIÓN OBLIGATORIA) -->
+  @if (showRejectModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Rechazar Solicitud</h3>
+          <button class="close-btn" (click)="closeRejectModal()">×</button>
+        </div>
+        <form [formGroup]="rejectForm" (ngSubmit)="onRejectSubmit()" class="modal-form">
+          <div class="form-group">
+            <label class="form-label" for="rejectionReason">Motivo de Rechazo*</label>
+            <textarea id="rejectionReason" class="form-input" rows="4" 
+                      placeholder="Indica de forma obligatoria el motivo del rechazo..."
+                      formControlName="rejectionReason"></textarea>
+            @if (rejectForm.get('rejectionReason')?.touched && rejectForm.get('rejectionReason')?.invalid) {
+              <span class="error-text">El motivo de rechazo debe tener al menos 4 caracteres.</span>
+            }
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert">
+              <span>⚠️</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert">
+              <span>✅</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeRejectModal()">Cancelar</button>
+            <button type="submit" class="btn btn-danger" [disabled]="rejectForm.invalid || modalLoading()">
+              Confirmar Rechazo
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+</div>

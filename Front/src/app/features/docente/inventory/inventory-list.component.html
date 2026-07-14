@@ -1,0 +1,126 @@
+<div class="users-container animate-fade">
+  <div class="glass-panel main-unified-card">
+    
+    <!-- Encabezado Integrado -->
+    <div class="unified-header">
+      <div class="header-text">
+        <h2>Mi Inventario Asignado</h2>
+        <p>Visualiza el consolidado general de todos los bienes públicos registrados en los espacios físicos bajo tu responsabilidad.</p>
+      </div>
+    </div>
+
+    <!-- Barra de Filtros Integrada -->
+    <div class="unified-filter-bar">
+      <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+        <div class="filter-group">
+          <label class="form-label">Aula / Espacio</label>
+          <select class="form-select" formControlName="spaceId">
+            <option value="">Todos</option>
+            @for (s of mySpaces(); track s.id) {
+              <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group">
+          <label class="form-label">Jornada</label>
+          <select class="form-select" formControlName="jornada">
+            <option value="">Todas</option>
+            @for (j of availableJornadas(); track j) {
+              <option [value]="j">{{ formatJornada(j) }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-group" style="flex: 2;">
+          <label class="form-label">Buscar Bien</label>
+          <input type="text" class="form-input" placeholder="Buscar por código Yavirac o nombre del bien..." formControlName="search" />
+        </div>
+
+        <div class="filter-actions">
+          <button type="submit" class="btn btn-primary btn-filter">
+            <span class="material-icons-round" style="font-size:1.1rem">search</span>
+            Filtrar
+          </button>
+          <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+            <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+            Limpiar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Contenedor de Tabla Integrado -->
+    <div class="unified-content-area">
+      @if (isLoading()) {
+        <div class="loading-state">
+          <div class="spinner-container">
+            <div class="spinner-core"></div>
+          </div>
+          <p>Cargando inventario consolidado...</p>
+        </div>
+      } @else {
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Código Yavirac</th>
+                <th>Aula</th>
+                <th>Jornada</th>
+                <th>Categoría / Bien</th>
+                <th>Descripción</th>
+                <th>Estado Físico</th>
+                <th>Cant.</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of assignedItems(); track item.id) {
+                <tr>
+                  <td class="font-mono text-bold" style="color: #fb7185;">
+                    {{ item.codeValue || 'S/C' }}
+                  </td>
+                  <td class="font-bold">
+                    {{ item.roomNumber ? 'Aula ' + item.roomNumber : 'Sin Asignar' }}
+                  </td>
+                  <td>
+                    <span class="badge" style="background: rgba(56, 189, 248, 0.08); color: #38bdf8; font-weight: 600; padding: 4px 8px; border-radius: 20px;">
+                      {{ formatJornada(item.jornada) }}
+                    </span>
+                  </td>
+                  <td>
+                    <div style="display: flex; flex-direction: column;">
+                      <span style="font-weight: 600; color: var(--text-primary);">{{ item.name }}</span>
+                      <span style="font-size: 0.75rem; color: var(--text-muted);">{{ item.category }}</span>
+                    </div>
+                  </td>
+                  <td style="font-size: 0.8rem; color: var(--text-secondary); max-width: 200px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" [title]="item.novedades || item.observacion || 'Sin novedad'">
+                    {{ item.novedades || item.observacion || '-' }}
+                  </td>
+                  <td>
+                    <span class="badge" [ngClass]="{
+                      'badge-activo': item.estadoFisico === 'BUENO',
+                      'badge-inactivo': item.estadoFisico === 'REGULAR',
+                      'badge-dado-de-baja': item.estadoFisico === 'MALO'
+                    }">
+                      {{ item.estadoFisico }}
+                    </span>
+                  </td>
+                  <td class="font-mono font-bold" style="text-align: center;">
+                    {{ item.cantidad }}
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="7" class="empty-table-cell" style="text-align: center; padding: 40px; color: var(--text-muted);">
+                    No tienes bienes asignados que coincidan con la búsqueda.
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </div>
+
+  </div>
+</div>

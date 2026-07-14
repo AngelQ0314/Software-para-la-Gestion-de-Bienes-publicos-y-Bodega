@@ -4,6 +4,9 @@ import { Router, RouterModule, NavigationEnd } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../core/auth/auth.service';
 import { UsersService } from '../users/services/users.service';
+import { ThemeService } from '../../../core/services/theme.service';
+import { NotificationsService, SystemNotification } from '../../../core/services/notifications.service';
+import { SearchService } from '../../../core/services/search.service';
 import { filter } from 'rxjs/operators';
 
 @Component({
@@ -14,6 +17,10 @@ import { filter } from 'rxjs/operators';
   styleUrl: './admin-layout.component.css'
 })
 export class AdminLayoutComponent {
+  isDarkMode = computed(() => this.themeService.isDarkMode());
+  showNotifications = signal(false);
+  notifications = computed(() => this.notificationsService.notifications());
+  unreadCount = computed(() => this.notificationsService.unreadCount());
   currentUser = computed(() => this.authService.currentUser());
 
   userFullName = computed(() => {
@@ -52,7 +59,10 @@ export class AdminLayoutComponent {
     private readonly authService: AuthService,
     private readonly usersService: UsersService,
     private readonly router: Router,
-    private readonly fb: FormBuilder
+    private readonly fb: FormBuilder,
+    private readonly themeService: ThemeService,
+    private readonly notificationsService: NotificationsService,
+    public readonly searchService: SearchService
   ) {
     this.updateTitle(this.router.url);
 
@@ -77,21 +87,46 @@ export class AdminLayoutComponent {
       this.activeRouteTitle.set('Configuración');
     } else if (url.includes('/admin/inventory')) {
       this.activeRouteTitle.set('Bienes e Inventario');
+    } else if (url.includes('/admin/spaces')) {
+      this.activeRouteTitle.set('Espacios Físicos');
+    } else if (url.includes('/admin/periods')) {
+      this.activeRouteTitle.set('Períodos Académicos');
+    } else if (url.includes('/admin/requests')) {
+      this.activeRouteTitle.set('Solicitudes y Actas');
+    } else if (url.includes('/admin/reports')) {
+      this.activeRouteTitle.set('Reportes e Inventario');
     } else {
       this.activeRouteTitle.set('Dashboard');
     }
   }
 
   openProfileModal(): void {
-    const u = this.currentUser();
-    if (u) {
-      this.profileForm.patchValue({
-        nombres: u.nombres || '',
-        apellidos: u.apellidos || '',
-        correoSecundario: u.correoSecundario || '',
-        telefono: u.telefono || '',
-      });
-    }
+    // Refrescar usuario desde el servidor para tener datos actualizados
+    this.authService.refreshCurrentUser().subscribe({
+      next: () => {
+        const u = this.currentUser();
+        if (u) {
+          this.profileForm.patchValue({
+            nombres: u.nombres || '',
+            apellidos: u.apellidos || '',
+            correoSecundario: u.correoSecundario || '',
+            telefono: u.telefono || '',
+          });
+        }
+      },
+      error: () => {
+        // Si falla el refresh, cargar igual con los datos en caché
+        const u = this.currentUser();
+        if (u) {
+          this.profileForm.patchValue({
+            nombres: u.nombres || '',
+            apellidos: u.apellidos || '',
+            correoSecundario: u.correoSecundario || '',
+            telefono: u.telefono || '',
+          });
+        }
+      }
+    });
     this.profileErrorMessage.set(null);
     this.profileSuccessMessage.set(null);
     this.showProfileModal.set(true);
@@ -134,6 +169,30 @@ export class AdminLayoutComponent {
 
   onLogout(): void {
     this.authService.logout();
-    this.router.navigate(['/auth/login']);
+    window.location.href = '/auth/login';
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
+  }
+
+  toggleNotifications(): void {
+    const show = !this.showNotifications();
+    this.showNotifications.set(show);
+    if (show) {
+      this.notificationsService.refreshSystemNotifications();
+    }
+  }
+
+  markAllAsRead(): void {
+    this.notificationsService.markAllAsRead();
+  }
+
+  onNotificationClick(notif: SystemNotification): void {
+    this.notificationsService.markAsRead(notif.id);
+    this.showNotifications.set(false);
+    if (notif.route) {
+      this.router.navigate([notif.route]);
+    }
   }
 }

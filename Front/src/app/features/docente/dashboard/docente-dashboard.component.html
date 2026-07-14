@@ -1,95 +1,266 @@
-<div class="dashboard-wrapper animate-fade">
-  <header class="dashboard-header glass-panel">
-    <div class="header-info">
-      <h2>Módulo Docente</h2>
-      <p>Bienvenido, {{ userFullName() }}</p>
-    </div>
-    <button class="btn btn-danger" (click)="onLogout()">Cerrar Sesión</button>
-  </header>
+<div class="dash-wrapper animate-fade">
 
-  <main class="dashboard-main grid-2">
-    <!-- Espacios Físicos Asignados -->
-    <div class="glass-card stat-card">
-      <div class="card-icon">🚪</div>
-      <h3>Aulas y Espacios Asignados</h3>
-      <p class="stat-desc">Consulta las aulas bajo tu cargo y los bienes registrados en tu jornada.</p>
-      <button class="btn btn-primary btn-sm">Ver Espacios</button>
+  <!-- ═══════════════════════════════════════════════════════
+       HERO BANNER — Bienvenida y datos del docente
+       ═══════════════════════════════════════════════════════ -->
+  <div class="glass-panel hero-banner">
+    <div class="hero-left">
+      <div class="hero-avatar">{{ userInitials() }}</div>
+      <div class="hero-info">
+        <p class="hero-greeting">Bienvenido de vuelta</p>
+        <h2 class="hero-name">{{ userFullName() || currentUser()?.cedula }}</h2>
+        <div class="hero-meta">
+          <span class="hero-chip">
+            <span class="material-icons-round" style="font-size:0.85rem">school</span>
+            Docente
+          </span>
+          <span class="hero-chip chip-email">
+            <span class="material-icons-round" style="font-size:0.85rem">mail</span>
+            {{ userEmail() }}
+          </span>
+          <span class="hero-chip" [class.chip-active]="currentUser()?.estado === 'ACTIVO'"
+                [class.chip-inactive]="currentUser()?.estado !== 'ACTIVO'">
+            <span class="material-icons-round" style="font-size:0.85rem">circle</span>
+            {{ currentUser()?.estado }}
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="hero-right">
+      <div class="hero-date">
+        <span class="material-icons-round" style="font-size:1.1rem; color: var(--color-primary);">calendar_today</span>
+        <div>
+          <p class="date-label">Hoy</p>
+          <p class="date-value">{{ today | date:'EEEE, d MMMM yyyy' : '' : 'es-EC' }}</p>
+        </div>
+      </div>
+      <button class="btn btn-danger btn-sm" (click)="onLogout()">
+        <span class="material-icons-round" style="font-size:1rem">logout</span>
+        Salir
+      </button>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       STAT CARDS — Contadores dinámicos
+       ═══════════════════════════════════════════════════════ -->
+  <div class="stats-row">
+
+    <div class="glass-card stat-mini-card" routerLink="/docente/spaces">
+      <div class="stat-mini-icon icon-blue">
+        <span class="material-icons-round">corporate_fare</span>
+      </div>
+      <div class="stat-mini-body">
+        <p class="stat-mini-label">Aulas Asignadas</p>
+        <p class="stat-mini-number">{{ spacesCount() }}</p>
+      </div>
+      <span class="material-icons-round stat-mini-arrow">chevron_right</span>
+    </div>
+
+    <div class="glass-card stat-mini-card" routerLink="/docente/requests">
+      <div class="stat-mini-icon icon-orange">
+        <span class="material-icons-round">assignment</span>
+      </div>
+      <div class="stat-mini-body">
+        <p class="stat-mini-label">Solicitudes en Proceso</p>
+        <p class="stat-mini-number">{{ pendingRequestsCount() }}</p>
+      </div>
+      <span class="material-icons-round stat-mini-arrow">chevron_right</span>
+    </div>
+
+    <div class="glass-card stat-mini-card" routerLink="/docente/incidents">
+      <div class="stat-mini-icon icon-red">
+        <span class="material-icons-round">warning_amber</span>
+      </div>
+      <div class="stat-mini-body">
+        <p class="stat-mini-label">Novedades Abiertas</p>
+        <p class="stat-mini-number">{{ openIncidentsCount() }}</p>
+      </div>
+      <span class="material-icons-round stat-mini-arrow">chevron_right</span>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MÓDULOS DE ACCESO RÁPIDO
+       ═══════════════════════════════════════════════════════ -->
+  <div class="modules-grid">
+
+    <!-- Aulas y Espacios -->
+    <div class="glass-card module-card" routerLink="/docente/spaces">
+      <div class="module-card-header">
+        <div class="module-icon mod-blue">
+          <span class="material-icons-round">corporate_fare</span>
+        </div>
+        <div class="module-badge-wrap">
+          <span class="module-count-badge">{{ spacesCount() }} aulas</span>
+        </div>
+      </div>
+      <div class="module-card-body">
+        <h3>Aulas y Espacios Asignados</h3>
+        <p>Consulta las aulas bajo tu cargo, los bienes registrados y el inventario por jornada.</p>
+      </div>
+      <div class="module-card-footer">
+        <button class="btn btn-primary btn-module" routerLink="/docente/spaces">
+          <span class="material-icons-round" style="font-size:1rem">meeting_room</span>
+          Ver Espacios
+        </button>
+      </div>
     </div>
 
     <!-- Solicitudes -->
-    <div class="glass-card stat-card">
-      <div class="card-icon">📝</div>
-      <h3>Solicitud de Insumos y Traspasos</h3>
-      <p class="stat-desc">Genera y revisa solicitudes de consumibles o traspasos de bienes públicos.</p>
-      <button class="btn btn-primary btn-sm">Mis Solicitudes</button>
+    <div class="glass-card module-card" routerLink="/docente/requests">
+      <div class="module-card-header">
+        <div class="module-icon mod-orange">
+          <span class="material-icons-round">assignment</span>
+        </div>
+        <div class="module-badge-wrap">
+          @if (pendingRequestsCount() > 0) {
+            <span class="module-count-badge badge-warning">{{ pendingRequestsCount() }} en proceso</span>
+          }
+        </div>
+      </div>
+      <div class="module-card-body">
+        <h3>Solicitud de Insumos y Traspasos</h3>
+        <p>Genera y revisa solicitudes de consumibles o traspasos de bienes públicos entre espacios.</p>
+      </div>
+      <div class="module-card-footer">
+        <button class="btn btn-primary btn-module" routerLink="/docente/requests">
+          <span class="material-icons-round" style="font-size:1rem">post_add</span>
+          Mis Solicitudes
+        </button>
+      </div>
     </div>
 
-    <!-- Reporte de Novedades -->
-    <div class="glass-card stat-card">
-      <div class="card-icon">⚠️</div>
-      <h3>Reportar Novedades / Incidencias</h3>
-      <p class="stat-desc">Informa daños o faltantes de bienes asignados a tus aulas de clase.</p>
-      <button class="btn btn-danger btn-sm">Reportar Daño</button>
+    <!-- Novedades / Incidencias -->
+    <div class="glass-card module-card" routerLink="/docente/incidents">
+      <div class="module-card-header">
+        <div class="module-icon mod-red">
+          <span class="material-icons-round">report_problem</span>
+        </div>
+        <div class="module-badge-wrap">
+          @if (openIncidentsCount() > 0) {
+            <span class="module-count-badge badge-danger">{{ openIncidentsCount() }} abiertas</span>
+          }
+        </div>
+      </div>
+      <div class="module-card-body">
+        <h3>Novedades e Incidencias</h3>
+        <p>Informa daños o faltantes de bienes asignados a tus aulas de clase de forma inmediata.</p>
+      </div>
+      <div class="module-card-footer">
+        <button class="btn btn-danger btn-module" routerLink="/docente/incidents">
+          <span class="material-icons-round" style="font-size:1rem">report_problem</span>
+          Reportar Novedad
+        </button>
+      </div>
     </div>
 
-    <!-- Perfil Docente -->
-    <div class="glass-card stat-card">
-      <div class="card-icon">⚙️</div>
-      <h3>Mi Perfil Docente</h3>
-      <p class="stat-desc">Visualiza tu información de contacto y áreas de clases registradas.</p>
-      <button class="btn btn-secondary btn-sm" (click)="openProfileModal()">Configurar Perfil</button>
+    <!-- Mi Inventario -->
+    <div class="glass-card module-card" routerLink="/docente/inventory">
+      <div class="module-card-header">
+        <div class="module-icon mod-green">
+          <span class="material-icons-round">inventory_2</span>
+        </div>
+        <div class="module-badge-wrap"></div>
+      </div>
+      <div class="module-card-body">
+        <h3>Mi Inventario de Bienes</h3>
+        <p>Consulta el detalle completo de bienes públicos registrados bajo tu responsabilidad.</p>
+      </div>
+      <div class="module-card-footer">
+        <button class="btn btn-secondary btn-module" routerLink="/docente/inventory">
+          <span class="material-icons-round" style="font-size:1rem">inventory_2</span>
+          Ver Inventario
+        </button>
+      </div>
     </div>
-  </main>
 
-  <!-- MODAL EDITAR PERFIL DOCENTE -->
+    <!-- Mi Perfil -->
+    <div class="glass-card module-card module-card-profile">
+      <div class="module-card-header">
+        <div class="module-icon mod-purple">
+          <span class="material-icons-round">manage_accounts</span>
+        </div>
+        <div class="module-badge-wrap">
+          @if (!currentUser()?.profileCompleted) {
+            <span class="module-count-badge badge-warning">Incompleto</span>
+          }
+        </div>
+      </div>
+      <div class="module-card-body">
+        <h3>Mi Perfil Docente</h3>
+        <p>Visualiza y actualiza tu información personal, correo secundario, teléfono y áreas asignadas.</p>
+      </div>
+      <div class="module-card-footer">
+        <button class="btn btn-secondary btn-module" (click)="openProfileModal()">
+          <span class="material-icons-round" style="font-size:1rem">edit</span>
+          Editar Perfil
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════
+       MODAL — Editar Perfil Docente
+       ═══════════════════════════════════════════════════════ -->
   @if (showProfileModal()) {
-    <div class="modal-overlay animate-fade">
-      <div class="glass-panel modal-card animate-slide">
+    <div class="modal-overlay animate-fade" (click)="closeProfileModal()">
+      <div class="glass-panel modal-card animate-slide" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Mi Perfil Docente</h3>
+          <div style="display:flex; align-items:center; gap: 10px;">
+            <span class="material-icons-round" style="color: var(--color-primary); font-size:1.4rem">manage_accounts</span>
+            <h3>Mi Perfil Docente</h3>
+          </div>
           <button class="close-btn" (click)="closeProfileModal()">×</button>
         </div>
         <form [formGroup]="profileForm" (ngSubmit)="onProfileSubmit()" class="modal-form">
+
           <div class="form-group">
-            <label class="form-label">Cédula</label>
+            <label class="form-label">Cédula (No editable)</label>
             <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
           </div>
 
           <div class="form-group">
-            <label class="form-label">Correo Institucional</label>
-            <input type="text" class="form-input readonly-input" [value]="currentUser()?.correoInstitucional" readonly />
+            <label class="form-label">Correo Institucional (No editable)</label>
+            <input type="text" class="form-input readonly-input"
+              [value]="currentUser()?.correoInstitucional || 'No registrado'"
+              readonly />
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profNombres">Nombres</label>
-            <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
-            @if (isProfileFieldInvalid('nombres')) {
-              <span class="error-text">Los nombres son obligatorios</span>
-            }
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="profNombres">Nombres</label>
+              <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
+              @if (isProfileFieldInvalid('nombres')) {
+                <span class="error-text">Los nombres son obligatorios</span>
+              }
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="profApellidos">Apellidos</label>
+              <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
+              @if (isProfileFieldInvalid('apellidos')) {
+                <span class="error-text">Los apellidos son obligatorios</span>
+              }
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profApellidos">Apellidos</label>
-            <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
-            @if (isProfileFieldInvalid('apellidos')) {
-              <span class="error-text">Los apellidos son obligatorios</span>
-            }
+          <div class="form-row-2">
+            <div class="form-group">
+              <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
+              <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
+              @if (isProfileFieldInvalid('correoSecundario')) {
+                <span class="error-text">Ingresa un correo válido</span>
+              }
+            </div>
+            <div class="form-group">
+              <label class="form-label" for="profTel">Teléfono (Opcional)</label>
+              <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
+            </div>
           </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
-            <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
-            @if (isProfileFieldInvalid('correoSecundario')) {
-              <span class="error-text">Ingresa un correo secundario válido</span>
-            }
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="profTel">Teléfono (Opcional)</label>
-            <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
-          </div>
-
-          <!-- Áreas y Jornadas (Lectura) -->
+          <!-- Áreas y Jornadas (solo lectura) -->
           @if (currentUser()?.rol === 'DOCENTE') {
             <div class="form-group">
               <label class="form-label">Mis Áreas Asignadas</label>
@@ -101,7 +272,6 @@
                 }
               </div>
             </div>
-
             <div class="form-group">
               <label class="form-label">Mis Jornadas</label>
               <div class="tag-container">
@@ -112,30 +282,25 @@
                 }
               </div>
             </div>
-
-            @if (currentUser()?.horarioIngles) {
-              <div class="form-group">
-                <label class="form-label">Horario de Inglés</label>
-                <input type="text" class="form-input readonly-input" [value]="currentUser()?.horarioIngles" readonly />
-              </div>
-            }
           }
 
-          <!-- Alertas -->
           @if (profileErrorMessage()) {
             <div class="alert-box error-alert">
-              <span>⚠️</span> {{ profileErrorMessage() }}
+              <span class="material-icons-round" style="font-size: 1.1rem; vertical-align: middle;">warning</span>
+              {{ profileErrorMessage() }}
             </div>
           }
           @if (profileSuccessMessage()) {
             <div class="alert-box success-alert">
-              <span>✅</span> {{ profileSuccessMessage() }}
+              <span class="material-icons-round" style="font-size: 1.1rem; vertical-align: middle;">check_circle</span>
+              {{ profileSuccessMessage() }}
             </div>
           }
 
           <div class="modal-actions">
             <button type="button" class="btn btn-secondary" (click)="closeProfileModal()">Cancelar</button>
             <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || profileLoading()">
+              <span class="material-icons-round" style="font-size:1rem">save</span>
               Guardar Cambios
             </button>
           </div>

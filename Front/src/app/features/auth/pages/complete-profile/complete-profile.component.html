@@ -1,8 +1,14 @@
 <div class="auth-container animate-fade">
+  
+  <!-- BOTÓN FLOTANTE DE MODO CLARO/OSCURO -->
+  <button class="theme-toggle-btn auth-theme-toggle" (click)="toggleTheme()" [title]="isDarkMode() ? 'Modo Claro' : 'Modo Oscuro'">
+    <span class="material-icons-round">{{ isDarkMode() ? 'light_mode' : 'dark_mode' }}</span>
+  </button>
+
   <div class="glass-panel auth-card animate-slide" [class.wide-card]="isDocente()">
     <div class="brand-section">
       <div class="brand-logo">
-        <span class="logo-icon">👤</span>
+        <span class="material-icons-round" style="font-size:2.2rem; color: var(--color-primary);">person_add</span>
       </div>
       <h1 class="brand-title">Completar Información</h1>
       <p class="brand-subtitle">Por favor ingresa tus datos personales y de contacto para activar tu cuenta.</p>
@@ -134,13 +140,13 @@
 
       <!-- Mensaje de error general -->
       <div class="alert-box error-alert" *ngIf="errorMessage()">
-        <span class="alert-icon">⚠️</span>
+        <span class="material-icons-round" style="font-size:1.1rem">warning</span>
         <span class="alert-message">{{ errorMessage() }}</span>
       </div>
 
       <!-- Mensaje de éxito -->
       <div class="alert-box success-alert" *ngIf="successMessage()">
-        <span class="alert-icon">✓</span>
+        <span class="material-icons-round" style="font-size:1.1rem">check_circle</span>
         <span class="alert-message">{{ successMessage() }}</span>
       </div>
 

@@ -1,15 +1,17 @@
-import { Component, signal } from '@angular/core';
+import { Component, signal, ViewEncapsulation, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { AuthService } from '../../../../core/auth/auth.service';
+import { ThemeService } from '../../../../core/services/theme.service';
 
 @Component({
   selector: 'app-change-password',
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './change-password.component.html',
-  styleUrl: './change-password.component.css'
+  styleUrl: './change-password.component.css',
+  encapsulation: ViewEncapsulation.None
 })
 export class ChangePasswordComponent {
   passwordForm: FormGroup;
@@ -17,10 +19,13 @@ export class ChangePasswordComponent {
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
+  isDarkMode = computed(() => this.themeService.isDarkMode());
+
   constructor(
     private readonly fb: FormBuilder,
     private readonly authService: AuthService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly themeService: ThemeService
   ) {
     this.passwordForm = this.fb.group({
       currentPassword: ['', [Validators.required]],
@@ -31,6 +36,10 @@ export class ChangePasswordComponent {
       ]],
       confirmPassword: ['', [Validators.required]]
     }, { validators: this.passwordMatchValidator });
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
   }
 
   passwordMatchValidator(g: FormGroup) {

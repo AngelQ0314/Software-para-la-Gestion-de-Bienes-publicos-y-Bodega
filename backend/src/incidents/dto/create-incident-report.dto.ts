@@ -24,4 +24,11 @@ export class CreateIncidentReportDto {
     message: 'Cada ID de artículo debe ser un UUID válido.',
   })
   itemIds: string[];
+
+  @IsString({ message: 'El estado físico debe ser un texto.' })
+  @IsNotEmpty({ message: 'El estado físico es obligatorio.' })
+  @IsIn(['BUENO', 'REGULAR', 'MALO'], {
+    message: 'El estado físico debe ser BUENO, REGULAR o MALO.',
+  })
+  estadoFisico: string;
 }

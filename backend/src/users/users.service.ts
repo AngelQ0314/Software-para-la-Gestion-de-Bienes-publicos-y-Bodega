@@ -180,6 +180,13 @@ export class UsersService {
     if (filters.estado) baseConditions.estado = filters.estado;
     if (filters.rol) baseConditions.rol = filters.rol;
 
+    if (filters.area) {
+      baseConditions.areas = ILike(`%${filters.area}%`);
+    }
+    if (filters.jornada) {
+      baseConditions.jornadas = ILike(`%${filters.jornada}%`);
+    }
+
     let where: any[];
     if (filters.nombre) {
       where = [
@@ -196,10 +203,16 @@ export class UsersService {
         id: true,
         cedula: true,
         correoInstitucional: true,
+        correoSecundario: true,
         nombres: true,
         apellidos: true,
+        telefono: true,
         rol: true,
         estado: true,
+        profileCompleted: true,
+        areas: true,
+        jornadas: true,
+        horarioIngles: true,
         createdAt: true,
       },
       order: { createdAt: 'DESC' },

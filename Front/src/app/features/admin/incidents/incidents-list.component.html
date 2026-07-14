@@ -1,0 +1,198 @@
+<div class="users-container animate-fade">
+  <!-- Encabezado -->
+  <div class="glass-panel page-header">
+    <div class="header-text">
+      <h2>Seguimiento de Novedades e Incidencias</h2>
+      <p>Administra los reportes de bienes dañados, robados o perdidos enviados por los docentes, y realiza su seguimiento.</p>
+    </div>
+  </div>
+
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar">
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+      <div class="filter-group">
+        <label class="form-label">Estado</label>
+        <select class="form-select" formControlName="status">
+          <option value="">Todos los estados</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="REVISADO">Revisado</option>
+          <option value="RESUELTO">Resuelto</option>
+        </select>
+      </div>
+
+      <div class="filter-group">
+        <label class="form-label">Período Académico</label>
+        <select class="form-select" formControlName="academicPeriodId">
+          <option value="">Todos los períodos</option>
+          @for (p of periods(); track p.id) {
+            <option [value]="p.id">{{ p.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-actions">
+        <button type="submit" class="btn btn-primary btn-filter">
+          <span class="material-icons-round" style="font-size:1.1rem">search</span>
+          Filtrar
+        </button>
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+
+  <!-- Listado -->
+  <div class="cards-layout-panel">
+    @if (isLoading()) {
+      <div class="loading-state">
+        <div class="spinner-container">
+          <div class="spinner-core"></div>
+        </div>
+        <p>Cargando reportes...</p>
+      </div>
+    } @else {
+      @if (incidents().length > 0) {
+        <div class="users-grid">
+          @for (inc of incidents(); track inc.id) {
+            <div class="glass-card user-profile-card">
+              <div class="user-card-header">
+                <div class="user-card-avatar" 
+                     [style.background]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.15)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(244, 63, 94, 0.15)')"
+                     [style.border-color]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.3)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(244, 63, 94, 0.3)')">
+                  <span class="material-icons-round"
+                    [style.color]="inc.status === 'RESUELTO' ? '#10b981' : (inc.status === 'REVISADO' ? '#f59e0b' : '#f43f5e')">
+                    warning_amber
+                  </span>
+                </div>
+                <div class="user-card-title-group">
+                  <h3 class="user-card-fullname">Aula {{ inc.space?.roomNumber }}</h3>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <span class="badge" [ngClass]="{
+                      'badge-activo': inc.status === 'RESUELTO',
+                      'badge-inactivo': inc.status === 'REVISADO',
+                      'badge-dado-de-baja': inc.status === 'PENDIENTE'
+                    }">
+                      {{ formatStatus(inc.status) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              <div class="user-card-body">
+                <div class="info-row">
+                  <span class="info-label">Docente:</span>
+                  <span class="info-value font-bold">{{ inc.teacher?.nombres }} {{ inc.teacher?.apellidos }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Jornada:</span>
+                  <span class="info-value">{{ formatJornada(inc.jornada) }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Fecha:</span>
+                  <span class="info-value font-mono">{{ inc.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+                <p class="description-preview" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                  {{ inc.description | slice:0:70 }}{{ inc.description.length > 70 ? '...' : '' }}
+                </p>
+              </div>
+
+              <div class="user-card-actions">
+                <button class="btn btn-secondary btn-block" (click)="openDetailModal(inc)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                  Ver Detalles
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      } @else {
+        <div class="empty-state glass-panel">
+          <p>No se encontraron novedades o incidencias.</p>
+        </div>
+      }
+    }
+  </div>
+
+  <!-- MODAL: DETALLE DE REPORTE -->
+  @if (showDetailModal() && selectedIncident()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Detalle de la Incidencia</h3>
+          <button class="close-btn" (click)="closeDetailModal()">×</button>
+        </div>
+        
+        <div class="modal-form">
+          <div class="info-row">
+            <span class="info-label">Docente Reportante:</span>
+            <span class="info-value font-bold" style="color: #fb7185;">
+              {{ selectedIncident()!.teacher?.nombres }} {{ selectedIncident()!.teacher?.apellidos }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Espacio Físico:</span>
+            <span class="info-value">{{ selectedIncident()!.space?.roomNumber }} - {{ selectedIncident()!.space?.name }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Jornada / Periodo:</span>
+            <span class="info-value">
+              {{ formatJornada(selectedIncident()!.jornada) }} | {{ selectedIncident()!.academicPeriod?.name }}
+            </span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Fecha / Estado:</span>
+            <div style="display: flex; gap: 8px;">
+              <span class="info-value font-mono">{{ selectedIncident()!.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              <span class="badge" [ngClass]="{
+                'badge-activo': selectedIncident()!.status === 'RESUELTO',
+                'badge-inactivo': selectedIncident()!.status === 'REVISADO',
+                'badge-dado-de-baja': selectedIncident()!.status === 'PENDIENTE'
+              }">
+                {{ formatStatus(selectedIncident()!.status) }}
+              </span>
+            </div>
+          </div>
+          
+          <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 10px;">
+            <span class="info-label">Descripción del Docente:</span>
+            <span class="info-value" style="background: rgba(255,255,255,0.02); padding: 8px 12px; border-radius: 6px; width: 100%; white-space: pre-wrap;">
+              {{ selectedIncident()!.description }}
+            </span>
+          </div>
+
+          <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 15px; margin-bottom: 8px;">Artículos Afectados</h4>
+          <div class="assigned-items-table-container" style="max-height: 150px; margin-bottom: 15px;">
+            <table class="assigned-items-table">
+              <thead>
+                <tr>
+                  <th>Código</th>
+                  <th>Artículo</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (item of selectedIncident()!.items; track item.id) {
+                  <tr>
+                    <td class="font-mono">{{ item.item?.codeValue || 'S/C' }}</td>
+                    <td>{{ item.item?.name || 'Artículo sin nombre' }}</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeDetailModal()">Cerrar</button>
+            @if (selectedIncident()!.status === 'PENDIENTE') {
+              <button type="button" class="btn btn-primary" (click)="updateStatus(selectedIncident()!, 'REVISADO')">Marcar como Revisado</button>
+            }
+            @if (selectedIncident()!.status === 'REVISADO') {
+              <button type="button" class="btn btn-primary" (click)="updateStatus(selectedIncident()!, 'RESUELTO')">Marcar como Resuelto</button>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
