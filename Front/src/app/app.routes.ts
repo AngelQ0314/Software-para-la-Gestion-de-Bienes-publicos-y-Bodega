@@ -74,13 +74,7 @@ export const routes: Routes = [
             (m) => m.ItemsListComponent
           ),
       },
-      {
-        path: 'inventory/config',
-        loadComponent: () =>
-          import('./features/admin/inventory/inventory-config/inventory-config.component').then(
-            (m) => m.InventoryConfigComponent
-          ),
-      },
+
       {
         path: 'spaces',
         loadComponent: () =>

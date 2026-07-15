@@ -28,6 +28,7 @@
         <label class="form-label">Rol</label>
         <select class="form-select" formControlName="rol">
           <option value="">Todos los roles</option>
+          <option value="ADMINISTRADOR">Administrador</option>
           <option value="DOCENTE">Docente</option>
           <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
         </select>
@@ -176,8 +177,11 @@
           <div class="form-group">
             <label class="form-label" for="newRol">Rol del Usuario</label>
             <select id="newRol" class="form-select" formControlName="rol">
+              <option value="ADMINISTRADOR">Administrador</option>
               <option value="DOCENTE">Docente</option>
-              <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
+              @if (!hasResponsable()) {
+                <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
+              }
             </select>
           </div>
           @if (modalErrorMessage()) {
@@ -326,8 +330,11 @@
                 </div>
                 <div class="action-block-body">
                   <select class="form-select" [(ngModel)]="tempRole" [ngModelOptions]="{standalone: true}">
+                    <option value="ADMINISTRADOR">Administrador</option>
                     <option value="DOCENTE">Docente</option>
-                    <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
+                    @if (selectedUser()?.rol === 'RESPONSABLE_DE_BIENES' || !hasResponsable()) {
+                      <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
+                    }
                   </select>
                   <button class="btn btn-primary" [disabled]="modalLoading()" (click)="onUpdateRole()">
                     Actualizar Rol

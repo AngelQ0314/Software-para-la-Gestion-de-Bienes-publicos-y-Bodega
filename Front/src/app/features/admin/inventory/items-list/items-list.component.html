@@ -1,153 +1,273 @@
-<div class="items-container animate-fade">
-  <!-- Encabezado de la página -->
-  <div class="glass-panel page-header">
-    <div class="header-text">
+<div class="inventory-container">
+  <!-- Cabecera de la Vista -->
+  <div class="inventory-header glass-panel">
+    <div class="header-info">
       <h2>Bienes y Existencias</h2>
-      <p>Consulta, busca y registra elementos en el inventario general con formularios adaptables.</p>
+      <p class="section-desc">Consulta, gestiona y cataloga los recursos institucionales a través de una navegación jerárquica.</p>
     </div>
-    <div class="header-buttons">
-      @if (activeTab() !== 'CONFIG') {
-        <button class="btn btn-secondary" (click)="openImportModal()" style="display: flex; align-items: center; gap: 8px;">
-          <span class="material-icons-round" style="font-size:1.1rem">upload_file</span>
+    <div class="header-actions">
+      @if (selectedView()) {
+        <button class="btn btn-primary" (click)="openImportModal()" style="display: flex; align-items: center; gap: 8px;">
+          <span class="material-icons-round">upload</span>
           Importar Excel
-        </button>
-        <button class="btn btn-primary" (click)="openCreateModal()" style="display: flex; align-items: center; gap: 8px;">
-          <span class="material-icons-round" style="font-size:1.1rem">add_box</span>
-          Registrar Nuevo Ítem
         </button>
       }
     </div>
   </div>
 
-  <!-- Barra de Pestañas de Navegación del Inventario -->
-  <div class="tabs-navigation">
-    <button class="tab-btn" [class.active]="activeTab() === 'BIENES_PUBLICOS'" (click)="selectTab('BIENES_PUBLICOS')">
-      <span class="material-icons-round">inventory_2</span> Bienes Públicos
-    </button>
-    <button class="tab-btn" [class.active]="activeTab() === 'INSUMOS'" (click)="selectTab('INSUMOS')">
-      <span class="material-icons-round">warehouse</span> Bodega (Insumos)
-    </button>
-    <button class="tab-btn" [class.active]="activeTab() === 'BIBLIOTECA'" (click)="selectTab('BIBLIOTECA')">
-      <span class="material-icons-round">menu_book</span> Biblioteca
-    </button>
-    <button class="tab-btn" [class.active]="activeTab() === 'CONFIG'" (click)="selectTab('CONFIG')">
-      <span class="material-icons-round">settings</span> Configuración de Inventario
-    </button>
-  </div>
-
-
-  @if (activeTab() !== 'CONFIG') {
-    <!-- Barra de Filtros -->
-    <div class="glass-panel filter-bar">
-      <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
-        <div class="filter-group">
-          <label class="form-label">Código Yavirac</label>
-          <input type="text" class="form-input" placeholder="Código..." formControlName="codigoYavirac" />
-        </div>
-
-        <div class="filter-group">
-          <label class="form-label">Subcategoría</label>
-          <select class="form-select" formControlName="subcategoriaId">
-            <option value="">Todas</option>
-            @for (sub of getFilteredSubcategories(); track sub.id) {
-              <option [value]="sub.id">{{ sub.nombre }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label class="form-label">Tipo de Código</label>
-          <select class="form-select" formControlName="codigoTipoId">
-            <option value="">Todos</option>
-            @for (ct of codeTypes(); track ct.id) {
-              <option [value]="ct.id">{{ ct.nombre }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="filter-group">
-          <label class="form-label">Estado Físico</label>
-          <select class="form-select" formControlName="estadoFisico">
-            <option value="">Todos</option>
-            <option value="BUENO">Bueno</option>
-            <option value="REGULAR">Regular</option>
-            <option value="MALO">Malo</option>
-          </select>
-        </div>
-
-        <div class="filter-actions">
-          <button type="submit" class="btn btn-primary btn-filter">
-            <span class="material-icons-round" style="font-size:1.1rem">search</span>
-            Filtrar
-          </button>
-          <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
-            <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
-            Limpiar
-          </button>
-        </div>
-      </form>
+  <!-- Breadcrumbs de Navegación Jerárquica -->
+  @if (selectedView()) {
+    <div class="breadcrumbs-panel glass-panel">
+      <div class="breadcrumbs">
+        <span class="breadcrumb-item link" (click)="goBackToViews()">Inventario General</span>
+        <span class="breadcrumb-separator">/</span>
+        
+        @if (viewingOrphans()) {
+          <span class="breadcrumb-item link" (click)="goBackToCategories()">
+            {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
+          </span>
+          <span class="breadcrumb-separator">/</span>
+          <span class="breadcrumb-item active">Artículos Sin Clasificar</span>
+        } @else if (!selectedCategory()) {
+          <span class="breadcrumb-item active">
+            {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
+          </span>
+        } @else {
+          <span class="breadcrumb-item link" (click)="goBackToCategories()">
+            {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
+          </span>
+          <span class="breadcrumb-separator">/</span>
+          
+          @if (!selectedSubcategory()) {
+            <span class="breadcrumb-item active">{{ selectedCategory()?.nombre }}</span>
+          } @else {
+            <span class="breadcrumb-item link" (click)="goBackToSubcategories()">{{ selectedCategory()?.nombre }}</span>
+            <span class="breadcrumb-separator">/</span>
+            <span class="breadcrumb-item active">{{ selectedSubcategory()?.nombre }}</span>
+          }
+        }
+      </div>
     </div>
+  }
 
-    <!-- Tabla de Bienes -->
-    <div class="glass-panel table-panel">
-      <div class="table-container">
-        <table class="custom-table">
-          <thead>
-            <tr>
-              <th>Nombre del Artículo</th>
-              <th>Código Yavirac</th>
-              <th>Código Auxiliar</th>
-              <th>Subcategoría</th>
-              <th>Tipo Código</th>
-              <th>Estado Físico</th>
-              <th>Detalles Dinámicos</th>
-              <th>Acciones</th>
-            </tr>
-          </thead>
-          <tbody>
-            @for (item of items(); track item.id) {
-              <tr>
-                <td><strong>{{ item.name || 'Sin Nombre' }}</strong></td>
-                <td><span class="font-mono text-secondary" style="font-size: 0.85rem;">{{ item.codigoYavirac }}</span></td>
-                <td>{{ item.codigoAuxiliar || '-' }}</td>
-                <td>{{ item.subcategoria?.nombre || '-' }}</td>
-                <td>{{ item.codigoTipo?.nombre || '-' }}</td>
-                <td>
-                  <span class="badge" [ngClass]="{
-                    'badge-activo': item.estadoFisico === 'BUENO',
-                    'badge-pendiente': item.estadoFisico === 'REGULAR',
-                    'badge-inactivo': item.estadoFisico === 'MALO'
-                  }">
-                    {{ item.estadoFisico }}
-                  </span>
-                </td>
-                <td class="details-cell">
-                  @if (item.resolvedValues) {
-                    <div class="resolved-vals-wrapper">
-                      @for (val of item.resolvedValues; track val.fieldId) {
-                        <span class="resolved-tag">
-                          <strong>{{ val.label }}:</strong> {{ val.value }}
-                        </span>
-                      }
-                    </div>
+  <!-- ==========================================================
+       NIVEL 1: LAS 3 CARDS DE VISTAS PRINCIPALES
+       ========================================================== -->
+  @if (!selectedView()) {
+    <div class="views-grid animate-fade">
+      <!-- Card Bienes Públicos -->
+      <div class="view-card glass-panel card-gradient-bienes" (click)="selectView('BIENES_PUBLICOS')">
+        <div class="view-card-icon">
+          <span class="material-icons-round">devices</span>
+        </div>
+        <div class="view-card-content">
+          <h3>Bienes Públicos</h3>
+          <p>Activos fijos, mobiliario, equipos tecnológicos y herramientas del instituto.</p>
+        </div>
+        <div class="view-card-footer">
+          <span>Administrar Sección</span>
+          <span class="material-icons-round">arrow_forward</span>
+        </div>
+      </div>
+
+      <!-- Card Insumos y Bodega -->
+      <div class="view-card glass-panel card-gradient-insumos" (click)="selectView('INSUMOS')">
+        <div class="view-card-icon">
+          <span class="material-icons-round">inventory_2</span>
+        </div>
+        <div class="view-card-content">
+          <h3>Insumos y Bodega</h3>
+          <p>Suministros de oficina, materiales de limpieza, consumibles y stock general.</p>
+        </div>
+        <div class="view-card-footer">
+          <span>Administrar Sección</span>
+          <span class="material-icons-round">arrow_forward</span>
+        </div>
+      </div>
+
+      <!-- Card Biblioteca -->
+      <div class="view-card glass-panel card-gradient-biblioteca" (click)="selectView('BIBLIOTECA')">
+        <div class="view-card-icon">
+          <span class="material-icons-round">auto_stories</span>
+        </div>
+        <div class="view-card-content">
+          <h3>Biblioteca</h3>
+          <p>Libros de texto oficiales, enciclopedias, manuales técnicos y material didáctico.</p>
+        </div>
+        <div class="view-card-footer">
+          <span>Administrar Sección</span>
+          <span class="material-icons-round">arrow_forward</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- ==========================================================
+       NIVEL 2: CATEGORÍAS (LISTA DENTRO DE VISTA ACTIVA)
+       ========================================================== -->
+  @if (selectedView() && !selectedCategory() && !viewingOrphans()) {
+    <div class="categories-section animate-fade">
+      <div class="section-title-bar">
+        <h3>Categorías en {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}</h3>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn btn-secondary btn-sm" (click)="selectOrphans()" style="border-color: #f59e0b; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
+            <span class="material-icons-round" style="font-size: 1.1rem;">warning_amber</span> Sin Clasificar / Huérfanos
+          </button>
+          <button class="btn btn-secondary btn-sm" (click)="openCategoryModal()" style="display: flex; align-items: center; gap: 6px;">
+            <span class="material-icons-round">add</span> Nueva Categoría
+          </button>
+        </div>
+      </div>
+
+      <div class="categories-grid">
+        @for (cat of getFilteredCategories(); track cat.id) {
+          <div class="category-card glass-panel">
+            <div class="category-card-header" (click)="selectCategory(cat)">
+              <h4>{{ cat.nombre }}</h4>
+              <div class="category-actions" (click)="$event.stopPropagation()">
+                <!-- Configurar Atributos Dinámicos de la Categoría -->
+                <button class="icon-btn-edit" (click)="openCategoryConfig(cat)" title="Configurar Atributos Técnicos" style="color: var(--color-primary, #6366f1);">
+                  <span class="material-icons-round">settings</span>
+                </button>
+                <button class="icon-btn-edit" (click)="openCategoryModal(cat)" title="Editar Categoría">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button class="icon-btn-delete" (click)="deleteCategory(cat)" title="Eliminar Categoría">
+                  <span class="material-icons-round">delete</span>
+                </button>
+              </div>
+            </div>
+            
+            <div class="category-card-body" (click)="selectCategory(cat)">
+              <div class="subcategories-preview">
+                <span class="preview-title">Subcategorías registradas:</span>
+                <div class="sub-tags-wrapper">
+                  @for (sub of getSubcategoriesForCategory(cat.id); track sub.id) {
+                    <span class="sub-preview-tag">{{ sub.nombre }}</span>
                   }
-                </td>
-                <td>
-                  <div class="action-buttons">
-                    <button class="action-btn btn-view" title="Ver Detalle" (click)="viewDetail(item)">Ver</button>
-                    <button class="action-btn btn-edit" title="Editar" (click)="openEditModal(item)">Editar</button>
-                    <button class="action-btn btn-reset" title="Eliminar" (click)="deleteItem(item)">Borrar</button>
-                  </div>
-                </td>
-              </tr>
-            }
-            @if (items().length === 0 && !loading()) {
-              <tr>
-                <td colspan="8" class="text-center no-data">No se encontraron elementos registrados.</td>
-              </tr>
-            }
-          </tbody>
-        </table>
+                  @if (getSubcategoriesForCategory(cat.id).length === 0) {
+                    <span class="no-subs-tag">Sin subcategorías creadas</span>
+                  }
+                </div>
+              </div>
+            </div>
+            
+            <div class="category-card-footer">
+              <button class="btn btn-secondary btn-sm" (click)="selectedCategory.set(cat); openSubcategoryModal()">
+                <span class="material-icons-round">add</span> Agregar Subcategoría
+              </button>
+            </div>
+          </div>
+        }
+        @if (getFilteredCategories().length === 0) {
+          <div class="no-data-card glass-panel">
+            <span class="material-icons-round">folder_open</span>
+            <p>No existen categorías registradas en esta sección.</p>
+            <button class="btn btn-primary" (click)="openCategoryModal()">Agregar Primera Categoría</button>
+          </div>
+        }
+      </div>
+    </div>
+  }
+
+  <!-- ==========================================================
+       NIVEL 2.5: ARTÍCULOS SIN CLASIFICAR (HUÉRFANOS)
+       ========================================================== -->
+  @if (selectedView() && viewingOrphans()) {
+    <div class="items-section animate-fade">
+      <!-- Filtros Contextuales -->
+      <div class="filters-panel glass-panel">
+        <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+          <div class="filter-group">
+            <label class="form-label" for="filterOrphanCode">Código Yavirac</label>
+            <input id="filterOrphanCode" type="text" class="form-input" placeholder="Buscar código..." formControlName="codigoYavirac" />
+          </div>
+
+          <div class="filter-group">
+            <label class="form-label" for="filterOrphanStatusFisico">Estado Físico</label>
+            <select id="filterOrphanStatusFisico" class="form-select" formControlName="estadoFisico">
+              <option value="">Todos</option>
+              <option value="BUENO">Bueno</option>
+              <option value="REGULAR">Regular</option>
+              <option value="MALO">Malo</option>
+            </select>
+          </div>
+
+          <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+              <span class="material-icons-round">search</span> Buscar
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="resetFilters()">
+              <span class="material-icons-round">refresh</span> Limpiar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="section-title-bar">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span class="material-icons-round" style="color: #f59e0b; font-size: 1.8rem;">warning_amber</span>
+          <h3>Artículos Sin Clasificar / Huérfanos</h3>
+        </div>
+      </div>
+
+      <!-- Grid de Cards de Productos Huérfanos -->
+      <div class="items-cards-grid" [class.loading-mask]="loading()">
+        @for (item of filteredItems(); track item.id) {
+          <div class="item-card glass-panel animate-slide" style="border-left: 4px solid #f59e0b;">
+            <div class="item-card-header">
+              <div class="title-area">
+                <span class="item-view-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">
+                  HUÉRFANO
+                </span>
+                <h4>{{ item.name }}</h4>
+              </div>
+              <div class="item-badges-row">
+                <span class="badge" [ngClass]="{
+                  'badge-activo': item.estadoFisico === 'BUENO',
+                  'badge-pendiente': item.estadoFisico === 'REGULAR',
+                  'badge-inactivo': item.estadoFisico === 'MALO'
+                }">
+                  {{ item.estadoFisico }}
+                </span>
+                <span class="badge" [ngClass]="{
+                  'badge-activo': item.status === 'ACTIVO',
+                  'badge-inactivo': item.status === 'INACTIVO'
+                }">
+                  {{ item.status }}
+                </span>
+              </div>
+            </div>
+
+            <div class="item-card-body">
+              <div class="detail-row">
+                <span class="detail-label">Código Yavirac:</span>
+                <span class="detail-val font-mono">{{ item.codigoYavirac || 'Sin Código' }}</span>
+              </div>
+              <div class="detail-row">
+                <span class="detail-label">Cantidad:</span>
+                <span class="detail-val quantity-value">{{ item.cantidad ?? 1 }} unidades</span>
+              </div>
+            </div>
+
+            <div class="item-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
+              <button class="btn btn-primary btn-sm" (click)="openReclassifyModal(item)" style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem;">
+                <span class="material-icons-round" style="font-size: 1rem;">category</span>
+                Asignar Categoría
+              </button>
+              <button class="btn btn-secondary btn-sm" (click)="deleteItem(item)" style="color: #e05638; border-color: rgba(224, 86, 56, 0.2); font-size: 0.78rem;" title="Eliminar Permanentemente">
+                <span class="material-icons-round" style="font-size: 1rem; vertical-align: middle;">delete</span>
+                Eliminar
+              </button>
+            </div>
+          </div>
+        }
+        @if (filteredItems().length === 0 && !loading()) {
+          <div class="no-data-card glass-panel" style="grid-column: 1 / -1; padding: 40px;">
+            <span class="material-icons-round" style="color: #10b981;">check_circle</span>
+            <p>¡Todo en orden! No existen artículos huérfanos sin clasificar en esta sección.</p>
+          </div>
+        }
       </div>
 
       <!-- Paginación -->
@@ -167,237 +287,596 @@
         </div>
       }
     </div>
-  } @else {
-    <div class="glass-panel" style="padding: 20px;">
-      <app-inventory-config></app-inventory-config>
-    </div>
   }
 
-
   <!-- ==========================================================
-       MODAL REGISTRO/EDICIÓN DE ELEMENTO (CON FORMULARIO DINÁMICO)
+       NIVEL 3: SUBCATEGORÍAS (LISTA DENTRO DE CATEGORÍA ACTIVA)
        ========================================================== -->
-  @if (showFormModal()) {
-    <div class="modal-overlay">
-      <div class="glass-panel modal-card wide-modal animate-slide">
-        <div class="modal-header">
-          <h3>{{ editingItemId() ? 'Editar Elemento' : 'Registrar Nuevo Elemento de Inventario' }}</h3>
-          <button class="close-btn" (click)="closeFormModal()">×</button>
+  @if (selectedCategory() && !selectedSubcategory()) {
+    <div class="subcategories-section animate-fade">
+      <div class="section-title-bar">
+        <h3>Subcategorías de "{{ selectedCategory()?.nombre }}"</h3>
+        <div class="actions-wrapper">
+          <button class="btn btn-secondary btn-sm" (click)="openSubcategoryModal()">
+            <span class="material-icons-round">add</span> Nueva Subcategoría
+          </button>
         </div>
+      </div>
 
-        <form [formGroup]="itemForm" (ngSubmit)="onItemSubmit()" class="modal-form">
-          <div class="item-form-grid">
-            
-            <!-- COLUMNA 1: DATOS BASE -->
-            <div class="form-column">
-              <h4 class="column-title">Datos Base del Elemento</h4>
-              
-              <div class="form-group">
-                <label class="form-label" for="itemName">Nombre / Descripción del Artículo*</label>
-                <input id="itemName" type="text" class="form-input" placeholder="Ej. Proyector Epson, Silla, etc." formControlName="name" />
-                @if (isFieldInvalid('name')) {
-                  <span class="error-text">El nombre del artículo es obligatorio (mínimo 2 caracteres)</span>
-                }
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="codigoYavirac">Código Institucional Yavirac*</label>
-                <input id="codigoYavirac" type="text" class="form-input" placeholder="Ej. YAV-001-2026" formControlName="codigoYavirac" />
-                @if (isFieldInvalid('codigoYavirac')) {
-                  <span class="error-text">El código Yavirac es obligatorio</span>
-                }
-              </div>
-
-
-              <div class="form-group">
-                <label class="form-label" for="codigoAuxiliar">Código Auxiliar (Opcional)</label>
-                <input id="codigoAuxiliar" type="text" class="form-input" placeholder="Código auxiliar..." formControlName="codigoAuxiliar" />
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="subcategoriaId">Subcategoría</label>
-                <select id="subcategoriaId" class="form-select" formControlName="subcategoriaId">
-                  <option value="">Selecciona...</option>
-                  @for (sub of getFilteredSubcategories(); track sub.id) {
-                    <option [value]="sub.id">
-                      {{ sub.nombre }}
-                    </option>
-                  }
-                </select>
-                @if (isFieldInvalid('subcategoriaId')) {
-                  <span class="error-text">La subcategoría es obligatoria</span>
-                }
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="estadoFisico">Estado Físico</label>
-                <select id="estadoFisico" class="form-select" formControlName="estadoFisico">
-                  <option value="BUENO">Bueno</option>
-                  <option value="REGULAR">Regular</option>
-                  <option value="MALO">Malo</option>
-                </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label" for="codigoTipoId">Tipo de Código (Esquema de campos)</label>
-                <select id="codigoTipoId" class="form-select" formControlName="codigoTipoId" (change)="onCodeTypeChange()">
-                  <option value="">Selecciona tipo...</option>
-                  @for (ct of codeTypes(); track ct.id) {
-                    <option [value]="ct.id">{{ ct.nombre }}</option>
-                  }
-                </select>
-                @if (isFieldInvalid('codigoTipoId')) {
-                  <span class="error-text">El tipo de código es obligatorio</span>
-                }
-              </div>
+      <div class="subcategories-grid">
+        @for (sub of getSubcategoriesForCategory(selectedCategory()!.id); track sub.id) {
+          <div class="subcategory-card glass-panel" (click)="selectSubcategory(sub)">
+            <div class="sub-card-icon">
+              <span class="material-icons-round">list_alt</span>
             </div>
-
-            <!-- COLUMNA 2: FORMULARIO DINÁMICO (Campos dinámicos según tipo de código) -->
-            <div class="form-column">
-              <h4 class="column-title">Especificaciones Dinámicas</h4>
-              
-              @if (dynamicFields().length > 0) {
-                <div class="dynamic-inputs-area">
-                  <p class="section-desc">Ingresa las especificaciones requeridas por el tipo de código:</p>
-
-                  <div formGroupName="dynamicValues" class="dynamic-fields-form">
-                    @for (assoc of dynamicFields(); track assoc.id) {
-                      <div class="form-group">
-                        <label class="form-label">
-                          {{ assoc.customField?.nombre }}
-                          @if (assoc.isMandatory) {
-                            <span class="required-asterisk">*</span>
-                          }
-                        </label>
-                        
-                        <!-- Renderizado según Tipo de Campo -->
-                        <ng-container [ngSwitch]="assoc.customField?.tipo">
-                          <!-- Caso TEXT -->
-                          <input
-                            *ngSwitchCase="'TEXT'"
-                            type="text"
-                            class="form-input"
-                            [placeholder]="'Ingresa ' + assoc.customField?.nombre"
-                            [formControlName]="assoc.customFieldId"
-                          />
-
-                          <!-- Caso NUMBER_INT -->
-                          <input
-                            *ngSwitchCase="'NUMBER_INT'"
-                            type="number"
-                            step="1"
-                            class="form-input"
-                            [placeholder]="'Ingresa número entero'"
-                            [formControlName]="assoc.customFieldId"
-                          />
-
-                          <!-- Caso NUMBER_DECIMAL -->
-                          <input
-                            *ngSwitchCase="'NUMBER_DECIMAL'"
-                            type="number"
-                            step="any"
-                            class="form-input"
-                            [placeholder]="'Ingresa número decimal'"
-                            [formControlName]="assoc.customFieldId"
-                          />
-
-                          <!-- Caso DATE -->
-                          <input
-                            *ngSwitchCase="'DATE'"
-                            type="date"
-                            class="form-input"
-                            [formControlName]="assoc.customFieldId"
-                          />
-
-                          <!-- Caso OPTIONS_LIST -->
-                          <select
-                            *ngSwitchCase="'OPTIONS_LIST'"
-                            class="form-select"
-                            [formControlName]="assoc.customFieldId"
-                          >
-                            <option value="">Selecciona opción...</option>
-                            @for (opt of assoc.customField?.opciones; track opt) {
-                              <option [value]="opt">{{ opt }}</option>
-                            }
-                          </select>
-                        </ng-container>
-
-                        <!-- Errores Dinámicos -->
-                        @if (isDynamicFieldInvalid(assoc.customFieldId)) {
-                          <span class="error-text">
-                            Este campo es obligatorio
-                          </span>
-                        }
-                      </div>
-                    }
-                  </div>
-                </div>
-              } @else {
-                <div class="no-dynamic-fields text-center">
-                  <span class="info-icon">🏷️</span>
-                  <p>Selecciona un tipo de código para cargar y completar sus campos dinámicos.</p>
-                </div>
-              }
+            <div class="sub-card-info">
+              <h4>{{ sub.nombre }}</h4>
+            </div>
+            <div class="sub-card-actions" (click)="$event.stopPropagation()">
+              <button class="icon-btn-edit" (click)="openSubcategoryModal(sub)" title="Editar Subcategoría">
+                <span class="material-icons-round">edit</span>
+              </button>
+              <button class="icon-btn-delete" (click)="deleteSubcategory(sub)" title="Eliminar Subcategoría">
+                <span class="material-icons-round">delete</span>
+              </button>
             </div>
           </div>
-
-          <!-- Alerta Error Modal -->
-          @if (modalErrorMessage()) {
-            <div class="alert-box error-alert">
-              <span>⚠️</span> {{ modalErrorMessage() }}
-            </div>
-          }
-
-          <div class="modal-actions">
-            <button type="button" class="btn btn-secondary" (click)="closeFormModal()">Cancelar</button>
-            <button type="submit" class="btn btn-primary" [disabled]="itemForm.invalid || modalLoading()">
-              Guardar Bien
-            </button>
+        }
+        @if (getSubcategoriesForCategory(selectedCategory()!.id).length === 0) {
+          <div class="no-data-card glass-panel">
+            <span class="material-icons-round">grid_view</span>
+            <p>No existen subcategorías registradas dentro de esta categoría.</p>
+            <button class="btn btn-primary" (click)="openSubcategoryModal()">Agregar Primera Subcategoría</button>
           </div>
-        </form>
+        }
       </div>
     </div>
   }
 
   <!-- ==========================================================
-       MODAL DETALLE COMPLETO (FICHA TÉCNICA)
+       NIVEL 4: ARTÍCULOS/PRODUCTOS (TARJETAS EN SUBCATEGORÍA ACTIVA)
        ========================================================== -->
-  @if (showDetailModal()) {
-    <div class="modal-overlay" style="z-index: 29000 !important;">
-      @if (selectedItem()) {
-        <div class="glass-panel modal-card wide-modal animate-slide spec-modal-card" style="padding: 0; overflow: hidden; max-width: 800px;">
-          <!-- Encabezado Ficha Técnica Premium -->
-          <div class="spec-modal-header-gradient" style="background: linear-gradient(135deg, var(--color-primary) 0%, #312e81 100%); padding: 25px 30px; position: relative;">
-            <div style="display: flex; align-items: center; gap: 14px;">
-              <div class="spec-header-icon-box" style="background: rgba(255,255,255,0.1); width: 48px; height: 48px; border-radius: 12px; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2);">
-                <span class="material-icons-round" style="color: #ffffff; font-size: 1.5rem;">qr_code_2</span>
-              </div>
-              <div>
-                <span style="font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; color: rgba(255,255,255,0.7); display: block; margin-bottom: 2px;">Ficha Técnica de Bien / Existencia</span>
-                <h3 style="margin: 0; font-size: 1.4rem; font-weight: 800; color: #ffffff; line-height: 1.2;">{{ selectedItem()?.name || 'Artículo sin Nombre' }}</h3>
-              </div>
-            </div>
-            <button class="close-btn" (click)="closeDetailModal()" style="color: rgba(255,255,255,0.6); position: absolute; top: 22px; right: 25px; transition: color 0.2s;">×</button>
+  @if (selectedSubcategory()) {
+    <div class="items-section animate-fade">
+      <!-- Filtros Contextuales y Dinámicos -->
+      <div class="filters-panel glass-panel">
+        <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
+          <div class="filter-group">
+            <label class="form-label" for="filterCode">Código Yavirac</label>
+            <input id="filterCode" type="text" class="form-input" placeholder="Buscar código..." formControlName="codigoYavirac" />
           </div>
 
-          <!-- Cuerpo de Ficha Técnica -->
-          <div class="modal-body spec-grid" style="padding: 30px; gap: 25px;">
-            <!-- Columna 1: Especificaciones Base -->
-            <div class="spec-column-styled">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                <span class="material-icons-round" style="color: var(--color-primary); font-size: 1.15rem;">info</span>
-                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Datos de Inventario</h4>
+          <div class="filter-group">
+            <label class="form-label" for="filterStatusFisico">Estado Físico</label>
+            <select id="filterStatusFisico" class="form-select" formControlName="estadoFisico">
+              <option value="">Todos</option>
+              <option value="BUENO">Bueno</option>
+              <option value="REGULAR">Regular</option>
+              <option value="MALO">Malo</option>
+            </select>
+          </div>
+
+          <!-- Filtros Dinámicos Automáticos de Campos Personalizados -->
+          @for (f of getDynamicFilterFields(); track f.fieldId) {
+            <div class="filter-group">
+              <label class="form-label">{{ f.label }}</label>
+              <input type="text" class="form-input" [placeholder]="'Filtrar ' + f.label + '...'" (input)="updateDynamicFilter(f.fieldId, $any($event.target).value)" />
+            </div>
+          }
+
+          <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+              <span class="material-icons-round">search</span> Buscar
+            </button>
+            <button type="button" class="btn btn-secondary" (click)="resetFilters()">
+              <span class="material-icons-round">refresh</span> Limpiar
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div class="section-title-bar">
+        <h3>Artículos en "{{ selectedSubcategory()?.nombre }}"</h3>
+        <button class="btn btn-primary" (click)="openCreateModal()">
+          <span class="material-icons-round">add</span> Registrar Nuevo Artículo
+        </button>
+      </div>
+
+      <!-- Grid de Cards de Productos Filtrados -->
+      <div class="items-cards-grid" [class.loading-mask]="loading()">
+        @for (item of filteredItems(); track item.id) {
+          <div class="item-card glass-panel animate-slide">
+            <!-- Encabezado de la Card -->
+            <div class="item-card-header">
+              <div class="title-area">
+                <span class="item-view-badge" [ngClass]="selectedView() === 'BIENES_PUBLICOS' ? 'bienes-tag' : selectedView() === 'INSUMOS' ? 'insumos-tag' : 'biblioteca-tag'">
+                  {{ selectedView() === 'BIENES_PUBLICOS' ? 'BIEN' : selectedView() === 'INSUMOS' ? 'INSUMO' : 'BIBL' }}
+                </span>
+                <h4>{{ item.name }}</h4>
+              </div>
+              <div class="item-badges-row">
+                <span class="badge" [ngClass]="{
+                  'badge-activo': item.estadoFisico === 'BUENO',
+                  'badge-pendiente': item.estadoFisico === 'REGULAR',
+                  'badge-inactivo': item.estadoFisico === 'MALO'
+                }">
+                  {{ item.estadoFisico }}
+                </span>
+                <span class="badge" [ngClass]="{
+                  'badge-activo': item.status === 'ACTIVO',
+                  'badge-inactivo': item.status === 'INACTIVO'
+                }">
+                  {{ item.status }}
+                </span>
+                @if (item.isPending) {
+                  <span class="badge badge-pendiente">PENDIENTE</span>
+                }
+              </div>
+            </div>
+
+            <!-- Cuerpo de la Card -->
+            <div class="item-card-body">
+              <div class="detail-row">
+                <span class="detail-label">Código Yavirac:</span>
+                <span class="detail-val font-mono">{{ item.codigoYavirac || 'Sin Código' }}</span>
+              </div>
+              
+              <div class="detail-row">
+                <span class="detail-label">Cantidad / Stock:</span>
+                <span class="detail-val quantity-value">{{ item.cantidad ?? 1 }} unidades</span>
               </div>
 
+              <!-- Atributos Dinámicos en la Card -->
+              @if (item.resolvedValues && item.resolvedValues.length > 0) {
+                <div class="dynamic-specs-block">
+                  <span class="specs-title">Especificaciones:</span>
+                  <div class="specs-grid">
+                    @for (val of item.resolvedValues; track val.fieldId) {
+                      <div class="spec-bubble">
+                        <strong>{{ val.label }}:</strong> {{ val.value }}
+                      </div>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+
+            <!-- Acciones de la Card -->
+            <div class="item-card-footer">
+              <button class="btn btn-secondary btn-sm" (click)="viewDetail(item)">Ver Detalle</button>
+              <div class="footer-actions-right">
+                <button class="icon-btn-edit" (click)="openEditModal(item)" title="Editar Artículo">
+                  <span class="material-icons-round">edit</span>
+                </button>
+                <button class="icon-btn-delete" (click)="deleteItem(item)" title="Eliminar Artículo">
+                  <span class="material-icons-round">delete</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        }
+        @if (filteredItems().length === 0 && !loading()) {
+          <div class="no-data-card glass-panel" style="grid-column: 1 / -1;">
+            <span class="material-icons-round">inventory</span>
+            <p>No se encontraron artículos registrados que coincidan con los filtros.</p>
+            <button class="btn btn-primary" (click)="openCreateModal()">Registrar Primer Artículo</button>
+          </div>
+        }
+      </div>
+
+      <!-- Paginación -->
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <span class="pagination-info">
+            Página <strong>{{ currentPage() }}</strong> de <strong>{{ totalPages() }}</strong>
+          </span>
+          <div class="pagination-controls">
+            <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === 1" (click)="setPage(currentPage() - 1)">
+              Anterior
+            </button>
+            <button class="btn btn-secondary btn-sm" [disabled]="currentPage() === totalPages()" (click)="setPage(currentPage() + 1)">
+              Siguiente
+            </button>
+          </div>
+        </div>
+      }
+    </div>
+  }
+</div>
+
+<!-- ==========================================================
+     MODAL CONFIGURACIÓN DE ATRIBUTOS POR CATEGORÍA (SIMPLIFICADO)
+     ========================================================== -->
+@if (showCategoryConfigModal()) {
+  <div class="modal-overlay" style="z-index: 25000 !important;">
+    <div class="glass-panel modal-card wide-modal animate-slide">
+      <div class="modal-header">
+        <h3>Atributos Dinámicos de la Categoría "{{ selectedCategoryForConfig()?.nombre }}"</h3>
+        <button class="close-btn" (click)="closeCategoryConfig()">×</button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 10px;">
+        <div class="config-split-layout">
+          <!-- Columna Izquierda: Formulario Directo de Atributo -->
+          <div class="config-side-form">
+            <h4>Añadir Nuevo Atributo</h4>
+            <form [formGroup]="customFieldForm" (ngSubmit)="submitCustomFieldForCategory()" class="modal-form">
+              <div class="form-group">
+                <label class="form-label" for="attName">Nombre del Atributo*</label>
+                <input id="attName" type="text" class="form-input" placeholder="Ej. Marca, Autor, ISBN..." formControlName="nombre" />
+                @if (customFieldForm.get('nombre')?.invalid && customFieldForm.get('nombre')?.touched) {
+                  <span class="error-text">El nombre es requerido (mínimo 2 caracteres)</span>
+                }
+              </div>
+
+              <div class="form-group">
+                <label class="form-label" for="attTipo">Tipo de Dato*</label>
+                <select id="attTipo" class="form-select" formControlName="tipo">
+                  <option value="TEXT">Texto Corto (TEXT)</option>
+                  <option value="NUMBER_INT">Número Entero</option>
+                  <option value="NUMBER_DECIMAL">Número Decimal</option>
+                  <option value="DATE">Fecha (DATE)</option>
+                  <option value="OPTIONS_LIST">Lista de Selección (OPTIONS_LIST)</option>
+                </select>
+              </div>
+
+              <!-- Opciones para OPTIONS_LIST -->
+              @if (customFieldForm.get('tipo')?.value === 'OPTIONS_LIST') {
+                <div class="form-group options-list-builder" style="background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid var(--border-color);">
+                  <label class="form-label">Opciones de la Lista</label>
+                  <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                    <input type="text" class="form-input form-input-sm" placeholder="Nueva opción..." [(ngModel)]="newOption" [ngModelOptions]="{standalone: true}" (keyup.enter)="addTempOption()" />
+                    <button type="button" class="btn btn-primary btn-sm" (click)="addTempOption()">Añadir</button>
+                  </div>
+                  <div class="options-tags-grid" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    @for (opt of tempOptions(); track opt) {
+                      <span class="option-tag" style="background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); padding: 2px 8px; border-radius: 6px; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 6px;">
+                        {{ opt }}
+                        <span class="material-icons-round" style="font-size: 0.9rem; cursor: pointer; color: var(--color-primary);" (click)="removeTempOption(opt)">close</span>
+                      </span>
+                    }
+                  </div>
+                </div>
+              }
+
+              <!-- Checkbox Obligatorio -->
+              <label style="display: flex; align-items: center; gap: 8px; font-size: 0.88rem; cursor: pointer; margin-top: 5px; user-select: none;">
+                <input type="checkbox" formControlName="isMandatory" />
+                Este campo es obligatorio para los artículos
+              </label>
+
+              @if (modalErrorMessage()) {
+                <div class="alert-box error-alert">{{ modalErrorMessage() }}</div>
+              }
+
+              <div class="form-actions" style="border: none; padding-top: 5px; margin-top: 10px;">
+                <button type="submit" class="btn btn-primary btn-sm" [disabled]="customFieldForm.invalid || modalLoading()">
+                  {{ modalLoading() ? 'Agregando...' : 'Agregar Atributo' }}
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- Columna Derecha: Listado de Atributos de esta Categoría -->
+          <div class="config-main-table">
+            <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Atributos Técnicos Requeridos</h4>
+            
+            <table class="custom-table" style="font-size: 0.85rem;">
+              <thead>
+                <tr>
+                  <th>Nombre Atributo</th>
+                  <th>Tipo de Dato</th>
+                  <th>Atributos</th>
+                  <th style="width: 80px;">Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (assoc of categoryConfigFields(); track assoc.id) {
+                  <tr>
+                    <td>
+                      <strong>{{ assoc.customField?.nombre }}</strong>
+                      @if (assoc.isMandatory) {
+                        <span style="color: var(--color-primary); margin-left: 4px; font-weight: bold;">*</span>
+                      }
+                    </td>
+                    <td><span class="font-mono" style="font-size: 0.75rem;">{{ assoc.customField?.tipo }}</span></td>
+                    <td>{{ assoc.customField?.opciones ? $any(assoc.customField?.opciones).join(', ') : '-' }}</td>
+                    <td>
+                      <button class="icon-btn-delete" (click)="removeFieldFromCategory(assoc)" title="Eliminar Atributo">
+                        <span class="material-icons-round" style="font-size: 1.1rem;">delete</span>
+                      </button>
+                    </td>
+                  </tr>
+                }
+                @if (categoryConfigFields().length === 0) {
+                  <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 30px 10px; font-style: italic;">
+                      Esta categoría no posee atributos dinámicos configurados.
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-actions" style="margin-top: 25px;">
+        <button class="btn btn-secondary" (click)="closeCategoryConfig()">Cerrar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL CREACIÓN / EDICIÓN DE CATEGORÍA
+     ========================================================== -->
+@if (showCategoryModal()) {
+  <div class="modal-overlay" style="z-index: 21000 !important;">
+    <div class="glass-panel modal-card animate-slide" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3>{{ editingCategoryId() ? 'Editar Categoría' : 'Registrar Nueva Categoría' }}</h3>
+        <button class="close-btn" (click)="closeCategoryModal()">×</button>
+      </div>
+      
+      <form [formGroup]="categoryForm" (ngSubmit)="submitCategory()" class="modal-form">
+        <div class="form-group">
+          <label class="form-label" for="catName">Nombre de la Categoría*</label>
+          <input id="catName" type="text" class="form-input" placeholder="Ej. Computadoras, Mobiliario, etc." formControlName="nombre" />
+          @if (categoryForm.get('nombre')?.invalid && categoryForm.get('nombre')?.touched) {
+            <span class="error-text">El nombre es requerido (mínimo 2 caracteres)</span>
+          }
+        </div>
+
+        @if (modalErrorMessage()) {
+          <div class="alert-box error-alert">{{ modalErrorMessage() }}</div>
+        }
+
+        <div class="form-actions" style="margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" (click)="closeCategoryModal()" [disabled]="modalLoading()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="categoryForm.invalid || modalLoading()">
+            {{ modalLoading() ? 'Guardando...' : 'Guardar Categoría' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL CREACIÓN / EDICIÓN DE SUBCATEGORÍA
+     ========================================================== -->
+@if (showSubcategoryModal()) {
+  <div class="modal-overlay" style="z-index: 21000 !important;">
+    <div class="glass-panel modal-card animate-slide" style="max-width: 450px;">
+      <div class="modal-header">
+        <h3>{{ editingSubcategoryId() ? 'Editar Subcategoría' : 'Registrar Nueva Subcategoría' }}</h3>
+        <button class="close-btn" (click)="closeSubcategoryModal()">×</button>
+      </div>
+
+      <form [formGroup]="subcategoryForm" (ngSubmit)="submitSubcategory()" class="modal-form">
+        <div class="form-group">
+          <label class="form-label">Categoría Padre</label>
+          <input type="text" class="form-input" [value]="selectedCategory()?.nombre" disabled style="background: rgba(255,255,255,0.02);" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="subName">Nombre de la Subcategoría*</label>
+          <input id="subName" type="text" class="form-input" placeholder="Ej. Laptops, Escritorios, etc." formControlName="nombre" />
+          @if (subcategoryForm.get('nombre')?.invalid && subcategoryForm.get('nombre')?.touched) {
+            <span class="error-text">El nombre es requerido (mínimo 2 caracteres)</span>
+          }
+        </div>
+
+        @if (modalErrorMessage()) {
+          <div class="alert-box error-alert">{{ modalErrorMessage() }}</div>
+        }
+
+        <div class="form-actions" style="margin-top: 20px;">
+          <button type="button" class="btn btn-secondary" (click)="closeSubcategoryModal()" [disabled]="modalLoading()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="subcategoryForm.invalid || modalLoading()">
+            {{ modalLoading() ? 'Guardando...' : 'Guardar Subcategoría' }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL REGISTRO/EDICIÓN DE ARTÍCULO (SIN SELECTOR DE CÓDIGO)
+     ========================================================== -->
+@if (showFormModal()) {
+  <div class="modal-overlay" style="z-index: 21000 !important;">
+    <div class="glass-panel modal-card wide-modal animate-slide">
+      <div class="modal-header">
+        <h3>{{ editingItemId() ? 'Editar Elemento' : 'Registrar Nuevo Elemento de Inventario' }}</h3>
+        <button class="close-btn" (click)="closeFormModal()">×</button>
+      </div>
+
+      <form [formGroup]="itemForm" (ngSubmit)="onItemSubmit()" class="modal-form">
+        <div class="item-form-grid">
+          
+          <!-- COLUMNA 1: DATOS BASE -->
+          <div class="form-column">
+            <input type="hidden" formControlName="subcategoriaId" />
+            <h4 class="column-title">Datos Base del Elemento</h4>
+            
+            <div class="form-group">
+              <label class="form-label" for="itemName">Nombre / Descripción del Artículo*</label>
+              <input id="itemName" type="text" class="form-input" placeholder="Ej. Proyector Epson, Silla, etc." formControlName="name" />
+              @if (isFieldInvalid('name')) {
+                <span class="error-text">El nombre del artículo es obligatorio (mínimo 2 caracteres)</span>
+              }
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="codigoYavirac">Código Institucional Yavirac*</label>
+              <input id="codigoYavirac" type="text" class="form-input" placeholder="Ej. YAV-001-2026" formControlName="codigoYavirac" />
+              @if (isFieldInvalid('codigoYavirac')) {
+                <span class="error-text">El código Yavirac es obligatorio</span>
+              }
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="estadoFisico">Estado Físico</label>
+              <select id="estadoFisico" class="form-select" formControlName="estadoFisico">
+                <option value="BUENO">Bueno</option>
+                <option value="REGULAR">Regular</option>
+                <option value="MALO">Malo</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="cantidad">Cantidad / Stock</label>
+              <input id="cantidad" type="number" class="form-input" formControlName="cantidad" placeholder="Cantidad..." />
+              @if (isFieldInvalid('cantidad')) {
+                <span class="error-text">La cantidad debe ser mayor o igual a 0</span>
+              }
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="status">Estado Lógico (Sistema)</label>
+              <select id="status" class="form-select" formControlName="status">
+                <option value="ACTIVO">Activo</option>
+                <option value="INACTIVO">Inactivo</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- COLUMNA 2: FORMULARIO DINÁMICO (Campos dinámicos de forma automática) -->
+          <div class="form-column">
+            <h4 class="column-title">Especificaciones Dinámicas</h4>
+            
+            @if (dynamicFields().length > 0) {
+              <div class="dynamic-inputs-area">
+                <p class="section-desc">Ingresa las especificaciones adicionales de esta categoría:</p>
+
+                <div formGroupName="dynamicValues" class="dynamic-fields-form">
+                  @for (assoc of dynamicFields(); track assoc.id) {
+                    <div class="form-group">
+                      <label class="form-label">
+                        {{ assoc.customField?.nombre }}
+                        @if (assoc.isMandatory) {
+                          <span class="required-asterisk">*</span>
+                        }
+                      </label>
+                      
+                      <!-- Renderizado según Tipo de Campo -->
+                      <ng-container [ngSwitch]="assoc.customField?.tipo">
+                        <!-- Caso TEXT -->
+                        <input
+                          *ngSwitchCase="'TEXT'"
+                          type="text"
+                          class="form-input"
+                          [placeholder]="'Ingresa ' + assoc.customField?.nombre"
+                          [formControlName]="assoc.customFieldId"
+                        />
+
+                        <!-- Caso NUMBER_INT -->
+                        <input
+                          *ngSwitchCase="'NUMBER_INT'"
+                          type="number"
+                          step="1"
+                          class="form-input"
+                          [placeholder]="'Ingresa número entero'"
+                          [formControlName]="assoc.customFieldId"
+                        />
+
+                        <!-- Caso NUMBER_DECIMAL -->
+                        <input
+                          *ngSwitchCase="'NUMBER_DECIMAL'"
+                          type="number"
+                          step="any"
+                          class="form-input"
+                          [placeholder]="'Ingresa número decimal'"
+                          [formControlName]="assoc.customFieldId"
+                        />
+
+                        <!-- Caso DATE -->
+                        <input
+                          *ngSwitchCase="'DATE'"
+                          type="date"
+                          class="form-input"
+                          [formControlName]="assoc.customFieldId"
+                        />
+
+                        <!-- Caso OPTIONS_LIST -->
+                        <select
+                          *ngSwitchCase="'OPTIONS_LIST'"
+                          class="form-select"
+                          [formControlName]="assoc.customFieldId"
+                        >
+                          <option value="">Selecciona...</option>
+                          @for (opt of assoc.customField?.opciones; track opt) {
+                            <option [value]="opt">{{ opt }}</option>
+                          }
+                        </select>
+                      </ng-container>
+
+                      @if (isDynamicFieldInvalid(assoc.customFieldId)) {
+                        <span class="error-text">Este campo es requerido</span>
+                      }
+                    </div>
+                  }
+                </div>
+              </div>
+            } @else {
+              <div class="no-dynamic-alert">
+                <span class="material-icons-round">info</span>
+                <p>Esta categoría no posee atributos dinámicos adicionales configurados.</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (modalErrorMessage()) {
+          <div class="alert-box error-alert">{{ modalErrorMessage() }}</div>
+        }
+
+        <div class="form-actions">
+          <button type="button" class="btn btn-secondary" (click)="closeFormModal()" [disabled]="modalLoading()">Cancelar</button>
+          <button type="submit" class="btn btn-primary" [disabled]="itemForm.invalid || modalLoading()">
+            {{ modalLoading() ? 'Guardando...' : (editingItemId() ? 'Actualizar Elemento' : 'Registrar Elemento') }}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL VER DETALLE DEL ELEMENTO
+     ========================================================== -->
+@if (showDetailModal()) {
+  <div class="modal-overlay" style="z-index: 21000 !important;">
+    <div class="glass-panel modal-card animate-slide" style="max-width: 600px;">
+      <div class="modal-header">
+        <h3>Detalle del Artículo</h3>
+        <button class="close-btn" (click)="closeDetailModal()">×</button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 10px;">
+        @if (!selectedItem()) {
+          <div class="loading-spinner-area" style="text-align: center; padding: 40px 0;">
+            <div class="spinner"></div>
+            <p style="margin-top: 15px; color: var(--text-secondary);">Cargando información del elemento...</p>
+          </div>
+        } @else {
+          <div class="detail-grid-layout" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <!-- Ficha Técnica -->
+            <div class="detail-specs-column">
+              <h4 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; color: var(--color-primary);">Ficha Técnica</h4>
+              
               <div class="spec-info-rows" style="display: flex; flex-direction: column; gap: 12px;">
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
-                  <span style="color: var(--text-secondary);">Código Institucional</span>
-                  <strong style="color: var(--text-primary); font-family: monospace;">{{ selectedItem()?.codigoYavirac || '-' }}</strong>
+                  <span style="color: var(--text-secondary);">Nombre</span>
+                  <strong style="color: var(--text-primary);">{{ selectedItem()?.name }}</strong>
                 </div>
 
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
-                  <span style="color: var(--text-secondary);">Código Auxiliar</span>
-                  <strong style="color: var(--text-primary);">{{ selectedItem()?.codigoAuxiliar || 'No registra' }}</strong>
+                  <span style="color: var(--text-secondary);">Código Institucional</span>
+                  <strong style="color: var(--text-primary); font-family: monospace;">{{ selectedItem()?.codigoYavirac || '-' }}</strong>
                 </div>
 
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
@@ -411,126 +890,172 @@
                 </div>
 
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
-                  <span style="color: var(--text-secondary);">Categoría / Vista</span>
-                  <strong style="color: var(--color-primary); font-size: 0.8rem; text-transform: uppercase;">
-                    {{ selectedItem()?.subcategoria?.categoria?.nombre || '-' }}
-                  </strong>
+                  <span style="color: var(--text-secondary);">Estado Físico</span>
+                  <strong style="color: var(--text-primary);">{{ selectedItem()?.estadoFisico }}</strong>
                 </div>
 
-                <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; align-items: center;">
-                  <span style="color: var(--text-secondary);">Estado Físico</span>
-                  <span class="badge" [ngClass]="{
-                    'badge-activo': selectedItem()?.estadoFisico === 'BUENO',
-                    'badge-pendiente': selectedItem()?.estadoFisico === 'REGULAR',
-                    'badge-inactivo': selectedItem()?.estadoFisico === 'MALO'
-                  }">{{ selectedItem()?.estadoFisico }}</span>
+                <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
+                  <span style="color: var(--text-secondary);">Estado Sistema</span>
+                  <strong style="color: var(--text-primary);">{{ selectedItem()?.status }}</strong>
+                </div>
+
+                <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
+                  <span style="color: var(--text-secondary);">Aula / Ubicación</span>
+                  <strong style="color: var(--text-primary);">{{ selectedItem()?.physicalSpace?.name || 'Bodega General (Sin Asignar)' }}</strong>
                 </div>
               </div>
             </div>
 
-            <!-- Columna 2: Especificaciones Dinámicas -->
-            <div class="spec-column-styled">
-              <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px; border-bottom: 1px solid var(--border-color); padding-bottom: 8px;">
-                <span class="material-icons-round" style="color: var(--color-success); font-size: 1.15rem;">extension</span>
-                <h4 style="margin: 0; font-size: 0.95rem; font-weight: 700; color: var(--text-primary);">Atributos Dinámicos</h4>
-              </div>
-
-              <div class="spec-dynamic-container styled-scroll" style="max-height: 200px; overflow-y: auto;">
-                @if (selectedItem()?.resolvedValues?.length) {
-                  <div class="spec-dynamic-grid" style="display: flex; flex-direction: column; gap: 10px;">
-                    @for (val of selectedItem()?.resolvedValues; track val.fieldId) {
-                      <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 6px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;">
-                        <span style="font-weight: 600; color: var(--text-primary);">{{ val.label }}</span>
-                        <span style="color: var(--text-secondary);">{{ val.value || '-' }}</span>
-                      </div>
-                    }
+            <!-- Valores Dinámicos -->
+            <div class="detail-specs-column">
+              <h4 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; color: var(--color-primary);">Especificaciones Adicionales</h4>
+              
+              <div class="dynamic-bubbles-list" style="display: flex; flex-direction: column; gap: 10px;">
+                @for (val of selectedItem()?.resolvedValues; track val.fieldId) {
+                  <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px 14px; display: flex; justify-content: space-between; align-items: center; font-size: 0.88rem;">
+                    <span style="color: var(--text-secondary); font-weight: 500;">{{ val.label }}</span>
+                    <strong style="color: var(--text-primary);">{{ val.value }}</strong>
                   </div>
-                } @else {
-                  <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 25px 15px; color: var(--text-muted); border: 1px dashed var(--border-color); border-radius: 8px;">
-                    <span class="material-icons-round" style="font-size: 2rem; opacity: 0.3;">description</span>
-                    <p style="margin: 0; font-size: 0.8rem; text-align: center; line-height: 1.4;">Este elemento no tiene asignado un esquema de atributos dinámicos adicionales.</p>
+                }
+                @if (!selectedItem()?.resolvedValues || selectedItem()?.resolvedValues?.length === 0) {
+                  <div style="text-align: center; padding: 30px 10px; color: var(--text-secondary); font-size: 0.85rem; border: 1px dashed var(--border-color); border-radius: 8px;">
+                    No tiene atributos dinámicos adicionales.
                   </div>
                 }
               </div>
             </div>
           </div>
+        }
+      </div>
 
-          <!-- Acciones de Ficha -->
-          <div class="modal-actions" style="margin: 0; padding: 20px 30px; background: rgba(0,0,0,0.15); border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
-            <button class="btn btn-secondary" (click)="closeDetailModal()" style="padding: 10px 22px;">Cerrar Ficha</button>
-          </div>
-        </div>
-      }
-    </div>
-  }
-
-  <!-- ==========================================================
-       MODAL DE IMPORTACIÓN MASIVA DESDE EXCEL / CSV
-       ========================================================== -->
-  @if (showImportModal()) {
-    <div class="modal-overlay" style="z-index: 30000 !important;">
-      <div class="glass-panel modal-card animate-slide" style="max-width: 550px;">
-        <div class="modal-header">
-          <h3>Importar Elementos desde Excel</h3>
-          <button class="close-btn" (click)="closeImportModal()">×</button>
-        </div>
-
-        <div class="modal-body" style="padding: 10px 0;">
-          <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 15px;">
-            Sube un archivo de Excel para registrar elementos de forma masiva en la pestaña activa
-            (<strong>{{ activeTab() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : activeTab() === 'INSUMOS' ? 'Insumos y Suministros' : 'Biblioteca' }}</strong>).
-          </p>
-
-          <div style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 15px;">
-            <h5 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--color-primary);">Columnas requeridas en la cabecera:</h5>
-            <p style="font-size: 0.8rem; font-family: monospace; line-height: 1.4; color: var(--text-primary);">
-              Nombre; Código Yavirac; Código Auxiliar; Subcategoría; Tipo de Código; Estado Físico; Cantidad
-            </p>
-            <button class="btn btn-secondary btn-sm" (click)="downloadTemplate()" style="margin-top: 10px; font-size: 0.75rem; padding: 6px 12px; display: flex; align-items: center; gap: 6px;">
-              <span class="material-icons-round" style="font-size: 1rem;">download</span>
-              Descargar Plantilla Base
-            </button>
-          </div>
-
-          <div class="form-group" style="margin-bottom: 15px;">
-            <label class="form-label">Seleccionar archivo Excel / CSV (.xlsx, .csv)</label>
-            <input type="file" (change)="onFileSelected($event)" accept=".xlsx,.csv" class="form-input" style="padding: 10px;" />
-          </div>
-
-          <!-- Alertas de Error / Éxito -->
-          @if (importErrorMessage()) {
-            <div class="alert-box error-alert" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 15px;">
-              <div style="display: flex; align-items: center; gap: 8px;">
-                <span class="material-icons-round" style="font-size:1.1rem">warning</span>
-                <span>{{ importErrorMessage() }}</span>
-              </div>
-              
-              @if (importErrorsList().length > 0) {
-                <div class="errors-scroll-container" style="max-height: 120px; overflow-y: auto; width: 100%; font-size: 0.78rem; background: rgba(0,0,0,0.15); border-radius: 4px; padding: 6px; margin-top: 6px; border: 1px solid rgba(255,255,255,0.05);">
-                  @for (errLine of importErrorsList(); track $index) {
-                    <div style="padding: 3px 0; border-bottom: 1px solid rgba(255,255,255,0.02); color: #fca5a5;">• {{ errLine }}</div>
-                  }
-                </div>
-              }
-            </div>
-          }
-
-          @if (importSuccessMessage()) {
-            <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
-              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span>
-              {{ importSuccessMessage() }}
-            </div>
-          }
-        </div>
-
-        <div class="modal-actions" style="margin-top: 10px;">
-          <button class="btn btn-secondary" (click)="closeImportModal()" [disabled]="modalLoading()">Cancelar</button>
-          <button class="btn btn-primary" (click)="onImportSubmit()" [disabled]="modalLoading() || !selectedFile">
-            {{ modalLoading() ? 'Procesando...' : 'Iniciar Importación' }}
-          </button>
-        </div>
+      <div class="form-actions" style="margin-top: 25px;">
+        <button class="btn btn-secondary" (click)="closeDetailModal()">Cerrar Ficha</button>
       </div>
     </div>
-  }
-</div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL IMPORTACIÓN DESDE EXCEL
+     ========================================================== -->
+@if (showImportModal()) {
+  <div class="modal-overlay" style="z-index: 30000 !important;">
+    <div class="glass-panel modal-card animate-slide" style="max-width: 550px;">
+      <div class="modal-header">
+        <h3>Importar Elementos desde Excel</h3>
+        <button class="close-btn" (click)="closeImportModal()">×</button>
+      </div>
+
+      <div class="modal-body" style="padding: 10px 0;">
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 15px;">
+          Sube un archivo de Excel para registrar elementos de forma masiva en la pestaña activa
+          (<strong>{{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Suministros' : 'Biblioteca' }}</strong>).
+        </p>
+
+        <div style="background: rgba(255,255,255,0.03); border: 1px dashed var(--border-color); border-radius: 8px; padding: 12px; margin-bottom: 15px;">
+          <h5 style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; margin-bottom: 6px; color: var(--color-primary);">Columnas requeridas en la cabecera:</h5>
+          <p style="font-size: 0.8rem; font-family: monospace; line-height: 1.4; color: var(--text-primary);">
+            Nombre; Código Yavirac; Subcategoría; Tipo de Código; Estado Físico; Cantidad
+          </p>
+          <button class="btn btn-secondary btn-sm" (click)="downloadTemplate()" style="margin-top: 10px; font-size: 0.75rem; padding: 6px 12px; display: flex; align-items: center; gap: 6px;">
+            <span class="material-icons-round" style="font-size: 1rem;">download</span>
+            Descargar Plantilla Base
+          </button>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 15px;">
+          <label class="form-label">Seleccionar archivo Excel / CSV (.xlsx, .csv)</label>
+          <input type="file" (change)="onFileSelected($event)" accept=".xlsx,.csv" class="form-input" style="padding: 10px;" />
+        </div>
+
+        <!-- Alertas de Error / Éxito -->
+        @if (importErrorMessage()) {
+          <div class="alert-box error-alert" style="display: flex; flex-direction: column; align-items: flex-start; gap: 6px; margin-bottom: 15px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span>
+              <strong>Error al importar:</strong>
+            </div>
+            <p style="margin: 0; font-size: 0.85rem;">{{ importErrorMessage() }}</p>
+            @if (importErrorsList().length > 0) {
+              <ul style="margin: 5px 0 0 15px; padding: 0; font-size: 0.78rem; text-align: left; max-height: 150px; overflow-y: auto; width: 100%;">
+                @for (err of importErrorsList(); track err) {
+                  <li>{{ err }}</li>
+                }
+              </ul>
+            }
+          </div>
+        }
+
+        @if (importSuccessMessage()) {
+          <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px; margin-bottom: 15px;">
+            <span class="material-icons-round" style="font-size:1.1rem">check_circle</span>
+            <span>{{ importSuccessMessage() }}</span>
+          </div>
+        }
+      </div>
+
+      <div class="form-actions">
+        <button type="button" class="btn btn-secondary" (click)="closeImportModal()" [disabled]="modalLoading()">Cancelar</button>
+        <button type="button" class="btn btn-primary" (click)="onImportSubmit()" [disabled]="!selectedFile || modalLoading()">
+          {{ modalLoading() ? 'Procesando...' : 'Iniciar Importación' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL RECLASIFICACIÓN DE ARTÍCULOS HUÉRFANOS
+     ========================================================== -->
+@if (showReclassifyModal()) {
+  <div class="modal-overlay" style="z-index: 28000 !important;">
+    <div class="glass-panel modal-card animate-slide" style="max-width: 480px;">
+      <div class="modal-header">
+        <h3>Asignar Categoría/Subcategoría</h3>
+        <button class="close-btn" (click)="closeReclassifyModal()">×</button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 10px;">
+        <p style="font-size: 0.88rem; color: var(--text-secondary); margin-bottom: 15px;">
+          Asigna el artículo <strong>"{{ selectedItemForReclassify()?.name }}"</strong> a una categoría y subcategoría de destino.
+        </p>
+
+        <!-- Paso 1: Seleccionar Categoría -->
+        <div class="form-group">
+          <label class="form-label" style="font-weight: 600;">Seleccionar Categoría Destino</label>
+          <select class="form-select" [value]="reclassifyCategory()?.id || ''" (change)="reclassifyCategory.set($any($event.target).value ? { id: $any($event.target).value, nombre: '', baseView: 'BIENES_PUBLICOS' } : null)">
+            <option value="">Selecciona una categoría...</option>
+            @for (cat of getFilteredCategories(); track cat.id) {
+              <option [value]="cat.id">{{ cat.nombre }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Paso 2: Seleccionar Subcategoría -->
+        @if (reclassifyCategory()) {
+          <div class="form-group" style="margin-top: 15px;">
+            <label class="form-label" style="font-weight: 600;">Seleccionar Subcategoría Destino</label>
+            <div class="subcategories-reclassify-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 180px; overflow-y: auto; background: rgba(255,255,255,0.02); padding: 10px; border-radius: 8px; border: 1px solid var(--border-color);">
+              @for (sub of getSubcategoriesForCategory(reclassifyCategory()!.id); track sub.id) {
+                <button type="button" class="btn btn-secondary btn-sm" style="text-align: left; justify-content: flex-start; width: 100%; display: flex; align-items: center; gap: 8px;" (click)="confirmReclassify(sub.id)">
+                  <span class="material-icons-round" style="font-size: 1.1rem; color: var(--color-primary);">subdirectory_arrow_right</span>
+                  {{ sub.nombre }}
+                </button>
+              }
+              @if (getSubcategoriesForCategory(reclassifyCategory()!.id).length === 0) {
+                <span style="font-size: 0.82rem; color: var(--text-secondary); text-align: center; padding: 10px;">
+                  No existen subcategorías en esta categoría.
+                </span>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="form-actions" style="margin-top: 20px;">
+        <button class="btn btn-secondary" (click)="closeReclassifyModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}
 

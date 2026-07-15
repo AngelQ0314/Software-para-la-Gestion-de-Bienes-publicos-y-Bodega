@@ -587,10 +587,10 @@ export class InventoryService {
       inventoryViewId: subcategory.category.inventoryViewId,
       cantidad: cantidadToSave,
       dynamicValues: validatedValues,
-      status: 'ACTIVO',
+      status: dto.status ? dto.status.toUpperCase().trim() : 'ACTIVO',
       estadoFisico: dto.estadoFisico ? dto.estadoFisico.toUpperCase().trim() : 'BUENO',
       academicPeriodId: activePeriod ? activePeriod.id : null,
-      isPending: !activePeriod,
+      isPending: dto.isPending !== undefined ? !!dto.isPending : !activePeriod,
     };
 
     return this.itemRepo.save(nuevoItem);
@@ -729,6 +729,10 @@ export class InventoryService {
       item.estadoFisico = raw;
     }
 
+    if (dto.isPending !== undefined) {
+      item.isPending = !!dto.isPending;
+    }
+
     if (dto.dynamicValues) {
       const configs = await this.fieldConfigRepo.find({
         where: { codeTypeId: item.codeTypeId },
@@ -839,6 +843,7 @@ export class InventoryService {
 
   async findItems(filters: {
     inventoryViewId?: string;
+    inventoryViewCode?: string;
     categoryId?: string;
     subcategoryId?: string;
     codeTypeId?: string;
@@ -846,6 +851,7 @@ export class InventoryService {
     search?: string;
     page?: number;
     limit?: number;
+    onlyOrphans?: boolean;
   }): Promise<{ data: InventoryItem[]; total: number; page: number; lastPage: number }> {
     const page = filters.page || 1;
     const limit = filters.limit || 10;
@@ -870,12 +876,18 @@ export class InventoryService {
 
     if (filters.inventoryViewId) {
       query.andWhere('item.inventoryViewId = :inventoryViewId', { inventoryViewId: filters.inventoryViewId });
+    } else if (filters.inventoryViewCode) {
+      query.andWhere('inventoryView.code = :inventoryViewCode', { inventoryViewCode: filters.inventoryViewCode });
     }
 
-    if (filters.subcategoryId) {
-      query.andWhere('item.subcategoryId = :subcategoryId', { subcategoryId: filters.subcategoryId });
-    } else if (filters.categoryId) {
-      query.andWhere('subcategory.categoryId = :categoryId', { categoryId: filters.categoryId });
+    if (filters.onlyOrphans) {
+      query.andWhere('item.subcategoryId IS NULL');
+    } else {
+      if (filters.subcategoryId) {
+        query.andWhere('item.subcategoryId = :subcategoryId', { subcategoryId: filters.subcategoryId });
+      } else if (filters.categoryId) {
+        query.andWhere('subcategory.categoryId = :categoryId', { categoryId: filters.categoryId });
+      }
     }
 
     if (filters.codeTypeId) {

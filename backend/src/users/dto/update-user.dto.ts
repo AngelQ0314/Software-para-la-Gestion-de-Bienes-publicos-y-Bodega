@@ -3,6 +3,7 @@ import {
   IsOptional,
   IsString,
   Length,
+  ValidateIf,
 } from 'class-validator';
 
 export class UpdateUserDto {
@@ -15,8 +16,9 @@ export class UpdateUserDto {
   apellidos?: string;
 
   @IsOptional()
+  @ValidateIf((o) => o.correoSecundario !== '' && o.correoSecundario !== null && o.correoSecundario !== undefined)
   @IsEmail({}, { message: 'El correo secundario no es válido' })
-  correoSecundario?: string;
+  correoSecundario?: string | null;
 
   @IsOptional()
   @IsString({ message: 'El teléfono debe ser texto' })

@@ -37,4 +37,11 @@ export class CreateInventoryItemDto {
   @IsString({ message: 'El estado físico debe ser un texto.' })
   @IsOptional()
   estadoFisico?: string;
+
+  @IsString({ message: 'El estado lógico debe ser un texto.' })
+  @IsOptional()
+  status?: string;
+
+  @IsOptional()
+  isPending?: boolean;
 }

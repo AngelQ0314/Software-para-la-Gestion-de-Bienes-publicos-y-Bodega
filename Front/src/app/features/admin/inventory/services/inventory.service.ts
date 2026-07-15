@@ -40,7 +40,6 @@ export interface InventoryItem {
   id?: string;
   name?: string;
   codigoYavirac: string;
-  codigoAuxiliar: string | null;
   codigoTipoId: string;
   codigoTipo?: CodeType;
   subcategoriaId: string;
@@ -54,6 +53,9 @@ export interface InventoryItem {
     value: any;
   }>;
   cantidad?: number;
+  status?: string;
+  isPending?: boolean;
+  physicalSpace?: { id: string; name: string } | null;
 }
 
 @Injectable({
@@ -266,7 +268,6 @@ export class InventoryService {
           id: i.id,
           name: i.name,
           codigoYavirac: i.codeValue || '',
-          codigoAuxiliar: null,
           codigoTipoId: i.codeTypeId,
           codigoTipo: i.codeType ? { id: i.codeType.id, nombre: i.codeType.name } : undefined,
           subcategoriaId: i.subcategoryId,
@@ -291,6 +292,9 @@ export class InventoryService {
           dynamicValues: i.dynamicValues || {},
           resolvedValues: i.resolvedValues || [],
           cantidad: i.cantidad || 1,
+          status: i.status || 'ACTIVO',
+          isPending: !!i.isPending,
+          physicalSpace: i.physicalSpace ? { id: i.physicalSpace.id, name: i.physicalSpace.name } : null,
         })),
         total: res.total || 0,
         lastPage: res.lastPage || 1,
@@ -305,7 +309,6 @@ export class InventoryService {
         id: i.id,
         name: i.name,
         codigoYavirac: i.codeValue || '',
-        codigoAuxiliar: null,
         codigoTipoId: i.codeTypeId,
         codigoTipo: i.codeType ? { id: i.codeType.id, nombre: i.codeType.name } : undefined,
         subcategoriaId: i.subcategoryId,
@@ -330,6 +333,9 @@ export class InventoryService {
         dynamicValues: i.dynamicValues || {},
         resolvedValues: i.resolvedValues || [],
         cantidad: i.cantidad || 1,
+        status: i.status || 'ACTIVO',
+        isPending: !!i.isPending,
+        physicalSpace: i.physicalSpace ? { id: i.physicalSpace.id, name: i.physicalSpace.name } : null,
       }))
     );
   }
@@ -342,6 +348,9 @@ export class InventoryService {
       codeValue: item.codigoYavirac,
       cantidad: item.cantidad !== undefined ? Number(item.cantidad) : 1,
       dynamicValues: item.dynamicValues || {},
+      estadoFisico: item.estadoFisico || 'BUENO',
+      status: item.status || 'ACTIVO',
+      isPending: !!item.isPending,
     };
     return this.http.post<InventoryItem>(`${this.apiUrl}/items`, payload);
   }
@@ -354,6 +363,9 @@ export class InventoryService {
       codeValue: item.codigoYavirac,
       cantidad: item.cantidad !== undefined ? Number(item.cantidad) : 1,
       dynamicValues: item.dynamicValues || {},
+      estadoFisico: item.estadoFisico || 'BUENO',
+      status: item.status || 'ACTIVO',
+      isPending: !!item.isPending,
     };
     return this.http.patch<InventoryItem>(`${this.apiUrl}/items/${id}`, payload);
   }

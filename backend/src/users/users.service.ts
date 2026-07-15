@@ -10,6 +10,7 @@ import { ILike, Repository, Not } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { User, UserRole, UserStatus } from './entities/user.entity';
 import { UserLog, LogType } from './entities/user-log.entity';
+import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { ChangeStatusDto } from './dto/change-status.dto';
 import { FilterUsersDto } from './dto/filter-users.dto';
@@ -165,12 +166,15 @@ export class UsersService {
   }
 
   //Listar y filtrar usuarios
-  async findAll(filters: FilterUsersDto) {
+  async findAll(filters: FilterUsersDto, requesterId?: string) {
     const page = parseInt(filters.page || '1', 10);
     const limit = parseInt(filters.limit || '10', 10);
     const skip = (page - 1) * limit;
 
     const baseConditions: any = {};
+    if (requesterId) {
+      baseConditions.id = Not(requesterId);
+    }
     if (filters.cedula) baseConditions.cedula = ILike(`%${filters.cedula}%`);
     
     // Soporta tanto 'correo' (DTO) como 'correoInstitucional' (Enviado por Angular)
@@ -253,13 +257,36 @@ export class UsersService {
   ): Promise<{ message: string }> {
     const user = await this.findOne(userId);
 
+    // 1. El responsable de bienes no puede cambiar de rol en el sistema
+    if (user.rol === UserRole.RESPONSABLE_DE_BIENES && newRol !== UserRole.RESPONSABLE_DE_BIENES) {
+      throw new BadRequestException(
+        'El Responsable de Bienes no puede cambiar de rol ni perder sus privilegios. Solo debe haber un Responsable de Bienes en el sistema.',
+      );
+    }
+
+    // 2. Un docente no puede cambiar a administrador (o responsable de bienes) si tiene artículos de inventario asignados a su perfil
+    if (user.rol === UserRole.DOCENTE && (newRol === UserRole.ADMINISTRADOR || newRol === UserRole.RESPONSABLE_DE_BIENES)) {
+      const itemsCount = await this.userRepo.manager
+        .getRepository(InventoryItem)
+        .createQueryBuilder('item')
+        .innerJoin('item.physicalSpace', 'space')
+        .innerJoin('space.responsibleTeachers', 'teacher', 'teacher.id = :userId', { userId })
+        .getCount();
+
+      if (itemsCount > 0) {
+        throw new BadRequestException(
+          'No se puede cambiar el rol del docente a un rol administrativo porque tiene artículos de inventario asignados bajo su responsabilidad. Primero debe reasignar dichos artículos o espacios.',
+        );
+      }
+    }
+
     if (newRol === UserRole.RESPONSABLE_DE_BIENES && user.rol !== UserRole.RESPONSABLE_DE_BIENES) {
       const existeResponsable = await this.userRepo.findOne({
         where: { rol: UserRole.RESPONSABLE_DE_BIENES },
       });
       if (existeResponsable) {
         throw new BadRequestException(
-          'Solo puede haber un Responsable de Bienes registrado en el sistema.',
+          'Solo puede haber un Responsable de Bienes registrado en el sistema. Ya existe un usuario con este rol.',
         );
       }
     }
@@ -437,6 +464,41 @@ export class UsersService {
     delete dto.cedula;
     delete dto.correoInstitucional;
 
+    // 1. El responsable de bienes no puede cambiar de rol en el sistema
+    if (dto.rol && user.rol === UserRole.RESPONSABLE_DE_BIENES && dto.rol !== UserRole.RESPONSABLE_DE_BIENES) {
+      throw new BadRequestException(
+        'El Responsable de Bienes no puede cambiar de rol ni perder sus privilegios. Solo debe haber un Responsable de Bienes en el sistema.',
+      );
+    }
+
+    // 2. Un docente no puede cambiar a administrador (o responsable de bienes) si tiene artículos de inventario asignados a su perfil
+    if (dto.rol && user.rol === UserRole.DOCENTE && (dto.rol === UserRole.ADMINISTRADOR || dto.rol === UserRole.RESPONSABLE_DE_BIENES)) {
+      const itemsCount = await this.userRepo.manager
+        .getRepository(InventoryItem)
+        .createQueryBuilder('item')
+        .innerJoin('item.physicalSpace', 'space')
+        .innerJoin('space.responsibleTeachers', 'teacher', 'teacher.id = :userId', { userId })
+        .getCount();
+
+      if (itemsCount > 0) {
+        throw new BadRequestException(
+          'No se puede cambiar el rol del docente a un rol administrativo porque tiene artículos de inventario asignados bajo su responsabilidad. Primero debe reasignar dichos artículos o espacios.',
+        );
+      }
+    }
+
+    // Validar que solo haya un Responsable de Bienes en el sistema al actualizar
+    if (dto.rol === UserRole.RESPONSABLE_DE_BIENES && user.rol !== UserRole.RESPONSABLE_DE_BIENES) {
+      const existeResponsable = await this.userRepo.findOne({
+        where: { rol: UserRole.RESPONSABLE_DE_BIENES },
+      });
+      if (existeResponsable) {
+        throw new BadRequestException(
+          'Solo puede haber un Responsable de Bienes registrado en el sistema. Ya existe un usuario con este rol.',
+        );
+      }
+    }
+
     // Si no es docente, rechazamos cualquier intento de meter campos de clase
     if (user.rol !== UserRole.DOCENTE && (dto.areas || dto.jornadas || dto.horarioIngles)) {
       throw new BadRequestException(
@@ -497,6 +559,10 @@ export class UsersService {
       }
     }
 
+    if (dto.correoSecundario === '') {
+      dto.correoSecundario = null;
+    }
+
     // Validación de unicidad de correo secundario si se está actualizando
     if (dto.correoSecundario) {
       if (dto.correoSecundario.toLowerCase() === user.correoInstitucional.toLowerCase()) {
@@ -537,6 +603,10 @@ export class UsersService {
   // PD002 & PD003 & PD004: Actualización de perfil por el docente / usuario autenticado
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<{ message: string; user: Partial<User> }> {
     const user = await this.findOne(userId);
+
+    if (dto.correoSecundario === '') {
+      dto.correoSecundario = null;
+    }
 
     // Validación de unicidad de correo secundario si se está actualizando
     if (dto.correoSecundario) {

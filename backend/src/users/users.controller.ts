@@ -39,8 +39,9 @@ export class UsersController {
   }
 
   @Get()
-  findAll(@Query() filters: FilterUsersDto) {
-    return this.usersService.findAll(filters);
+  findAll(@Query() filters: FilterUsersDto, @Request() req) {
+    const requesterId = req.user?.id;
+    return this.usersService.findAll(filters, requesterId);
   }
 
   // PD001: Consulta del perfil por el usuario autenticado (Docente, Admin, Responsable de Bienes)

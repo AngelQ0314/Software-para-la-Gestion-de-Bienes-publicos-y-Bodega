@@ -141,6 +141,10 @@ export class AuthService {
     if (user.profileCompleted)
       throw new BadRequestException('El perfil ya fue completado');
 
+    if (dto.correoSecundario === '') {
+      dto.correoSecundario = null;
+    }
+
     // Evitar que el correo secundario sea igual al institucional propio
     if (dto.correoSecundario && dto.correoSecundario.toLowerCase() === user.correoInstitucional.toLowerCase()) {
       throw new BadRequestException(

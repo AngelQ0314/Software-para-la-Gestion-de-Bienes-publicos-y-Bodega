@@ -31,8 +31,8 @@ export class User {
   @Column({ name: 'correo_institucional', unique: true })
   correoInstitucional: string;
 
-  @Column({ name: 'correo_secundario', nullable: true })
-  correoSecundario: string;
+  @Column({ name: 'correo_secundario', type: 'varchar', nullable: true })
+  correoSecundario: string | null;
 
   @Column({ nullable: true })
   nombres: string;

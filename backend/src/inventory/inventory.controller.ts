@@ -189,6 +189,7 @@ export class InventoryController {
   @Get('items')
   async getItems(
     @Query('inventoryViewId') inventoryViewId?: string,
+    @Query('inventoryViewCode') inventoryViewCode?: string,
     @Query('categoryId') categoryId?: string,
     @Query('subcategoryId') subcategoryId?: string,
     @Query('codeTypeId') codeTypeId?: string,
@@ -196,9 +197,11 @@ export class InventoryController {
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('onlyOrphans') onlyOrphans?: string,
   ) {
     return this.inventoryService.findItems({
       inventoryViewId,
+      inventoryViewCode,
       categoryId,
       subcategoryId,
       codeTypeId,
@@ -206,6 +209,7 @@ export class InventoryController {
       search,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
+      onlyOrphans: onlyOrphans === 'true',
     });
   }
 

@@ -5,6 +5,7 @@ import { UsersService, UserLog } from './services/users.service';
 import { User, AuthService } from '../../../core/auth/auth.service';
 import { NotificationsService } from '../../../core/services/notifications.service';
 import { SearchService } from '../../../core/services/search.service';
+import Swal from 'sweetalert2';
 
 @Component({
   selector: 'app-users-list',
@@ -43,9 +44,19 @@ export class UsersListComponent implements OnInit {
 
   activeDetailTab = signal<'info' | 'actions' | 'logs'>('info');
 
+  hasResponsable = signal(false);
+
   tempRole = 'DOCENTE';
   tempStatus = 'ACTIVO';
   tempObservation = '';
+
+  checkResponsableExist(): void {
+    this.usersService.getUsers(1, 1, { rol: 'RESPONSABLE_DE_BIENES' }).subscribe({
+      next: (res: any) => {
+        this.hasResponsable.set(res.total > 0);
+      }
+    });
+  }
 
   // Áreas y jornadas editables para el Admin en el modal de acciones
   readonly availableAreas = [
@@ -89,13 +100,13 @@ export class UsersListComponent implements OnInit {
     });
   }
 
-  ngOnInit(): void { this.loadUsers(); }
+  ngOnInit(): void { this.loadUsers(); this.checkResponsableExist(); }
 
   loadUsers(): void {
     this.loading.set(true);
     this.usersService.getUsers(this.currentPage(), 10, this.filterForm.value).subscribe({
       next: (res: any) => {
-        let list = (res.data || []).filter((u: any) => u.rol !== 'ADMINISTRADOR');
+        let list = res.data || [];
         const cid = this.authService.currentUser()?.id;
         if (cid) list = [...list].sort((a: any, b: any) => a.id === cid ? -1 : b.id === cid ? 1 : 0);
         this.users.set(list);
@@ -146,6 +157,7 @@ export class UsersListComponent implements OnInit {
         this.notificationsService.addNotification(`Usuario registrado: ${this.createUserForm.value.correoInstitucional}`, 'SUCCESS', 'person_add');
         this.closeCreateModal();
         this.loadUsers();
+        this.checkResponsableExist();
       },
       error: (err) => {
         this.modalLoading.set(false);
@@ -186,15 +198,69 @@ export class UsersListComponent implements OnInit {
   // ── Acciones ─────────────────────────────────────────────────────────────────
   onUpdateRole(): void {
     const user = this.selectedUser(); if (!user) return;
-    this.modalLoading.set(true); this.modalErrorMessage.set(null);
-    this.usersService.updateRole(user.id, this.tempRole).subscribe({
+
+    // 1. El responsable de bienes no puede cambiar de rol
+    if (user.rol === 'RESPONSABLE_DE_BIENES' && this.tempRole !== 'RESPONSABLE_DE_BIENES') {
+      Swal.fire({
+        title: 'Operación no permitida',
+        text: 'El Responsable de Bienes no puede cambiar de rol ni perder sus privilegios. Solo debe haber un Responsable de Bienes en el sistema.',
+        icon: 'error',
+        confirmButtonColor: '#f97316'
+      });
+      return;
+    }
+
+    // 2. Confirmar cambio de Administrador a Docente
+    if (user.rol === 'ADMINISTRADOR' && this.tempRole === 'DOCENTE') {
+      Swal.fire({
+        title: '¿Cambiar a rol Docente?',
+        text: '¿Estás seguro de que quieres cambiar este usuario a Docente? Perderá todos los privilegios de administrador.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#f97316',
+        cancelButtonColor: '#475569',
+        confirmButtonText: 'Sí, cambiar rol',
+        cancelButtonText: 'Cancelar'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          this.executeRoleUpdate(user.id, this.tempRole);
+        }
+      });
+      return;
+    }
+
+    // 3. Ejecutar cambio de rol directo en los demás casos
+    this.executeRoleUpdate(user.id, this.tempRole);
+  }
+
+  private executeRoleUpdate(userId: string, role: any): void {
+    this.modalLoading.set(true);
+    this.modalErrorMessage.set(null);
+    this.usersService.updateRole(userId, role).subscribe({
       next: () => {
         this.modalLoading.set(false);
+        Swal.fire({
+          title: 'Rol actualizado',
+          text: 'El rol del usuario ha sido actualizado correctamente.',
+          icon: 'success',
+          confirmButtonColor: '#f97316'
+        });
         this.modalSuccessMessage.set('Rol actualizado correctamente.');
         this.loadUsers();
+        this.checkResponsableExist();
         setTimeout(() => this.modalSuccessMessage.set(null), 3000);
       },
-      error: (err) => { this.modalLoading.set(false); this.modalErrorMessage.set(err.error?.message || 'Error al actualizar rol.'); },
+      error: (err) => {
+        this.modalLoading.set(false);
+        const errMsg = err.error?.message || 'Error al actualizar rol.';
+        this.modalErrorMessage.set(errMsg);
+        Swal.fire({
+          title: 'Error',
+          text: errMsg,
+          icon: 'error',
+          confirmButtonColor: '#f97316'
+        });
+      },
     });
   }
 
