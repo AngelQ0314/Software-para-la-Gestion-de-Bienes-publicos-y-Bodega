@@ -43,15 +43,15 @@ export class RequestsService {
     private readonly pdfGeneratorService: PdfGeneratorService,
   ) {}
 
-  // CREAR SOLICITUD (DOCENTE / TESTING)
+  // CREAR SOLICITUD
   async createRequest(dto: CreateRequestDto, teacherId: string): Promise<Request> {
-    // 1. Validar período académico activo
+    // Validar período académico activo
     const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
     if (!activePeriod) {
       throw new BadRequestException('No se pueden registrar solicitudes de inventario porque no hay un período académico activo.');
     }
 
-    // 2. Validar que el espacio físico exista y esté bajo la responsabilidad del docente
+    // Validar que el espacio físico exista y esté bajo la responsabilidad del docente
     const space = await this.spaceRepo.findOne({
       where: { id: dto.spaceId },
       relations: { responsibleTeachers: true },
@@ -60,7 +60,7 @@ export class RequestsService {
       throw new NotFoundException(`El espacio físico principal no existe.`);
     }
 
-    // 3. Validar docente solicitante
+    // Validar docente solicitante
     const teacher = await this.userRepo.findOne({ where: { id: teacherId, rol: UserRole.DOCENTE } });
     if (!teacher) {
       throw new BadRequestException('El usuario solicitante debe ser un docente registrado.');
@@ -117,7 +117,7 @@ export class RequestsService {
       throw new BadRequestException('Debe incluir al menos un artículo en la solicitud.');
     }
 
-    // 4. Crear cabecera de solicitud
+    // Crear cabecera de solicitud
     const request = this.requestRepo.create({
       teacherId,
       spaceId: dto.spaceId,
@@ -130,7 +130,7 @@ export class RequestsService {
 
     const savedRequest = await this.requestRepo.save(request);
 
-    // 5. Crear detalles e ítems
+    // Crear detalles e ítems
     const itemsToSave: RequestItem[] = [];
     for (const itemDto of dto.items) {
       let item: InventoryItem | null = null;
@@ -169,13 +169,13 @@ export class RequestsService {
 
     savedRequest.items = itemsToSave;
 
-    // 6. Notificar a los administradores (GS009)
+    // Notificar a los administradores
     await this.notifyAdminsNewRequest(savedRequest, teacher, space);
 
     return savedRequest;
   }
 
-  // CONSULTAR TODAS LAS SOLICITUDES CON FILTROS (GS001 y GS013)
+  // CONSULTAR TODAS LAS SOLICITUDES CON FILTROS 
   async findAllRequests(filters: {
     teacherId?: string;
     status?: string;
@@ -220,7 +220,7 @@ export class RequestsService {
     return query.getMany();
   }
 
-  // DETALLE COMPLETO DE UNA SOLICITUD (GS011)
+  // DETALLE COMPLETO DE UNA SOLICITUD 
   async findRequestById(id: string, requesterId?: string, requesterRole?: string): Promise<Request> {
     const request = await this.requestRepo.findOne({
       where: { id },
@@ -233,7 +233,6 @@ export class RequestsService {
         handoverAct: true,
         items: {
           item: {
-            codeType: true,
             subcategory: {
               category: {
                 inventoryView: true,
@@ -256,7 +255,7 @@ export class RequestsService {
     return request;
   }
 
-  // APROBAR SOLICITUD (GS002, GS005, GS012)
+  // APROBAR SOLICITUD 
   async approveRequest(id: string, adminId: string): Promise<Request> {
     const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
     if (!activePeriod) {
@@ -273,7 +272,7 @@ export class RequestsService {
       throw new BadRequestException('El usuario administrador responsable no es válido.');
     }
 
-    // 1. Validar disponibilidad de stock en el origen correspondiente (bodega o espacio de origen)
+    // Validar disponibilidad de stock en el origen correspondiente (bodega o espacio de origen)
     for (const reqItem of request.items) {
       if (request.type === 'TRANSFERENCIA' || request.type === 'TRASPASO_DOCENTE' || request.type === 'SOLICITUD_TRASPASO') {
         const itemInOrigin = await this.itemRepo.findOne({
@@ -302,12 +301,12 @@ export class RequestsService {
       }
     }
 
-    // 2. Procesar transferencia / asignación física de ítems al aula destino
+    // Procesar transferencia / asignación física de ítems al aula destino
     for (const reqItem of request.items) {
       if (request.type === 'TRANSFERENCIA' || request.type === 'TRASPASO_DOCENTE' || request.type === 'SOLICITUD_TRASPASO') {
         const itemInOrigin = await this.itemRepo.findOne({
           where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
-          relations: { codeType: true, subcategory: { category: { inventoryView: true } } },
+          relations: { subcategory: { category: { inventoryView: true } } },
         });
 
         const destSpace = await this.spaceRepo.findOne({
@@ -450,14 +449,14 @@ export class RequestsService {
       }
     }
 
-    // 3. Cambiar estado de solicitud y registrar fecha/responsable
+    // Cambiar estado de solicitud y registrar fecha/responsable
     request.status = 'APROBADA';
     request.resolvedAt = new Date();
     request.resolvedById = adminId;
     request.resolvedBy = admin;
     const finalRequest = await this.requestRepo.save(request);
 
-    // 4. Generar el Acta de Recepción en PDF (GS005)
+    // 4. Generar el Acta de Recepción en PDF 
     const year = new Date().getFullYear();
     const count = await this.actRepo.count();
     const actCode = `ACTA-${year}-${String(count + 1).padStart(4, '0')}`;
@@ -478,13 +477,13 @@ export class RequestsService {
     });
     await this.actRepo.save(act);
 
-    // 5. Notificar al docente por correo (GS010)
+    // Notificar al docente por correo 
     await this.notifyDocenteStatus(finalRequest, true);
 
     return finalRequest;
   }
 
-  // RECHAZAR SOLICITUD (GS003, GS010, GS012)
+  // RECHAZAR SOLICITUD
   async rejectRequest(id: string, adminId: string, dto: ResolveRequestDto): Promise<Request> {
     const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
     if (!activePeriod) {
@@ -514,13 +513,13 @@ export class RequestsService {
 
     const finalRequest = await this.requestRepo.save(request);
 
-    // Notificar al docente de su rechazo (GS010)
+    // Notificar al docente de su rechazo 
     await this.notifyDocenteStatus(finalRequest, false);
 
     return finalRequest;
   }
 
-  // OBTENER EL STREAM DEL PDF PARA DESCARGA (GS006 / GS008)
+  // OBTENER EL STREAM DEL PDF PARA DESCARGA
   async getActPdfStream(requestId: string): Promise<{ stream: fs.ReadStream; filename: string }> {
     const act = await this.actRepo.findOne({ where: { requestId } });
     if (!act) {

@@ -31,7 +31,7 @@ export class PeriodsService {
     private readonly reportsService: ReportsService,
   ) {}
 
-  // CREAR PERÍODO ACADÉMICO (PA001)
+  // CREAR PERÍODO ACADÉMICO 
   async createPeriod(dto: CreatePeriodDto): Promise<AcademicPeriod> {
     const nameUpper = dto.name.toUpperCase().trim();
     const existe = await this.periodRepo.findOne({ where: { name: nameUpper } });
@@ -60,7 +60,7 @@ export class PeriodsService {
     return this.periodRepo.save(nuevo);
   }
 
-  // OBTENER TODOS LOS PERÍODOS ACADÉMICOS (PA008)
+  // OBTENER TODOS LOS PERÍODOS ACADÉMICOS
   async findAllPeriods(): Promise<AcademicPeriod[]> {
     return this.periodRepo.find({
       order: { startDate: 'DESC' },
@@ -76,7 +76,7 @@ export class PeriodsService {
     return period;
   }
 
-  // ACTIVAR PERÍODO ACADÉMICO (PA002 & PA007)
+  // ACTIVAR PERÍODO ACADÉMICO 
   async activatePeriod(id: string): Promise<AcademicPeriod> {
     const period = await this.findPeriodById(id);
 
@@ -99,14 +99,14 @@ export class PeriodsService {
     period.status = 'ACTIVO';
     const savedPeriod = await this.periodRepo.save(period);
 
-    // INCORPORACIÓN AUTOMÁTICA (PA007)
-    // 1. Incorporar los items pendientes (creados fuera de período)
+    // INCORPORACIÓN AUTOMÁTICA 
+    // Incorporar los items pendientes (creados fuera de período)
     await this.itemRepo.update(
       { isPending: true },
       { isPending: false, academicPeriodId: savedPeriod.id },
     );
 
-    // 2. Asociar los demás items que no tienen período al nuevo período activo
+    // Asociar los demás items que no tienen período al nuevo período activo
     await this.itemRepo.update(
       { academicPeriodId: IsNull() },
       { academicPeriodId: savedPeriod.id },
@@ -116,7 +116,7 @@ export class PeriodsService {
     return savedPeriod;
   }
 
-  // CIERRE MANUAL DEL PERÍODO ACADÉMICO (PA009)
+  // CIERRE MANUAL DEL PERÍODO ACADÉMICO
   async closePeriod(id: string): Promise<AcademicPeriod> {
     const period = await this.findPeriodById(id);
 
@@ -127,7 +127,7 @@ export class PeriodsService {
     return this.executePeriodClosure(period, 'MANUAL');
   }
 
-  // MÉTODO COMPARTIDO PARA EJECUTAR EL CIERRE Y GENERAR EL REPORTE (PA003, PA004, PA009)
+  // MÉTODO COMPARTIDO PARA EJECUTAR EL CIERRE Y GENERAR EL REPORTE
   async executePeriodClosure(period: AcademicPeriod, type: 'MANUAL' | 'AUTOMATICO'): Promise<AcademicPeriod> {
     period.status = 'CERRADO';
     period.closedAt = new Date();
@@ -137,7 +137,7 @@ export class PeriodsService {
     const reportCode = `REP-PERIODO-${savedPeriod.name.replace(/\s+/g, '-').toUpperCase()}`;
     await this.reportsService.generateClosureAndShiftReports(savedPeriod);
 
-    // NOTIFICAR POR CORREO ELECTRÓNICO (PA005 / Cierre)
+    // NOTIFICAR POR CORREO ELECTRÓNICO
     await this.sendPeriodClosedEmails(savedPeriod, reportCode, type);
 
     this.logger.log(`Período académico '${savedPeriod.name}' cerrado (${type}). Reportes centralizados generados.`);

@@ -145,7 +145,7 @@ export class AuthService {
       dto.correoSecundario = null;
     }
 
-    // Evitar que el correo secundario sea igual al institucional propio
+    // Evitar que el correo secundario sea igual al institucional
     if (dto.correoSecundario && dto.correoSecundario.toLowerCase() === user.correoInstitucional.toLowerCase()) {
       throw new BadRequestException(
         'El correo secundario no puede ser igual al correo institucional.',
@@ -234,7 +234,7 @@ export class AuthService {
 
     return {
       message: 'Perfil completado. Bienvenido al sistema.',
-      redirectTo: user.rol, // el frontend redirige según el rol
+      redirectTo: user.rol,
     };
   }
 
@@ -336,7 +336,6 @@ export class AuthService {
   async forgotPassword(dto: ForgotPasswordDto) {
     const user = await this.usersService.findByCredential(dto.correo);
 
-    // Por seguridad, si no existe o está inhabilitado, respondemos lo mismo
     if (!user || user.estado === UserStatus.INACTIVO || user.estado === UserStatus.DADO_DE_BAJA) {
       return {
         message:
@@ -460,7 +459,7 @@ export class AuthService {
     return { message: 'Contraseña actualizada correctamente' };
   }
 
-  // Obtener la información del usuario fresca de la base de datos para /me
+  // Obtener la información del usuario
   async getFreshUser(userId: string) {
     const user = await this.usersService.findOne(userId);
     return {

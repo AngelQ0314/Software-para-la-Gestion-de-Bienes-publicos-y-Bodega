@@ -475,7 +475,12 @@
 
                   <div class="form-group">
                     <label class="form-label" style="font-size: 0.72rem;">Cantidad a Trasladar*</label>
-                    <input type="number" class="form-input" min="1" max="500" step="1" formControlName="assignQuantity" style="padding: 8px 12px;" />
+                    <input type="number" class="form-input" min="1" max="500" step="1" 
+                           formControlName="assignQuantity" 
+                           [readonly]="isQuantityReadOnly()"
+                           [style.opacity]="isQuantityReadOnly() ? 0.6 : 1"
+                           [style.cursor]="isQuantityReadOnly() ? 'not-allowed' : 'default'"
+                           style="padding: 8px 12px;" />
                     <span class="error-text" *ngIf="inventoryForm.get('assignQuantity')?.touched && inventoryForm.get('assignQuantity')?.invalid" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger);">
                       Rango permitido: 1 a 500
                     </span>

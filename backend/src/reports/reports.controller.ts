@@ -23,14 +23,14 @@ import { Response } from 'express';
 export class ReportsController {
   constructor(private readonly reportsService: ReportsService) {}
 
-  // RP005, RP006: Consulta e historial de reportes con filtros
+  // Consulta e historial de reportes con filtros
   @Get()
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async getReports(@Query() filters: FilterReportDto) {
     return this.reportsService.findAll(filters);
   }
 
-  // RP004: Consulta de novedades o incidencias activas
+  // Consulta de novedades o incidencias activas
   @Get('novedades/activas')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async getActiveNovelties() {
@@ -52,7 +52,7 @@ export class ReportsController {
     };
   }
 
-  // RP001: Obtener reporte de cierre de período académico
+  // Obtener reporte de cierre de período académico
   @Get('period/:periodId')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async getClosureReport(@Param('periodId', ParseUUIDPipe) periodId: string) {
@@ -66,7 +66,7 @@ export class ReportsController {
     return this.reportsService.findOne(id);
   }
 
-  // RP007: Descarga de reporte en formato PDF
+  // Descarga de reporte en formato PDF
   @Get(':id/download')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async downloadReport(

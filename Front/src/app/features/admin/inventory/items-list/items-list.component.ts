@@ -1,8 +1,9 @@
 import { Component, OnInit, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormControl, FormsModule } from '@angular/forms';
-import { InventoryService, InventoryItem, Subcategory, CodeType, CodeTypeFieldAssociation, Category, CustomField } from '../services/inventory.service';
+import { InventoryService, InventoryItem, Subcategory, SubcategoryFieldAssociation, Category, CustomField } from '../services/inventory.service';
 import Swal from 'sweetalert2';
+import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-items-list',
@@ -19,9 +20,8 @@ export class ItemsListComponent implements OnInit {
 
   categories = signal<Category[]>([]);
   subcategories = signal<Subcategory[]>([]);
-  codeTypes = signal<CodeType[]>([]);
   customFields = signal<CustomField[]>([]);
-  dynamicFields = signal<CodeTypeFieldAssociation[]>([]);
+  dynamicFields = signal<SubcategoryFieldAssociation[]>([]);
 
   // Navegación contextual jerárquica
   selectedView = signal<'BIENES_PUBLICOS' | 'INSUMOS' | 'BIBLIOTECA' | null>(null);
@@ -34,19 +34,29 @@ export class ItemsListComponent implements OnInit {
   categoryForm: FormGroup;
   subcategoryForm: FormGroup;
 
-  // Formulario de Atributos simplificado por Categoría
+  // Formulario de Atributos simplificado por Subcategoría
   customFieldForm: FormGroup;
+
+  // Formulario de Reactivación interactiva
+  reactivateForm: FormGroup;
 
   // Estados de Modales
   showFormModal = signal(false);
   showDetailModal = signal(false);
   showCategoryModal = signal(false);
   showSubcategoryModal = signal(false);
+  showReactivateModal = signal(false);
 
-  // Modal de Configuración por Categoría
+  // Modal de Configuración por Subcategoría
   showCategoryConfigModal = signal(false);
-  selectedCategoryForConfig = signal<Category | null>(null);
-  categoryConfigFields = signal<CodeTypeFieldAssociation[]>([]);
+  selectedSubcategoryForConfig = signal<Subcategory | null>(null);
+  subcategoryConfigFields = signal<SubcategoryFieldAssociation[]>([]);
+
+  // Reactivación interactiva
+  selectedItemForReactivate = signal<InventoryItem | null>(null);
+  reactivateCategory = signal<Category | null>(null);
+  selectedReactivateSubId = signal<string>('');
+  reactivateFields = signal<SubcategoryFieldAssociation[]>([]);
 
   modalLoading = signal(false);
   modalErrorMessage = signal<string | null>(null);
@@ -74,15 +84,20 @@ export class ItemsListComponent implements OnInit {
 
   // Estados para artículos huérfanos / sin clasificar
   viewingOrphans = signal(false);
+  filterOrphansDeletedType = signal<'TODOS' | 'SIN_CLASIFICAR' | 'ELIMINADOS'>('TODOS');
+  showDeleted = signal(false); // Control de visualización de eliminados
   showReclassifyModal = signal(false);
   selectedItemForReclassify = signal<InventoryItem | null>(null);
   reclassifyCategory = signal<Category | null>(null);
+  viewsList = signal<any[]>([]);
+  selectedItemIds = signal<Set<string>>(new Set());
+  selectionMode = signal(false);
 
-  // Mapeo de IDs de vistas del backend
+  // Mapeo de IDs de vistas del backend (valores por defecto)
   private readonly viewIds: Record<string, string> = {
-    'BIENES_PUBLICOS': 'e21d61e0-32e5-4161-8a63-23111e6fb31d',
-    'INSUMOS': '1b7ed472-b376-438f-94cb-9cac62346eaa',
-    'BIBLIOTECA': 'ad14341f-ba88-420a-90c7-39de01cbbaa0'
+    'BIENES_PUBLICOS': 'e76d12b9-a730-45e6-9fdc-10b8cab5eff3',
+    'INSUMOS': '5affdda0-ccf2-46a2-953c-4e2bb456020b',
+    'BIBLIOTECA': '6b6a2f93-023e-47b2-b0fd-a214a887b74a'
   };
 
   // Filtrado local reactivo de ítems
@@ -114,10 +129,115 @@ export class ItemsListComponent implements OnInit {
     return list;
   });
 
+  isAllSelected = computed(() => {
+    const visible = this.filteredItems();
+    if (visible.length === 0) return false;
+    const selected = this.selectedItemIds();
+    return visible.every(item => selected.has(item.id!));
+  });
+
+  toggleSelectItem(itemId: string): void {
+    const current = new Set(this.selectedItemIds());
+    if (current.has(itemId)) {
+      current.delete(itemId);
+    } else {
+      current.add(itemId);
+    }
+    this.selectedItemIds.set(current);
+  }
+
+  isItemSelected(itemId: string): boolean {
+    return this.selectedItemIds().has(itemId);
+  }
+
+  clearSelections(): void {
+    this.selectedItemIds.set(new Set());
+  }
+
+  toggleSelectionMode(): void {
+    const nextVal = !this.selectionMode();
+    this.selectionMode.set(nextVal);
+    if (!nextVal) {
+      this.clearSelections();
+    }
+  }
+
+  toggleSelectAll(): void {
+    const current = new Set(this.selectedItemIds());
+    const visibleItems = this.filteredItems();
+    const allSelected = visibleItems.length > 0 && visibleItems.every(item => current.has(item.id!));
+    
+    if (allSelected) {
+      visibleItems.forEach(item => current.delete(item.id!));
+    } else {
+      visibleItems.forEach(item => current.add(item.id!));
+    }
+    this.selectedItemIds.set(current);
+  }
+
+
+
+  bulkDelete(): void {
+    const selectedIds = Array.from(this.selectedItemIds());
+    const selectedItems = this.filteredItems().filter(item => selectedIds.includes(item.id!));
+    const activeItems = selectedItems.filter(item => item.status === 'ACTIVO');
+    
+    if (activeItems.length === 0) {
+      Swal.fire({
+        title: 'Atención',
+        text: 'No hay artículos activos seleccionados para eliminar.',
+        icon: 'warning',
+        confirmButtonColor: '#3085d6'
+      });
+      return;
+    }
+
+    Swal.fire({
+      title: '¿Eliminar Artículos Seleccionados?',
+      text: `Los ${activeItems.length} artículo(s) activo(s) se desvincularán de su categoría, subcategoría y espacio físico asignado. Esta acción no se puede deshacer.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#ef4444',
+      cancelButtonColor: '#6b7280',
+      confirmButtonText: 'Sí, eliminar',
+      cancelButtonText: 'Cancelar'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        this.loading.set(true);
+        const requests = activeItems.map(item =>
+          this.inventoryService.deleteItem(item.id!)
+        );
+
+        forkJoin(requests).subscribe({
+          next: () => {
+            this.loading.set(false);
+            Swal.fire({
+              title: '¡Eliminados!',
+              text: `Se eliminaron y desvincularon ${activeItems.length} artículo(s) correctamente.`,
+              icon: 'success',
+              confirmButtonColor: '#3085d6'
+            });
+            this.selectedItemIds.set(new Set());
+            this.loadItems();
+          },
+          error: (err) => {
+            this.loading.set(false);
+            const msg = Array.isArray(err.error?.message)
+              ? err.error.message.join(', ')
+              : err.error?.message || 'Error al eliminar artículos.';
+            Swal.fire('Error', msg, 'error');
+          }
+        });
+      }
+    });
+  }
+
   constructor(private readonly fb: FormBuilder, private readonly inventoryService: InventoryService) {
     this.filterForm = this.fb.group({
       codigoYavirac: [''],
       estadoFisico: [''],
+      categoryId: [''],
+      subcategoryId: [''],
     });
 
     this.itemForm = this.fb.group({
@@ -143,16 +263,35 @@ export class ItemsListComponent implements OnInit {
       tipo: ['TEXT', [Validators.required]],
       isMandatory: [false],
     });
+
+    this.reactivateForm = this.fb.group({
+      dynamicValues: this.fb.group({}),
+    });
   }
 
   ngOnInit(): void {
     this.loadMetadata();
+
+    // Listeners para refresco automático de filtros en eliminados
+    this.filterForm.get('categoryId')?.valueChanges.subscribe(() => {
+      this.filterForm.get('subcategoryId')?.setValue('', { emitEvent: false });
+      this.currentPage.set(1);
+      this.loadItems();
+    });
+    this.filterForm.get('subcategoryId')?.valueChanges.subscribe(() => {
+      this.currentPage.set(1);
+      this.loadItems();
+    });
+    this.filterForm.get('estadoFisico')?.valueChanges.subscribe(() => {
+      this.currentPage.set(1);
+      this.loadItems();
+    });
   }
 
   loadMetadata(): void {
+    this.inventoryService.getViews().subscribe((data) => this.viewsList.set(data));
     this.inventoryService.getCategories().subscribe((data) => this.categories.set(data));
     this.inventoryService.getSubcategories().subscribe((data) => this.subcategories.set(data));
-    this.inventoryService.getCodeTypes().subscribe((data) => this.codeTypes.set(data));
     this.inventoryService.getCustomFields().subscribe((data) => this.customFields.set(data));
   }
 
@@ -162,6 +301,7 @@ export class ItemsListComponent implements OnInit {
     this.selectedCategory.set(null);
     this.selectedSubcategory.set(null);
     this.viewingOrphans.set(false);
+    this.showDeleted.set(false);
     this.items.set([]);
     this.dynamicFilters.set({});
     this.loadMetadata();
@@ -171,6 +311,7 @@ export class ItemsListComponent implements OnInit {
     this.selectedCategory.set(cat);
     this.selectedSubcategory.set(null);
     this.viewingOrphans.set(false);
+    this.showDeleted.set(false);
     this.items.set([]);
     this.dynamicFilters.set({});
   }
@@ -178,6 +319,7 @@ export class ItemsListComponent implements OnInit {
   selectSubcategory(sub: Subcategory): void {
     this.selectedSubcategory.set(sub);
     this.viewingOrphans.set(false);
+    this.showDeleted.set(false);
     this.currentPage.set(1);
     this.dynamicFilters.set({});
     this.loadItems();
@@ -190,6 +332,7 @@ export class ItemsListComponent implements OnInit {
     this.viewingOrphans.set(true);
     this.selectedCategory.set(null);
     this.selectedSubcategory.set(null);
+    this.showDeleted.set(false);
     this.currentPage.set(1);
     this.dynamicFilters.set({});
     this.loadItems();
@@ -200,6 +343,7 @@ export class ItemsListComponent implements OnInit {
     this.selectedCategory.set(null);
     this.selectedSubcategory.set(null);
     this.viewingOrphans.set(false);
+    this.showDeleted.set(false);
     this.items.set([]);
     this.dynamicFilters.set({});
   }
@@ -208,6 +352,7 @@ export class ItemsListComponent implements OnInit {
     this.selectedCategory.set(null);
     this.selectedSubcategory.set(null);
     this.viewingOrphans.set(false);
+    this.showDeleted.set(false);
     this.items.set([]);
     this.dynamicFilters.set({});
   }
@@ -215,28 +360,35 @@ export class ItemsListComponent implements OnInit {
   goBackToSubcategories(): void {
     this.selectedSubcategory.set(null);
     this.viewingOrphans.set(false);
+    this.showDeleted.set(false);
     this.items.set([]);
     this.dynamicFilters.set({});
   }
 
-  // Carga de Ítems
   loadItems(): void {
     const viewCode = this.selectedView();
     if (!viewCode) return;
 
+    this.selectedItemIds.set(new Set());
+    this.selectionMode.set(false);
     this.loading.set(true);
     const filters = { ...this.filterForm.value };
 
+    const currentView = this.viewsList().find(v => v.code === viewCode);
+    const resolvedViewId = currentView ? currentView.id : this.viewIds[viewCode];
+
     if (this.viewingOrphans()) {
-      filters.inventoryViewId = this.viewIds[viewCode];
-      filters.onlyOrphans = true;
+      filters.inventoryViewId = resolvedViewId;
+      filters.status = 'INACTIVO';
+    } else if (this.selectedSubcategory()) {
+      filters.subcategoryId = this.selectedSubcategory()!.id;
+    } else if (this.showDeleted()) {
+      // Nivel de vista general para buscar eliminados en toda la sección
+      filters.inventoryViewId = resolvedViewId;
+      filters.status = 'INACTIVO';
     } else {
-      const sub = this.selectedSubcategory();
-      if (!sub) {
-        this.loading.set(false);
-        return;
-      }
-      filters.subcategoryId = sub.id;
+      this.loading.set(false);
+      return;
     }
 
     this.inventoryService.getItems(this.currentPage(), 12, filters).subscribe({
@@ -353,7 +505,7 @@ export class ItemsListComponent implements OnInit {
   deleteCategory(cat: Category): void {
     Swal.fire({
       title: `¿Eliminar categoría "${cat.nombre}"?`,
-      text: 'Esta acción eliminará todas las subcategorías asociadas de forma automática (en cascada) y desvinculará sus artículos.',
+      text: 'Esta acción eliminará la categoría y sus subcategorías. Nota: El sistema impedirá la eliminación si existen artículos vinculados a esta categoría.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -434,7 +586,7 @@ export class ItemsListComponent implements OnInit {
   deleteSubcategory(sub: Subcategory): void {
     Swal.fire({
       title: `¿Eliminar subcategoría "${sub.nombre}"?`,
-      text: 'Esta acción desvinculará todos los artículos asociados, los cuales quedarán libres en bodega.',
+      text: 'Nota: El sistema impedirá la eliminación si existen artículos asociados a esta subcategoría.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -473,7 +625,20 @@ export class ItemsListComponent implements OnInit {
     return !!(ctrl && ctrl.invalid && (ctrl.dirty || ctrl.touched));
   }
 
-  onCodeTypeChange(codeTypeId: string, callback?: () => void): void {
+  preventNegativeSign(event: KeyboardEvent): void {
+    if (event.key === '-' || event.key === 'e' || event.key === 'E' || event.key === '+') {
+      event.preventDefault();
+    }
+  }
+
+  onCantidadInput(event: any): void {
+    const val = Number(event.target.value);
+    if (val < 0) {
+      this.itemForm.get('cantidad')?.setValue(0);
+    }
+  }
+
+  loadSubcategoryDynamicFields(subcategoryId: string, callback?: () => void): void {
     const dynamicGroup = this.itemForm.get('dynamicValues') as FormGroup;
 
     Object.keys(dynamicGroup.controls).forEach((key) => {
@@ -481,9 +646,9 @@ export class ItemsListComponent implements OnInit {
     });
     this.dynamicFields.set([]);
 
-    if (!codeTypeId) return;
+    if (!subcategoryId) return;
 
-    this.inventoryService.getCodeTypeFields(codeTypeId).subscribe((assocFields) => {
+    this.inventoryService.getSubcategoryFields(subcategoryId).subscribe((assocFields) => {
       this.dynamicFields.set(assocFields);
 
       assocFields.forEach((assoc) => {
@@ -532,12 +697,8 @@ export class ItemsListComponent implements OnInit {
       dynamicGroup.removeControl(key);
     });
 
-    // Cargar campos dinámicos de forma automática
-    this.getOrCreateCodeTypeForCategory(cat, (codeTypeId) => {
-      if (codeTypeId) {
-        this.onCodeTypeChange(codeTypeId);
-      }
-    });
+    // Cargar campos dinámicos directamente de la subcategoría
+    this.loadSubcategoryDynamicFields(sub.id);
 
     this.showFormModal.set(true);
   }
@@ -566,17 +727,11 @@ export class ItemsListComponent implements OnInit {
     const sub = this.subcategories().find(s => s.id === item.subcategoriaId);
     const cat = sub ? this.categories().find(c => c.id === sub.categoriaId) : null;
 
-    if (cat) {
-      this.getOrCreateCodeTypeForCategory(cat, (codeTypeId) => {
-        if (codeTypeId) {
-          this.onCodeTypeChange(codeTypeId, () => {
-            const dynamicGroup = this.itemForm.get('dynamicValues') as FormGroup;
-            dynamicGroup.patchValue(item.dynamicValues || {});
-            this.showFormModal.set(true);
-          });
-        } else {
-          this.showFormModal.set(true);
-        }
+    if (sub) {
+      this.loadSubcategoryDynamicFields(sub.id, () => {
+        const dynamicGroup = this.itemForm.get('dynamicValues') as FormGroup;
+        dynamicGroup.patchValue(item.dynamicValues || {});
+        this.showFormModal.set(true);
       });
     } else {
       this.showFormModal.set(true);
@@ -593,9 +748,14 @@ export class ItemsListComponent implements OnInit {
       return;
     }
 
-    const sub = this.selectedSubcategory();
-    if (!sub) {
+    const subId = this.itemForm.get('subcategoriaId')?.value;
+    if (!subId) {
       this.modalErrorMessage.set('No se ha seleccionado ninguna subcategoría.');
+      return;
+    }
+    const sub = this.subcategories().find(s => s.id === subId);
+    if (!sub) {
+      this.modalErrorMessage.set('La subcategoría asociada al artículo no es válida.');
       return;
     }
     const cat = this.categories().find(c => c.id === sub.categoriaId);
@@ -608,19 +768,12 @@ export class ItemsListComponent implements OnInit {
     this.modalLoading.set(true);
     this.modalErrorMessage.set(null);
 
-    this.getOrCreateCodeTypeForCategory(cat, (codeTypeId) => {
-      if (!codeTypeId) {
-        this.modalLoading.set(false);
-        this.modalErrorMessage.set('No se pudo resolver el tipo de código de la categoría.');
-        return;
-      }
-
+    {
       const val = this.itemForm.getRawValue();
       const payload: InventoryItem = {
         name: val.name.trim(),
         codigoYavirac: val.codigoYavirac.trim(),
         subcategoriaId: sub.id,
-        codigoTipoId: codeTypeId,
         estadoFisico: val.estadoFisico,
         dynamicValues: val.dynamicValues,
         cantidad: this.selectedView() === 'INSUMOS' ? (val.cantidad ?? 0) : 1,
@@ -656,7 +809,7 @@ export class ItemsListComponent implements OnInit {
           },
         });
       }
-    });
+    }
   }
 
   deleteItem(item: InventoryItem): void {
@@ -664,23 +817,25 @@ export class ItemsListComponent implements OnInit {
 
     Swal.fire({
       title: `¿Eliminar artículo "${item.name}"?`,
-      text: `Código Yavirac: ${item.codigoYavirac}`,
+      text: `El artículo se desvinculará de su categoría, subcategoría y espacio físico asignado. Esta acción no se puede deshacer.`,
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
       cancelButtonText: 'Cancelar',
-      confirmButtonColor: '#e05638',
-      cancelButtonColor: '#4f5e71'
+      confirmButtonColor: '#ef4444',
     }).then((result) => {
       if (result.isConfirmed) {
+        this.loading.set(true);
         this.inventoryService.deleteItem(item.id!).subscribe({
           next: () => {
+            this.loading.set(false);
+            Swal.fire('¡Eliminado!', 'El artículo ha sido eliminado y desvinculado.', 'success');
             this.loadItems();
-            Swal.fire('¡Eliminado!', 'Artículo eliminado con éxito.', 'success');
           },
           error: (err) => {
+            this.loading.set(false);
             Swal.fire('Error', err.error?.message || 'No se pudo eliminar el artículo.', 'error');
-          }
+          },
         });
       }
     });
@@ -781,62 +936,36 @@ export class ItemsListComponent implements OnInit {
   }
 
   // ==========================================================
-  // CONFIGURACIÓN DE ATRIBUTOS DINÁMICOS POR CATEGORÍA
+  // CONFIGURACIÓN DE ATRIBUTOS DINÁMICOS POR SUBCATEGORÍA
   // ==========================================================
-  getOrCreateCodeTypeForCategory(cat: Category, callback: (codeTypeId: string) => void): void {
-    const match = this.codeTypes().find(ct => ct.nombre.trim().toLowerCase() === cat.nombre.trim().toLowerCase());
-    if (match) {
-      callback(match.id);
-    } else {
-      this.inventoryService.createCodeType({ nombre: cat.nombre }).subscribe({
-        next: (newCt) => {
-          this.loadMetadata();
-          this.codeTypes.set([...this.codeTypes(), newCt]);
-          callback(newCt.id);
-        },
-        error: () => {
-          callback('');
-        }
-      });
-    }
-  }
-
-  openCategoryConfig(cat: Category): void {
+  openSubcategoryConfig(sub: Subcategory): void {
     this.modalErrorMessage.set(null);
-    this.selectedCategoryForConfig.set(cat);
-    this.categoryConfigFields.set([]);
+    this.selectedSubcategoryForConfig.set(sub);
+    this.subcategoryConfigFields.set([]);
     this.tempOptions.set([]);
     this.newOption = '';
 
     this.customFieldForm.reset({ nombre: '', tipo: 'TEXT', isMandatory: false });
 
     this.modalLoading.set(true);
-    this.getOrCreateCodeTypeForCategory(cat, (codeTypeId) => {
-      if (codeTypeId) {
-        this.reloadCategoryConfigFields(codeTypeId);
-      } else {
-        this.modalLoading.set(false);
-        this.modalErrorMessage.set('No se pudo inicializar la configuración de la categoría.');
-      }
-    });
-
+    this.reloadSubcategoryConfigFields(sub.id);
     this.showCategoryConfigModal.set(true);
   }
 
   closeCategoryConfig(): void {
     this.showCategoryConfigModal.set(false);
-    this.selectedCategoryForConfig.set(null);
+    this.selectedSubcategoryForConfig.set(null);
   }
 
-  reloadCategoryConfigFields(codeTypeId: string): void {
-    this.inventoryService.getCodeTypeFields(codeTypeId).subscribe({
+  reloadSubcategoryConfigFields(subcategoryId: string): void {
+    this.inventoryService.getSubcategoryFields(subcategoryId).subscribe({
       next: (fields) => {
-        this.categoryConfigFields.set(fields);
+        this.subcategoryConfigFields.set(fields);
         this.modalLoading.set(false);
       },
       error: () => {
         this.modalLoading.set(false);
-        this.modalErrorMessage.set('Error al cargar atributos de la categoría.');
+        this.modalErrorMessage.set('Error al cargar atributos de la subcategoría.');
       }
     });
   }
@@ -853,10 +982,10 @@ export class ItemsListComponent implements OnInit {
     this.tempOptions.set(this.tempOptions().filter((o) => o !== opt));
   }
 
-  submitCustomFieldForCategory(): void {
+  submitCustomFieldForSubcategory(): void {
     if (this.customFieldForm.invalid) return;
-    const cat = this.selectedCategoryForConfig();
-    if (!cat) return;
+    const sub = this.selectedSubcategoryForConfig();
+    if (!sub) return;
 
     const val = this.customFieldForm.value;
     const isOptionsList = val.tipo === 'OPTIONS_LIST';
@@ -870,51 +999,43 @@ export class ItemsListComponent implements OnInit {
     this.modalLoading.set(true);
     this.modalErrorMessage.set(null);
 
-    this.getOrCreateCodeTypeForCategory(cat, (codeTypeId) => {
-      if (!codeTypeId) {
+    this.inventoryService.createCustomField({ nombre: val.nombre.trim(), tipo: val.tipo, opciones }).subscribe({
+      next: (newField) => {
+        const sortOrder = this.subcategoryConfigFields().length + 1;
+        const isMandatory = !!val.isMandatory;
+
+        this.inventoryService.associateFieldToSubcategory(sub.id, {
+          customFieldId: newField.id,
+          sortOrder,
+          isMandatory
+        }).subscribe({
+          next: () => {
+            this.customFieldForm.reset({ nombre: '', tipo: 'TEXT', isMandatory: false });
+            this.tempOptions.set([]);
+            this.reloadSubcategoryConfigFields(sub.id);
+            this.loadMetadata();
+            Swal.fire('¡Éxito!', 'Atributo configurado correctamente en esta subcategoría.', 'success');
+          },
+          error: () => {
+            this.modalLoading.set(false);
+            this.modalErrorMessage.set('Error al vincular el atributo a la subcategoría.');
+          }
+        });
+      },
+      error: (err) => {
         this.modalLoading.set(false);
-        this.modalErrorMessage.set('No se pudo resolver la estructura de la categoría.');
-        return;
+        this.modalErrorMessage.set(err.error?.message || 'Error al crear el atributo.');
       }
-
-      this.inventoryService.createCustomField({ nombre: val.nombre.trim(), tipo: val.tipo, opciones }).subscribe({
-        next: (newField) => {
-          const sortOrder = this.categoryConfigFields().length + 1;
-          const isMandatory = !!val.isMandatory;
-
-          this.inventoryService.associateFieldToCodeTypeSingle(codeTypeId, {
-            customFieldId: newField.id,
-            sortOrder,
-            isMandatory
-          }).subscribe({
-            next: () => {
-              this.customFieldForm.reset({ nombre: '', tipo: 'TEXT', isMandatory: false });
-              this.tempOptions.set([]);
-              this.reloadCategoryConfigFields(codeTypeId);
-              this.loadMetadata();
-              Swal.fire('¡Éxito!', 'Atributo configurado correctamente en esta categoría.', 'success');
-            },
-            error: () => {
-              this.modalLoading.set(false);
-              this.modalErrorMessage.set('Error al vincular el atributo a la categoría.');
-            }
-          });
-        },
-        error: (err) => {
-          this.modalLoading.set(false);
-          this.modalErrorMessage.set(err.error?.message || 'Error al crear el atributo.');
-        }
-      });
     });
   }
 
-  removeFieldFromCategory(assoc: CodeTypeFieldAssociation): void {
-    const cat = this.selectedCategoryForConfig();
-    if (!cat) return;
+  removeFieldFromSubcategory(assoc: SubcategoryFieldAssociation): void {
+    const sub = this.selectedSubcategoryForConfig();
+    if (!sub) return;
 
     Swal.fire({
-      title: `¿Eliminar atributo "${assoc.customField?.nombre}" de la categoría?`,
-      text: 'Los artículos asociados a esta categoría perderán esta especificación técnica.',
+      title: `¿Eliminar atributo "${assoc.customField?.nombre}" de la subcategoría?`,
+      text: 'Los artículos de esta subcategoría perderán el valor de esta especificación técnica.',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonText: 'Sí, eliminar',
@@ -924,23 +1045,16 @@ export class ItemsListComponent implements OnInit {
     }).then((result) => {
       if (result.isConfirmed) {
         this.modalLoading.set(true);
-        this.getOrCreateCodeTypeForCategory(cat, (codeTypeId) => {
-          if (!codeTypeId) {
+        this.inventoryService.removeFieldFromSubcategory(sub.id, assoc.customFieldId).subscribe({
+          next: () => {
+            this.reloadSubcategoryConfigFields(sub.id);
+            this.loadMetadata();
+            Swal.fire('¡Removido!', 'Atributo desvinculado de la subcategoría con éxito.', 'success');
+          },
+          error: (err) => {
             this.modalLoading.set(false);
-            return;
+            Swal.fire('Error', err.error?.message || 'No se pudo desvincular el atributo.', 'error');
           }
-
-          this.inventoryService.removeFieldFromCodeType(codeTypeId, assoc.customFieldId).subscribe({
-            next: () => {
-              this.reloadCategoryConfigFields(codeTypeId);
-              this.loadMetadata();
-              Swal.fire('¡Removido!', 'Atributo desvinculado de esta categoría con éxito.', 'success');
-            },
-            error: (err) => {
-              this.modalLoading.set(false);
-              Swal.fire('Error', err.error?.message || 'No se pudo desvincular el atributo.', 'error');
-            }
-          });
         });
       }
     });
@@ -979,6 +1093,129 @@ export class ItemsListComponent implements OnInit {
       error: (err) => {
         this.modalLoading.set(false);
         Swal.fire('Error', err.error?.message || 'No se pudo clasificar el artículo.', 'error');
+      }
+    });
+  }
+
+  toggleShowDeleted(): void {
+    this.showDeleted.update((val) => !val);
+    this.filterForm.patchValue({
+      codigoYavirac: '',
+      estadoFisico: '',
+      categoryId: '',
+      subcategoryId: '',
+    }, { emitEvent: false });
+    this.currentPage.set(1);
+    this.loadItems();
+  }
+
+  reactivateItem(item: InventoryItem): void {
+    if (!item.id) return;
+    this.openReactivateModal(item);
+  }
+
+  openReactivateModal(item: InventoryItem): void {
+    this.modalErrorMessage.set(null);
+    this.modalLoading.set(false);
+    this.selectedItemForReactivate.set(item);
+    this.reactivateCategory.set(null);
+    this.selectedReactivateSubId.set('');
+    this.reactivateFields.set([]);
+    
+    const dynamicGroup = this.reactivateForm.get('dynamicValues') as FormGroup;
+    Object.keys(dynamicGroup.controls).forEach(key => dynamicGroup.removeControl(key));
+    this.reactivateForm.reset();
+
+    this.showReactivateModal.set(true);
+  }
+
+  closeReactivateModal(): void {
+    this.showReactivateModal.set(false);
+    this.selectedItemForReactivate.set(null);
+    this.reactivateCategory.set(null);
+    this.selectedReactivateSubId.set('');
+    this.reactivateFields.set([]);
+  }
+
+  onReactivateCategoryChange(catId: string): void {
+    this.selectedReactivateSubId.set('');
+    this.reactivateFields.set([]);
+    if (catId) {
+      const cat = this.categories().find(c => c.id === catId);
+      this.reactivateCategory.set(cat || null);
+    } else {
+      this.reactivateCategory.set(null);
+    }
+  }
+
+  onReactivateSubcategoryChange(subId: string): void {
+    this.selectedReactivateSubId.set(subId);
+    this.reactivateFields.set([]);
+    this.modalLoading.set(true);
+
+    if (!subId) {
+      this.modalLoading.set(false);
+      return;
+    }
+
+    this.inventoryService.getSubcategoryFields(subId).subscribe({
+      next: (fields) => {
+        this.reactivateFields.set(fields);
+        
+        const dynamicGroup = this.reactivateForm.get('dynamicValues') as FormGroup;
+        Object.keys(dynamicGroup.controls).forEach(key => dynamicGroup.removeControl(key));
+        
+        fields.forEach((assoc) => {
+          const validators = assoc.isMandatory ? [Validators.required] : [];
+          dynamicGroup.addControl(assoc.customFieldId, new FormControl('', validators));
+        });
+        
+        this.modalLoading.set(false);
+      },
+      error: () => {
+        this.modalLoading.set(false);
+        this.modalErrorMessage.set('Error al cargar especificaciones de la subcategoría.');
+      }
+    });
+  }
+
+  isReactivateFieldInvalid(fieldId: string): boolean {
+    const group = this.reactivateForm.get('dynamicValues') as FormGroup;
+    const ctrl = group.get(fieldId);
+    return !!(ctrl && ctrl.invalid && (ctrl.dirty || ctrl.touched));
+  }
+
+  submitReactivate(): void {
+    if (this.reactivateForm.invalid || !this.selectedReactivateSubId()) {
+      this.reactivateForm.markAllAsTouched();
+      return;
+    }
+
+    const item = this.selectedItemForReactivate();
+    if (!item || !item.id) return;
+
+    this.modalLoading.set(true);
+    this.modalErrorMessage.set(null);
+
+    const payload = {
+      status: 'ACTIVO',
+      subcategoryId: this.selectedReactivateSubId(),
+      dynamicValues: this.reactivateForm.get('dynamicValues')?.value || {}
+    };
+
+    this.inventoryService.updateItem(item.id, payload).subscribe({
+      next: () => {
+        this.modalLoading.set(false);
+        this.closeReactivateModal();
+        this.loadItems();
+        Swal.fire('¡Reactivado!', 'El artículo ha sido reactivado y clasificado exitosamente.', 'success');
+      },
+      error: (err) => {
+        this.modalLoading.set(false);
+        const errorMsg = Array.isArray(err.error?.message)
+          ? err.error.message.join(', ')
+          : (err.error?.message || 'Error al reactivar el artículo.');
+        this.modalErrorMessage.set(errorMsg);
       }
     });
   }

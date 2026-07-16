@@ -14,6 +14,7 @@ export interface Subcategory {
   nombre: string;
   categoriaId: string;
   categoria?: Category;
+  configs?: SubcategoryFieldAssociation[];
 }
 
 export interface CustomField {
@@ -23,12 +24,7 @@ export interface CustomField {
   opciones: string[] | null;
 }
 
-export interface CodeType {
-  id: string;
-  nombre: string;
-}
-
-export interface CodeTypeFieldAssociation {
+export interface SubcategoryFieldAssociation {
   id?: string;
   customFieldId: string;
   customField?: CustomField;
@@ -40,8 +36,6 @@ export interface InventoryItem {
   id?: string;
   name?: string;
   codigoYavirac: string;
-  codigoTipoId: string;
-  codigoTipo?: CodeType;
   subcategoriaId: string;
   subcategoria?: Subcategory;
   estadoFisico: 'BUENO' | 'REGULAR' | 'MALO';
@@ -119,6 +113,20 @@ export class InventoryService {
                 baseView: s.category.inventoryView?.code || s.category.inventoryViewCode || 'BIENES_PUBLICOS',
               }
             : undefined,
+          configs: (s.configs || []).map((c: any) => ({
+            id: c.id,
+            customFieldId: c.customFieldId,
+            customField: c.customField
+              ? {
+                  id: c.customField.id,
+                  nombre: c.customField.label || c.customField.name,
+                  tipo: c.customField.type,
+                  opciones: c.customField.options,
+                }
+              : undefined,
+            orden: c.sortOrder || 0,
+            isMandatory: c.isMandatory || false,
+          })),
         }))
       )
     );
@@ -181,48 +189,22 @@ export class InventoryService {
   }
 
   // ==========================================
-  // TIPOS DE CÓDIGO
+  // CAMPOS DINÁMICOS POR SUBCATEGORÍA
   // ==========================================
-  getCodeTypes(): Observable<CodeType[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/code-types`).pipe(
-      map((cts) =>
-        cts.map((c) => ({
-          id: c.id,
-          nombre: c.name,
-        }))
-      )
-    );
-  }
-
-  createCodeType(data: { nombre: string }): Observable<CodeType> {
-    const payload = { name: data.nombre };
-    return this.http.post<CodeType>(`${this.apiUrl}/code-types`, payload);
-  }
-
-  updateCodeType(id: string, data: { nombre: string }): Observable<CodeType> {
-    const payload = { name: data.nombre };
-    return this.http.patch<CodeType>(`${this.apiUrl}/code-types/${id}`, payload);
-  }
-
-  deleteCodeType(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/code-types/${id}`);
-  }
-
-  // ==========================================
-  // ASOCIACIÓN DE CAMPOS A TIPO DE CÓDIGO
-  // ==========================================
-  getCodeTypeFields(codeTypeId: string): Observable<CodeTypeFieldAssociation[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/code-types/${codeTypeId}/fields`).pipe(
+  getSubcategoryFields(subcategoryId: string): Observable<SubcategoryFieldAssociation[]> {
+    return this.http.get<any[]>(`${this.apiUrl}/subcategories/${subcategoryId}/fields`).pipe(
       map((assocs) =>
         assocs.map((a) => ({
           id: a.id,
-          customFieldId: a.id,
-          customField: {
-            id: a.id,
-            nombre: a.label || a.name,
-            tipo: a.type,
-            opciones: a.options || null,
-          },
+          customFieldId: a.customFieldId,
+          customField: a.customField
+            ? {
+                id: a.customField.id,
+                nombre: a.customField.label || a.customField.name,
+                tipo: a.customField.type,
+                opciones: a.customField.options || null,
+              }
+            : undefined,
           orden: a.sortOrder || 0,
           isMandatory: a.isMandatory || false,
         }))
@@ -230,19 +212,16 @@ export class InventoryService {
     );
   }
 
-
-  associateFieldToCodeTypeSingle(
-    codeTypeId: string,
+  associateFieldToSubcategory(
+    subcategoryId: string,
     assoc: { customFieldId: string; sortOrder: number; isMandatory: boolean }
   ): Observable<any> {
-    return this.http.post(`${this.apiUrl}/code-types/${codeTypeId}/fields`, assoc);
+    return this.http.post(`${this.apiUrl}/subcategories/${subcategoryId}/fields`, assoc);
   }
 
-  removeFieldFromCodeType(codeTypeId: string, customFieldId: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/code-types/${codeTypeId}/fields/${customFieldId}`);
+  removeFieldFromSubcategory(subcategoryId: string, customFieldId: string): Observable<any> {
+    return this.http.delete(`${this.apiUrl}/subcategories/${subcategoryId}/fields/${customFieldId}`);
   }
-
-
 
   // ==========================================
   // ELEMENTOS DE INVENTARIO
@@ -268,8 +247,6 @@ export class InventoryService {
           id: i.id,
           name: i.name,
           codigoYavirac: i.codeValue || '',
-          codigoTipoId: i.codeTypeId,
-          codigoTipo: i.codeType ? { id: i.codeType.id, nombre: i.codeType.name } : undefined,
           subcategoriaId: i.subcategoryId,
           subcategoria: i.subcategory
             ? {
@@ -309,8 +286,6 @@ export class InventoryService {
         id: i.id,
         name: i.name,
         codigoYavirac: i.codeValue || '',
-        codigoTipoId: i.codeTypeId,
-        codigoTipo: i.codeType ? { id: i.codeType.id, nombre: i.codeType.name } : undefined,
         subcategoriaId: i.subcategoryId,
         subcategoria: i.subcategory
           ? {
@@ -343,9 +318,8 @@ export class InventoryService {
   createItem(item: InventoryItem): Observable<InventoryItem> {
     const payload = {
       name: item.name,
-      subcategoryId: item.subcategoriaId,
-      codeTypeId: item.codigoTipoId,
-      codeValue: item.codigoYavirac,
+      subcategoryId: item.subcategoriaId || (item as any).subcategoryId,
+      codeValue: item.codigoYavirac || (item as any).codeValue,
       cantidad: item.cantidad !== undefined ? Number(item.cantidad) : 1,
       dynamicValues: item.dynamicValues || {},
       estadoFisico: item.estadoFisico || 'BUENO',
@@ -355,18 +329,22 @@ export class InventoryService {
     return this.http.post<InventoryItem>(`${this.apiUrl}/items`, payload);
   }
 
-  updateItem(id: string, item: InventoryItem): Observable<InventoryItem> {
-    const payload = {
-      name: item.name,
-      subcategoryId: item.subcategoriaId,
-      codeTypeId: item.codigoTipoId,
-      codeValue: item.codigoYavirac,
-      cantidad: item.cantidad !== undefined ? Number(item.cantidad) : 1,
-      dynamicValues: item.dynamicValues || {},
-      estadoFisico: item.estadoFisico || 'BUENO',
-      status: item.status || 'ACTIVO',
-      isPending: !!item.isPending,
-    };
+  updateItem(id: string, item: Partial<InventoryItem>): Observable<InventoryItem> {
+    const payload: any = {};
+    if (item.name !== undefined) payload.name = item.name;
+    
+    const subId = item.subcategoriaId || (item as any).subcategoryId;
+    if (subId !== undefined) payload.subcategoryId = subId;
+
+    const val = item.codigoYavirac !== undefined ? item.codigoYavirac : (item as any).codeValue;
+    if (val !== undefined) payload.codeValue = val;
+
+    if (item.cantidad !== undefined) payload.cantidad = Number(item.cantidad);
+    if (item.dynamicValues !== undefined) payload.dynamicValues = item.dynamicValues;
+    if (item.estadoFisico !== undefined) payload.estadoFisico = item.estadoFisico;
+    if (item.status !== undefined) payload.status = item.status;
+    if (item.isPending !== undefined) payload.isPending = !!item.isPending;
+
     return this.http.patch<InventoryItem>(`${this.apiUrl}/items/${id}`, payload);
   }
 

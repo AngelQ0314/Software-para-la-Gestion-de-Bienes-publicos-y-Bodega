@@ -177,7 +177,7 @@ export class UsersService {
     }
     if (filters.cedula) baseConditions.cedula = ILike(`%${filters.cedula}%`);
     
-    // Soporta tanto 'correo' (DTO) como 'correoInstitucional' (Enviado por Angular)
+    // Soporta tanto 'correo' (DTO) como 'correoInstitucional'
     const emailFilter = filters.correo || (filters as any).correoInstitucional;
     if (emailFilter) baseConditions.correoInstitucional = ILike(`%${emailFilter}%`);
     
@@ -257,14 +257,14 @@ export class UsersService {
   ): Promise<{ message: string }> {
     const user = await this.findOne(userId);
 
-    // 1. El responsable de bienes no puede cambiar de rol en el sistema
+    // El responsable de bienes no puede cambiar de rol en el sistema
     if (user.rol === UserRole.RESPONSABLE_DE_BIENES && newRol !== UserRole.RESPONSABLE_DE_BIENES) {
       throw new BadRequestException(
         'El Responsable de Bienes no puede cambiar de rol ni perder sus privilegios. Solo debe haber un Responsable de Bienes en el sistema.',
       );
     }
 
-    // 2. Un docente no puede cambiar a administrador (o responsable de bienes) si tiene artículos de inventario asignados a su perfil
+    // Un docente no puede cambiar a administrador (o responsable de bienes) si tiene artículos de inventario asignados a su perfil
     if (user.rol === UserRole.DOCENTE && (newRol === UserRole.ADMINISTRADOR || newRol === UserRole.RESPONSABLE_DE_BIENES)) {
       const itemsCount = await this.userRepo.manager
         .getRepository(InventoryItem)
@@ -420,7 +420,7 @@ export class UsersService {
     const log = this.logRepo.create(data);
     const savedLog = await this.logRepo.save(log);
 
-    // RP003: Registrar reporte automático al cambiar estado
+    // Registrar reporte automático al cambiar estado
     if (data.tipoCambio === LogType.CAMBIO_ESTADO) {
       await this.reportsService.registerUserStatusReport(savedLog).catch((err) => {
         this.logger.error('Error al registrar reporte de cambio de estado', err);
@@ -464,14 +464,14 @@ export class UsersService {
     delete dto.cedula;
     delete dto.correoInstitucional;
 
-    // 1. El responsable de bienes no puede cambiar de rol en el sistema
+    // El responsable de bienes no puede cambiar de rol en el sistema
     if (dto.rol && user.rol === UserRole.RESPONSABLE_DE_BIENES && dto.rol !== UserRole.RESPONSABLE_DE_BIENES) {
       throw new BadRequestException(
         'El Responsable de Bienes no puede cambiar de rol ni perder sus privilegios. Solo debe haber un Responsable de Bienes en el sistema.',
       );
     }
 
-    // 2. Un docente no puede cambiar a administrador (o responsable de bienes) si tiene artículos de inventario asignados a su perfil
+    // Un docente no puede cambiar a administrador (o responsable de bienes) si tiene artículos de inventario asignados a su perfil
     if (dto.rol && user.rol === UserRole.DOCENTE && (dto.rol === UserRole.ADMINISTRADOR || dto.rol === UserRole.RESPONSABLE_DE_BIENES)) {
       const itemsCount = await this.userRepo.manager
         .getRepository(InventoryItem)
@@ -600,7 +600,7 @@ export class UsersService {
     };
   }
 
-  // PD002 & PD003 & PD004: Actualización de perfil por el docente / usuario autenticado
+  // Actualización de perfil por el docente / usuario autenticado
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<{ message: string; user: Partial<User> }> {
     const user = await this.findOne(userId);
 

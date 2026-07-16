@@ -49,14 +49,14 @@ export class PeriodsSchedulerService implements OnModuleInit, OnModuleDestroy {
     const end = new Date(activePeriod.endDate);
     const msRemaining = end.getTime() - now.getTime();
 
-    // 1. CIERRE AUTOMÁTICO (PA003)
+    // CIERRE AUTOMÁTICO
     if (msRemaining <= 0) {
       this.logger.log(`El período '${activePeriod.name}' ha alcanzado su fecha de finalización. Iniciando cierre automático...`);
       await this.periodsService.executePeriodClosure(activePeriod, 'AUTOMATICO');
       return;
     }
 
-    // 2. NOTIFICACIÓN PREVIA AL CIERRE (48 HORAS ANTES) (PA005)
+    // NOTIFICACIÓN PREVIA AL CIERRE (48 HORAS ANTES)
     const hoursRemaining = msRemaining / (1000 * 60 * 60);
     if (hoursRemaining <= 48 && !activePeriod.notified48h) {
       this.logger.log(`Faltan ${hoursRemaining.toFixed(1)} horas para el cierre de '${activePeriod.name}'. Enviando notificaciones preventivas...`);

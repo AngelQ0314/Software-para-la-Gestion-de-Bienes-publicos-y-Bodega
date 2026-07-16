@@ -69,7 +69,6 @@ export class SpacesService {
       .createQueryBuilder('space')
       .leftJoinAndSelect('space.responsibleTeachers', 'responsibleTeachers')
       .leftJoinAndSelect('space.items', 'items')
-      .leftJoinAndSelect('items.codeType', 'codeType')
       .orderBy('space.roomNumber', 'ASC');
 
     if (filters.roomNumber) {
@@ -102,9 +101,7 @@ export class SpacesService {
       where: { id },
       relations: {
         responsibleTeachers: true,
-        items: {
-          codeType: true,
-        },
+        items: true,
       },
     });
 
@@ -331,7 +328,7 @@ export class SpacesService {
     for (const assignInfo of dto.items) {
       const item = await this.itemRepo.findOne({
         where: { id: assignInfo.itemId, status: 'ACTIVO' },
-        relations: { inventoryView: true },
+        relations: { inventoryView: true, physicalSpace: true },
       });
 
       if (!item) {
@@ -350,11 +347,10 @@ export class SpacesService {
 
       if (!isInsumo) {
         // BIENES PÚBLICOS / BIBLIOTECA: Asignación normal completa
-        if (item.physicalSpaceId && item.physicalSpaceId !== spaceId) {
-          await this.shiftRepo.delete({
-            spaceId: item.physicalSpaceId,
-            itemId: item.id,
-          });
+        if (item.physicalSpaceId !== null) {
+          throw new BadRequestException(
+            `Este artículo ya se encuentra ubicado en: ${item.physicalSpace?.name || ''} (Número ${item.physicalSpace?.roomNumber || ''})`,
+          );
         }
 
         item.physicalSpaceId = spaceId;
@@ -390,7 +386,7 @@ export class SpacesService {
 
         if (item.cantidad < cantidadAsignar) {
           throw new BadRequestException(
-            `Cantidad insuficiente de '${item.name}'. Cantidad disponible en inventario: ${item.cantidad}.`,
+            `Cantidad insuficiente para '${item.name}'. Stock disponible en bodega: ${item.cantidad} unidades.`,
           );
         }
 
@@ -402,7 +398,7 @@ export class SpacesService {
         const existingSpaceItem = await this.itemRepo.findOne({
           where: {
             name: item.name,
-            codeTypeId: item.codeTypeId,
+            subcategoryId: item.subcategoryId === null ? IsNull() : item.subcategoryId,
             codeValue: item.codeValue === null ? IsNull() : item.codeValue,
             physicalSpaceId: spaceId,
             status: 'ACTIVO',
@@ -475,7 +471,7 @@ export class SpacesService {
       const generalItem = await this.itemRepo.findOne({
         where: {
           name: item.name,
-          codeTypeId: item.codeTypeId,
+          subcategoryId: item.subcategoryId === null ? IsNull() : item.subcategoryId,
           codeValue: item.codeValue === null ? IsNull() : item.codeValue,
           physicalSpaceId: IsNull(),
           status: 'ACTIVO',
@@ -526,17 +522,16 @@ export class SpacesService {
 
     const items = await this.itemRepo.find({
       where: { physicalSpaceId: spaceId, status: 'ACTIVO' },
-      relations: { codeType: true, subcategory: { category: { inventoryView: true } } },
+      relations: { subcategory: { category: { inventoryView: true } } },
       order: { name: 'ASC' },
     });
 
     if (!jornada) {
-      // EA002: Retorna el inventario completo asignado al espacio
+      // Retorna el inventario completo asignado al espacio
       return items.map((item) => ({
         id: item.id,
         name: item.name,
         codeValue: item.codeValue,
-        codeType: item.codeType?.name || '',
         category: item.subcategory?.category?.name || '',
         subcategory: item.subcategory?.name || '',
         view: item.subcategory?.category?.inventoryView?.name || '',
@@ -561,7 +556,6 @@ export class SpacesService {
         id: item.id,
         name: item.name,
         codeValue: item.codeValue,
-        codeType: item.codeType?.name || '',
         category: item.subcategory?.category?.name || '',
         subcategory: item.subcategory?.name || '',
         view: item.subcategory?.category?.inventoryView?.name || '',
@@ -574,7 +568,7 @@ export class SpacesService {
     });
   }
 
-  // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS (IA001, IA003, IA004)
+  // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS
   async getAssignedInventory(
     userId: string,
     userRol: string,
@@ -583,7 +577,6 @@ export class SpacesService {
       jornada?: string;
       categoryId?: string;
       subcategoryId?: string;
-      codeTypeId?: string;
     },
   ): Promise<any[]> {
     let spaceIdsToQuery: string[] = [];
@@ -617,7 +610,6 @@ export class SpacesService {
     }
 
     const query = this.itemRepo.createQueryBuilder('item')
-      .leftJoinAndSelect('item.codeType', 'codeType')
       .leftJoinAndSelect('item.subcategory', 'subcategory')
       .leftJoinAndSelect('subcategory.category', 'category')
       .leftJoinAndSelect('category.inventoryView', 'inventoryView')
@@ -636,12 +628,11 @@ export class SpacesService {
       query.andWhere('subcategory.categoryId = :categoryId', { categoryId: filters.categoryId });
     }
 
-    if (filters.codeTypeId) {
-      query.andWhere('item.codeTypeId = :codeTypeId', { codeTypeId: filters.codeTypeId });
-    }
-
     query.orderBy('item.name', 'ASC');
     const items = await query.getMany();
+
+    // Importar In si no esta en las lineas superiores para usarlo
+    const { In } = require('typeorm');
 
     if (filters.jornada) {
       const normalizedJornada = filters.jornada.toUpperCase().trim();
@@ -668,7 +659,6 @@ export class SpacesService {
           id: item.id,
           name: item.name,
           codeValue: item.codeValue,
-          codeType: item.codeType?.name || '',
           category: item.subcategory?.category?.name || '',
           subcategory: item.subcategory?.name || '',
           view: item.subcategory?.category?.inventoryView?.name || '',
@@ -703,7 +693,6 @@ export class SpacesService {
           itemId: item.id,
           name: item.name,
           codeValue: item.codeValue,
-          codeType: item.codeType?.name || '',
           category: item.subcategory?.category?.name || '',
           subcategory: item.subcategory?.name || '',
           view: item.subcategory?.category?.inventoryView?.name || '',

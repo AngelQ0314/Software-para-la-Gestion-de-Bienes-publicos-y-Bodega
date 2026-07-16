@@ -8,21 +8,21 @@ import {
   UpdateDateColumn,
   Unique,
 } from 'typeorm';
-import { CodeType } from './code-type.entity';
+import { Subcategory } from './subcategory.entity';
 import { CustomField } from './custom-field.entity';
 
 @Entity('custom_fields_configs')
-@Unique(['codeTypeId', 'customFieldId'])
+@Unique(['subcategoryId', 'customFieldId'])
 export class CustomFieldConfig {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ name: 'code_type_id' })
-  codeTypeId: string;
+  @Column({ name: 'subcategory_id' })
+  subcategoryId: string;
 
-  @ManyToOne(() => CodeType, (codeType) => codeType.configs, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'code_type_id' })
-  codeType: CodeType;
+  @ManyToOne(() => Subcategory, (sub) => sub.configs, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'subcategory_id' })
+  subcategory: Subcategory;
 
   @Column({ name: 'custom_field_id' })
   customFieldId: string;

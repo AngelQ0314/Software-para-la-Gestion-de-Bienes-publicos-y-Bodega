@@ -29,6 +29,9 @@ export class Subcategory {
   @OneToMany(() => InventoryItem, (item) => item.subcategory)
   items: InventoryItem[];
 
+  @OneToMany('CustomFieldConfig', 'subcategory')
+  configs: any[];
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

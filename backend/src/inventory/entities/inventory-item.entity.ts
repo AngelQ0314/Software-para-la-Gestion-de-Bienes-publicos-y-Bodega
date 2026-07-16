@@ -10,7 +10,6 @@ import {
 } from 'typeorm';
 import { InventoryView } from './inventory-view.entity';
 import { Subcategory } from './subcategory.entity';
-import { CodeType } from './code-type.entity';
 
 @Entity('inventory_items')
 export class InventoryItem {
@@ -30,13 +29,6 @@ export class InventoryItem {
   @ManyToOne(() => Subcategory, (subcategory) => subcategory.items, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'subcategory_id' })
   subcategory: Subcategory;
-
-  @Column({ name: 'code_type_id' })
-  codeTypeId: string;
-
-  @ManyToOne(() => CodeType, (codeType) => codeType.items)
-  @JoinColumn({ name: 'code_type_id' })
-  codeType: CodeType;
 
   @Column({ name: 'physical_space_id', nullable: true })
   physicalSpaceId: string | null;
@@ -65,7 +57,7 @@ export class InventoryItem {
   cantidad: number;
 
   @Column({ type: 'jsonb', name: 'dynamic_values', default: {} })
-  dynamicValues: Record<string, any>; // Estructura JSON: {"id_del_custom_field": "valor"}
+  dynamicValues: Record<string, any>;
 
   @Column({ type: 'varchar', default: 'ACTIVO' })
   status: string; // Valores válidos: 'ACTIVO', 'INACTIVO'

@@ -23,7 +23,7 @@ import { UpdateIncidentStatusDto } from './dto/update-incident-status.dto';
 export class IncidentsController {
   constructor(private readonly incidentsService: IncidentsService) {}
 
-  // RN001 - RN005, RN007, RN009: Registrar reporte de novedad (Docente)
+  // Registrar reporte de novedad
   @Post()
   @Roles(UserRole.DOCENTE)
   async createIncident(@Request() req, @Body() dto: CreateIncidentReportDto) {
@@ -35,7 +35,7 @@ export class IncidentsController {
     };
   }
 
-  // RN006, RN008: Consulta del historial de reportes (Docente / Admin)
+  // Consulta del historial de reportes
   @Get()
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async getIncidents(
@@ -67,7 +67,7 @@ export class IncidentsController {
     return this.incidentsService.findOneIncident(id, userId, userRol);
   }
 
-  // Actualizar el estado de la novedad (Seguimiento Admin / Responsable de Bienes)
+  // Actualizar el estado de la novedad
   @Patch(':id/status')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async updateIncidentStatus(

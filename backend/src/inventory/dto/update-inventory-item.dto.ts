@@ -9,14 +9,6 @@ export class UpdateInventoryItemDto {
   @IsOptional()
   subcategoryName?: string;
 
-  @IsUUID('4', { message: 'El ID del tipo de código debe ser un UUID válido.' })
-  @IsOptional()
-  codeTypeId?: string;
-
-  @IsString({ message: 'El nombre del tipo de código debe ser un texto.' })
-  @IsOptional()
-  codeTypeName?: string;
-
   @IsString()
   @IsOptional()
   codeValue?: string;

@@ -33,7 +33,7 @@ export class ReportsService {
     private readonly userLogRepo: Repository<UserLog>,
   ) {}
 
-  // RP005, RP006: Consulta e historial con filtros
+  // Consulta e historial con filtros
   async findAll(filters: FilterReportDto): Promise<Report[]> {
     const where: any = {};
 
@@ -100,36 +100,35 @@ export class ReportsService {
     return report;
   }
 
-  // RP001, RP002: Generación automática de reporte de cierre y reportes por jornada
+  // Generación automática de reporte de cierre y reportes por jornada
   async generateClosureAndShiftReports(period: AcademicPeriod, adminId?: string): Promise<void> {
     const admin = adminId ? await this.userRepo.findOne({ where: { id: adminId } }) : null;
 
-    // 1. Recopilar datos de Bodega (items sin espacio asignado en este período)
+    // Recopilar datos de Bodega (items sin espacio asignado en este período)
     const itemsBodega = await this.itemRepo.find({
       where: { physicalSpaceId: IsNull(), status: 'ACTIVO' },
-      relations: { codeType: true, subcategory: { category: { inventoryView: true } } },
+      relations: { subcategory: { category: { inventoryView: true } } },
     });
 
-    // 2. Recopilar datos de Espacios Físicos
+    // Recopilar datos de Espacios Físicos
     const spaces = await this.spaceRepo.find({
       relations: {
         responsibleTeachers: true,
         items: {
-          codeType: true,
           subcategory: { category: { inventoryView: true } },
         },
       },
     });
 
-    // 3. Recopilar históricos de jornadas
+    // Recopilar históricos de jornadas
     const shifts = await this.shiftRepo.find({
       relations: {
-        item: { codeType: true },
+        item: true,
         space: true,
       },
     });
 
-    // 4. Armar el JSON consolidado inmutable
+    // Armar el JSON consolidado inmutable
     const reportData = {
       periodInfo: {
         id: period.id,
@@ -143,8 +142,7 @@ export class ReportsService {
         id: i.id,
         name: i.name,
         codeValue: i.codeValue,
-        codeType: i.codeType?.name || '',
-        codePrefix: i.codeType?.prefix || '',
+        codePrefix: '',
         view: i.inventoryView?.name || '',
         subcategory: i.subcategory?.name || '',
         category: i.subcategory?.category?.name || '',
@@ -169,7 +167,6 @@ export class ReportsService {
           id: i.id,
           name: i.name,
           codeValue: i.codeValue,
-          codeType: i.codeType?.name || '',
           view: i.inventoryView?.name || '',
           subcategory: i.subcategory?.name || '',
           category: i.subcategory?.category?.name || '',
@@ -192,7 +189,7 @@ export class ReportsService {
 
     const reportCode = `REP-PERIODO-${period.name.replace(/\s+/g, '-').toUpperCase()}`;
 
-    // A. Guardar o actualizar en la tabla closure_reports
+    // Guardar o actualizar en la tabla closure_reports
     let closureReport = await this.closureReportRepo.findOne({ where: { academicPeriodId: period.id } });
     if (!closureReport) {
       closureReport = this.closureReportRepo.create({
@@ -207,7 +204,7 @@ export class ReportsService {
     }
     await this.closureReportRepo.save(closureReport);
 
-    // B. Registrar el reporte consolidado en la tabla de historial de reportes general
+    // Registrar el reporte consolidado en la tabla de historial de reportes general
     let reportPeriod = await this.reportRepo.findOne({ where: { code: reportCode } });
     if (!reportPeriod) {
       reportPeriod = this.reportRepo.create({
@@ -225,7 +222,7 @@ export class ReportsService {
     }
     await this.reportRepo.save(reportPeriod);
 
-    // C. RP002: Generar automáticamente reportes independientes por cada jornada (MATUTINA, VESPERTINA, NOCTURNA)
+    // Generar automáticamente reportes independientes por cada jornada (MATUTINA, VESPERTINA, NOCTURNA)
     const jornadas = ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
     for (const jor of jornadas) {
       const jorShifts = reportData.shifts.filter((sh) => sh.jornada === jor);
@@ -265,7 +262,7 @@ export class ReportsService {
     }
   }
 
-  // RP003: Reportes de gestión de usuarios automático
+  // Reportes de gestión de usuarios automático
   async registerUserStatusReport(userLog: UserLog): Promise<void> {
     const log = await this.userLogRepo.findOne({
       where: { id: userLog.id },
@@ -310,10 +307,10 @@ export class ReportsService {
     await this.reportRepo.save(report);
   }
 
-  // RP004: Consulta de reportes de novedades activas en los espacios
+  // Consulta de reportes de novedades activas en los espacios
   async getActiveNovelties(): Promise<any[]> {
     const shifts = await this.shiftRepo.find({
-      relations: { item: { codeType: true }, space: { responsibleTeachers: true } },
+      relations: { item: true, space: { responsibleTeachers: true } },
     });
 
     // Filtrar novedades: estado físico no es BUENO o campo novedades no está vacío
@@ -332,7 +329,6 @@ export class ReportsService {
         id: sh.item?.id,
         name: sh.item?.name,
         codeValue: sh.item?.codeValue,
-        codeType: sh.item?.codeType?.name,
       },
       space: {
         id: sh.space?.id,
@@ -388,7 +384,7 @@ export class ReportsService {
     return this.reportRepo.save(report);
   }
 
-  // RP007: Exportar reporte a PDF en formato stream
+  // Exportar reporte a PDF en formato stream
   async exportToPdfStream(reportId: string): Promise<{ stream: Readable; filename: string }> {
     const report = await this.findOne(reportId);
     const doc = new PDFDocument({ margin: 50, size: 'A4' });

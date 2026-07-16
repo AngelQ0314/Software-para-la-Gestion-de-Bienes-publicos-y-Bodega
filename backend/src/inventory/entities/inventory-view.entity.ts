@@ -21,7 +21,7 @@ export class InventoryView {
     enum: InventoryViewCode,
     unique: true,
   })
-  code: InventoryViewCode; // Slug para filtros y lógica interna
+  code: InventoryViewCode;
 
   @OneToMany(() => Category, (category) => category.inventoryView)
   categories: Category[];

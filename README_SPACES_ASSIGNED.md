@@ -78,7 +78,6 @@ Obtiene el listado detallado de bienes públicos, insumos y suministros, y mater
         "id": "b7abf012-fc09-4d7c-abf1-c3e2896963ba",
         "name": "COMPUTADORA DE ESCRITORIO",
         "codeValue": "INS-13811",
-        "codeType": "CODIGO PA COMPUTADORAS",
         "category": "PERIFERICOS",
         "subcategory": "COMPUTADORAS",
         "view": "Bienes Públicos",
@@ -93,7 +92,6 @@ Obtiene el listado detallado de bienes públicos, insumos y suministros, y mater
         "id": "b7abf012-fc09-4d7c-abf1-c3e2896963ba",
         "name": "COMPUTADORA DE ESCRITORIO",
         "codeValue": "INS-13811",
-        "codeType": "CODIGO PA COMPUTADORAS",
         "category": "PERIFERICOS",
         "subcategory": "COMPUTADORAS",
         "view": "Bienes Públicos",
@@ -105,3 +103,4 @@ Obtiene el listado detallado de bienes públicos, insumos y suministros, y mater
       }
     ]
     ```
+

@@ -19,7 +19,6 @@ Permite al docente consultar el inventario asignado a las aulas bajo su responsa
     *   `jornada` (string) - Filtrar por jornada académica (`MATUTINA`, `VESPERTINA`, `NOCTURNA`). Si se provee, retorna el estado físico y novedades de la bitácora del turno correspondiente.
     *   `categoryId` (UUID) - Filtrar por categoría.
     *   `subcategoryId` (UUID) - Filtrar por subcategoría.
-    *   `codeTypeId` (UUID) - Filtrar por tipo de código.
 *   **Respuesta (200 OK - Sin Filtro de Jornada):**
     ```json
     [
@@ -27,7 +26,6 @@ Permite al docente consultar el inventario asignado a las aulas bajo su responsa
         "id": "33333333-0000-4000-a000-000000000001",
         "name": "ASSIGNED-ITEM-1",
         "codeValue": "TST-ASN-001",
-        "codeType": "CODIGO PRUEBA",
         "category": "CATEGORIA A",
         "subcategory": "SUBCATEGORIA A",
         "view": "Bienes Públicos",
@@ -46,7 +44,6 @@ Permite al docente consultar el inventario asignado a las aulas bajo su responsa
         "id": "33333333-0000-4000-a000-000000000001",
         "name": "ASSIGNED-ITEM-1",
         "codeValue": "TST-ASN-001",
-        "codeType": "CODIGO PRUEBA",
         "category": "CATEGORIA A",
         "subcategory": "SUBCATEGORIA A",
         "view": "Bienes Públicos",
@@ -65,7 +62,7 @@ Permite al docente consultar el inventario asignado a las aulas bajo su responsa
 ---
 
 ### 2. Consultar Detalle de un Elemento del Inventario
-Obtiene la información detallada de un bien público, insumo o material bibliográfico, mostrando todos los campos (incluidos los dinámicos/personalizados según su tipo de código).
+Obtiene la información detallada de un bien público, insumo o material bibliográfico, mostrando todos los campos (incluidos los dinámicos/personalizados según su subcategoría).
 *   **Método:** `GET`
 *   **Ruta:** `/inventory/items/:id`
 *   **Acceso:** Privado (Roles `ADMINISTRADOR`, `RESPONSABLE_DE_BIENES`, `DOCENTE`)
@@ -93,12 +90,6 @@ Obtiene la información detallada de un bien público, insumo o material bibliog
           "name": "CATEGORIA A"
         }
       },
-      "codeType": {
-        "id": "f1f1f1f1-f1f1-f1f1-f1f1-f1f1f1f11111",
-        "name": "CODIGO PRUEBA",
-        "prefix": "TST",
-        "configs": []
-      },
       "physicalSpace": {
         "id": "11111111-1111-1111-1111-111111111aaa",
         "roomNumber": "LAB-A",
@@ -110,3 +101,4 @@ Obtiene la información detallada de un bien público, insumo o material bibliog
       "resolvedValues": {}
     }
     ```
+

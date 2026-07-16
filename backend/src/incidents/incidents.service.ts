@@ -30,9 +30,9 @@ export class IncidentsService {
     private readonly shiftRepo: Repository<InventoryItemShift>,
   ) {}
 
-  // RN001 - RN005, RN007, RN009: Registrar reporte de novedades
+  // Registrar reporte de novedades
   async createIncidentReport(dto: CreateIncidentReportDto, teacherId: string): Promise<IncidentReport> {
-    // 1. Validar período académico activo
+    // Validar período académico activo
     const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
     if (!activePeriod) {
       throw new BadRequestException('No se pueden registrar reportes de novedades porque no hay un período académico activo.');
@@ -52,13 +52,13 @@ export class IncidentsService {
       throw new BadRequestException('El espacio físico asociado al reporte debe estar bajo tu responsabilidad.');
     }
 
-    // 3. Validar la jornada en el espacio físico
+    // Validar la jornada en el espacio físico
     const hasJornada = space.jornadas.includes(dto.jornada);
     if (!hasJornada) {
       throw new BadRequestException(`La jornada académica ${dto.jornada} no está configurada para este espacio físico.`);
     }
 
-    // 4. Validar que los artículos existan y pertenezcan a ese espacio físico
+    // Validar que los artículos existan y pertenezcan a ese espacio físico
     const items = await this.itemRepo.find({
       where: {
         id: In(dto.itemIds),
@@ -73,12 +73,12 @@ export class IncidentsService {
       );
     }
 
-    // 5. Generar código único auto-incremental
+    // Generar código único auto-incremental
     const year = new Date().getFullYear();
     const count = await this.reportRepo.count();
     const code = `INC-${year}-${String(count + 1).padStart(4, '0')}`;
 
-    // 6. Crear reporte
+    // Crear reporte
     const report = this.reportRepo.create({
       code,
       teacherId,
@@ -91,7 +91,7 @@ export class IncidentsService {
 
     const savedReport = await this.reportRepo.save(report);
 
-    // 7. Asociar artículos y actualizar estado en jornada (shift)
+    // Asociar artículos y actualizar estado en jornada (shift)
     const reportItems = dto.itemIds.map((itemId) =>
       this.reportItemRepo.create({
         incidentReportId: savedReport.id,
@@ -121,7 +121,7 @@ export class IncidentsService {
     return this.findOneIncident(savedReport.id, teacherId, UserRole.DOCENTE);
   }
 
-  // RN006, RN008: Listar reportes con historial y filtros
+  // Listar reportes con historial y filtros
   async findIncidents(filters: any, userId: string, userRol: string): Promise<IncidentReport[]> {
     const query = this.reportRepo.createQueryBuilder('report')
       .leftJoinAndSelect('report.teacher', 'teacher')
@@ -198,7 +198,7 @@ export class IncidentsService {
     report.status = dto.status;
     await this.reportRepo.save(report);
 
-    // Si se resuelve el incidente, restauramos el estado físico de los bienes a 'BUENO' y limpiamos el texto de novedades en la jornada (shift)
+    // Si se resuelve el incidente, restauramos el estado físico de los bienes a 'BUENO'
     if (dto.status === 'RESUELTO') {
       for (const reportItem of report.items) {
         const shiftRecord = await this.shiftRepo.findOne({

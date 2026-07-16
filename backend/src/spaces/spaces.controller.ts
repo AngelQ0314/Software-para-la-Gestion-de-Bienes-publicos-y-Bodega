@@ -121,7 +121,7 @@ export class SpacesController {
     return { message: 'Elemento del inventario desasociado del espacio físico correctamente.' };
   }
 
-  // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS (IA001, IA003, IA004)
+  // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS
   @Get('assigned-inventory/items')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async getAssignedInventory(
@@ -130,7 +130,6 @@ export class SpacesController {
     @Query('jornada') jornada?: string,
     @Query('categoryId') categoryId?: string,
     @Query('subcategoryId') subcategoryId?: string,
-    @Query('codeTypeId') codeTypeId?: string,
   ) {
     const userId = req.user.id;
     const userRol = req.user.rol;
@@ -139,7 +138,6 @@ export class SpacesController {
       jornada,
       categoryId,
       subcategoryId,
-      codeTypeId,
     });
   }
 

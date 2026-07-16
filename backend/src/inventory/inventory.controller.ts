@@ -25,7 +25,6 @@ import { UserRole } from '../users/entities/user.entity';
 
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
-import { CreateCodeTypeDto } from './dto/create-code-type.dto';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { AssociateFieldDto } from './dto/associate-field.dto';
@@ -103,34 +102,6 @@ export class InventoryController {
     };
   }
 
-  // TIPOS DE CÓDIGO
-  @Get('code-types')
-  async getAllCodeTypes() {
-    return this.inventoryService.findAllCodeTypes();
-  }
-
-  @Post('code-types')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
-  async createCodeType(@Body() dto: CreateCodeTypeDto) {
-    return this.inventoryService.createCodeType(dto);
-  }
-
-  @Patch('code-types/:id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
-  async updateCodeType(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: CreateCodeTypeDto,
-  ) {
-    return this.inventoryService.updateCodeType(id, dto);
-  }
-
-  @Delete('code-types/:id')
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
-  async deleteCodeType(@Param('id', ParseUUIDPipe) id: string) {
-    await this.inventoryService.deleteCodeType(id);
-    return { message: 'Tipo de código eliminado correctamente.' };
-  }
-
   // CAMPOS PERSONALIZADOS
   @Get('custom-fields')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
@@ -160,28 +131,28 @@ export class InventoryController {
     return { message: 'Campo personalizado eliminado correctamente.' };
   }
 
-  // ASOCIACIÓN DE CAMPOS A TIPOS DE CÓDIGO
-  @Get('code-types/:id/fields')
-  async getFieldsByCodeType(@Param('id', ParseUUIDPipe) id: string) {
-    return this.inventoryService.findFieldsByCodeType(id);
+  // ASOCIACIÓN DE CAMPOS A SUBCATEGORÍAS
+  @Get('subcategories/:id/fields')
+  async getFieldsBySubcategory(@Param('id', ParseUUIDPipe) id: string) {
+    return this.inventoryService.findFieldsBySubcategory(id);
   }
 
-  @Post('code-types/:id/fields')
+  @Post('subcategories/:id/fields')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async associateField(
-    @Param('id', ParseUUIDPipe) codeTypeId: string,
+    @Param('id', ParseUUIDPipe) subId: string,
     @Body() dto: AssociateFieldDto,
   ) {
-    return this.inventoryService.associateFieldToCodeType(codeTypeId, dto);
+    return this.inventoryService.associateFieldToSubcategory(subId, dto);
   }
 
-  @Delete('code-types/:codeTypeId/fields/:customFieldId')
+  @Delete('subcategories/:subId/fields/:customFieldId')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
   async removeField(
-    @Param('codeTypeId', ParseUUIDPipe) codeTypeId: string,
+    @Param('subId', ParseUUIDPipe) subId: string,
     @Param('customFieldId', ParseUUIDPipe) customFieldId: string,
   ) {
-    await this.inventoryService.removeFieldFromCodeType(codeTypeId, customFieldId);
+    await this.inventoryService.removeFieldFromSubcategory(subId, customFieldId);
     return { message: 'Asociación del campo eliminada correctamente.' };
   }
 
@@ -192,24 +163,24 @@ export class InventoryController {
     @Query('inventoryViewCode') inventoryViewCode?: string,
     @Query('categoryId') categoryId?: string,
     @Query('subcategoryId') subcategoryId?: string,
-    @Query('codeTypeId') codeTypeId?: string,
     @Query('status') status?: string,
     @Query('search') search?: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('onlyOrphans') onlyOrphans?: string,
+    @Query('showOrphansAndDeleted') showOrphansAndDeleted?: string,
   ) {
     return this.inventoryService.findItems({
       inventoryViewId,
       inventoryViewCode,
       categoryId,
       subcategoryId,
-      codeTypeId,
       status,
       search,
       page: page ? parseInt(page, 10) : undefined,
       limit: limit ? parseInt(limit, 10) : undefined,
       onlyOrphans: onlyOrphans === 'true',
+      showOrphansAndDeleted: showOrphansAndDeleted === 'true',
     });
   }
 

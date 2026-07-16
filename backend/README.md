@@ -1,98 +1,99 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# Sistema de Gestión de Bienes Públicos y Bodega — Backend
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Este es el backend del sistema de gestión de bienes públicos, insumos de bodega y recursos de biblioteca para el **Instituto Superior Tecnológico Yavirac**. Está desarrollado utilizando **NestJS**, **TypeORM** y **PostgreSQL**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+---
 
-## Description
+## 🚀 Tecnologías y Herramientas
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- **Framework:** NestJS (Node.js)
+- **Base de Datos:** PostgreSQL
+- **ORM:** TypeORM
+- **Autenticación:** JWT y control de accesos basado en Roles (`ADMINISTRADOR`, `RESPONSABLE_DE_BIENES`, `DOCENTE_RESPONSABLE`)
+- **Validaciones:** `class-validator` y `class-transformer`
 
-## Project setup
+---
 
-```bash
-$ npm install
+## 🛠️ Configuración y Ejecución
+
+### Requisitos Previos
+
+- Node.js (v18+)
+- PostgreSQL (Base de datos configurada, ej: `BienesPublicosBodega_BaseDeDatos`)
+
+### Configuración del Entorno (`.env.development`)
+
+Crea o edita un archivo `.env.development` en la raíz del backend con los siguientes parámetros:
+
+```env
+PORT=3000
+DB_HOST=localhost
+DB_PORT=5432
+DB_USERNAME=postgres
+DB_PASSWORD=0314
+DB_NAME=BienesPublicosBodega_BaseDeDatos
+JWT_SECRET=tu_secreto_super_seguro
+# Configuración de Mailer
+MAIL_HOST=smtp.gmail.com
+MAIL_PORT=587
+MAIL_USER=tu-correo@yavirac.edu.ec
+MAIL_PASSWORD=tu-contraseña-aplicacion
+MAIL_FROM_NAME="Inventario Yavirac"
 ```
 
-## Compile and run the project
+### Comandos de Ejecución
 
 ```bash
-# development
-$ npm run start
+# 1. Instalar dependencias
+npm install
 
-# watch mode
-$ npm run start:dev
+# 2. Levantar servidor en modo desarrollo (watch mode)
+npm run start:dev
 
-# production mode
-$ npm run start:prod
+# 3. Crear usuario administrador inicial (Seed)
+node seed-admin.js
 ```
 
-## Run tests
+---
 
-```bash
-# unit tests
-$ npm run test
+## 📐 Arquitectura del Catálogo y Campos Dinámicos
 
-# e2e tests
-$ npm run test:e2e
+La lógica de tipos de código heredada fue removida completamente para dar paso a una estructura simplificada y modular, donde la flexibilidad de atributos técnicos reside directamente en las **subcategorías**.
 
-# test coverage
-$ npm run test:cov
-```
+### 1. Vistas Principales (Inventory Views)
+El inventario se organiza en tres vistas principales del instituto:
+- `BIENES_PUBLICOS`: Gestión de activos fijos, tecnología y herramientas.
+- `INSUMOS`: Suministros de oficina, materiales consumibles y bodega en general.
+- `BIBLIOTECA`: Libros, enciclopedias y material didáctico.
 
-## Deployment
+### 2. Jerarquía de Clasificación
+- **Categorías:** Clasificaciones amplias asignadas a cada vista principal.
+- **Subcategorías:** Clasificación de segundo nivel que pertenece a una categoría y determina las especificaciones técnicas o atributos dinámicos necesarios.
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### 3. Sistema de Campos Dinámicos (Custom Fields)
+Cada **Subcategoría** puede tener asociada una lista de campos personalizados (ej. *Marca, RAM, Procesador, ISBN, Edición, etc.*) mediante la entidad `CustomFieldConfig`.
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+- **Tipos de datos soportados:**
+  - `TEXT` (Texto corto)
+  - `NUMBER_INT` (Número entero)
+  - `NUMBER_DECIMAL` (Número decimal)
+  - `DATE` (Fecha)
+  - `OPTIONS_LIST` (Lista de opciones predefinidas)
+- Cada asociación de campo dinámico puede ser configurada como **Obligatoria (`isMandatory`)** o tener un **Orden de Visualización (`sortOrder`)** específico.
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
+### 4. Estructura de Datos de Artículos (`InventoryItem`)
+Los artículos se guardan con sus propiedades estándar (nombre, código Yavirac, cantidad, estado físico, subcategoría) y guardan sus valores variables en una columna tipo `JSONB` llamada `dynamicValues`.
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+- Al registrar o actualizar un artículo, el backend valida y limpia automáticamente los valores de `dynamicValues` según la configuración actual de su subcategoría, eliminando llaves obsoletas que ya no formen parte de la subcategoría.
+- Al eliminar una subcategoría, todos sus artículos asociados quedan en estado **Sin Clasificar** (`subcategoryId = null`) y sus campos dinámicos son purgados para garantizar la consistencia.
 
-## Resources
+---
 
-Check out a few resources that may come in handy when working with NestJS:
+## 📦 Estructura del Código Fuente (`/src`)
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+- `/auth`: Guardia de roles, autenticación JWT, login y cambio de contraseña.
+- `/inventory`: Módulo principal que gestiona categorías, subcategorías, campos dinámicos, subida masiva de Excel, y el CRUD de artículos.
+- `/spaces`: Gestión de espacios físicos (aulas, laboratorios) y asignación de ítems en jornadas y horarios.
+- `/requests`: Sistema de traspaso, solicitud y entrega de bienes e insumos.
+- `/reports`: Generación de historiales de novedades y reportes de cierres de período académico.
+- `/periods`: Gestión de períodos lectivos (estados de períodos activos/cerrados).

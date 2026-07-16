@@ -41,12 +41,7 @@ Permite listar los laboratorios, aulas, bodegas u oficinas. Si el solicitante ti
           "name": "cuchillo metalico",
           "codeValue": "codigo003",
           "cantidad": 10,
-          "status": "ACTIVO",
-          "codeType": {
-            "id": "fcbed5d7-51ae-4f4d-af5f-bb9208069164",
-            "name": "COGIGO PARA CUCHILLOS",
-            "prefix": "CPC"
-          }
+          "status": "ACTIVO"
         }
       ]
     }
@@ -79,12 +74,7 @@ Retorna la información completa de un espacio físico, sus docentes responsable
         "name": "cuchillo metalico",
         "codeValue": "codigo003",
         "cantidad": 10,
-        "status": "ACTIVO",
-        "codeType": {
-          "id": "fcbed5d7-51ae-4f4d-af5f-bb9208069164",
-          "name": "COGIGO PARA CUCHILLOS",
-          "prefix": "CPC"
-        }
+        "status": "ACTIVO"
       }
     ]
   }
@@ -269,7 +259,6 @@ Retorna la lista de artículos asignados al espacio físico (bienes públicos, i
       "id": "e9c8cf44-4352-4584-a093-ed7fcc931889",
       "name": "cuchillo metalico",
       "codeValue": "codigo003",
-      "codeType": "CODIGO PARA CUCHILLOS",
       "category": "UTENSILIOS",
       "subcategory": "COCINA",
       "view": "Insumos y Suministros",
@@ -284,10 +273,6 @@ Retorna la lista de artículos asignados al espacio físico (bienes públicos, i
       "id": "e9c8cf44-4352-4584-a093-ed7fcc931889",
       "name": "cuchillo metalico",
       "codeValue": "codigo003",
-      "codeType": {
-        "id": "fcbed5d7-51ae-4f4d-af5f-bb9208069164",
-        "name": "COGIGO PARA CUCHILLOS"
-      },
       "cantidad": 10,
       "jornada": "MATUTINA",
       "estadoFisico": "REGULAR",

@@ -6,7 +6,6 @@ import { Repository } from 'typeorm';
 import { InventoryView, InventoryViewCode } from './entities/inventory-view.entity';
 import { Category } from './entities/category.entity';
 import { Subcategory } from './entities/subcategory.entity';
-import { CodeType } from './entities/code-type.entity';
 import { CustomField } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
@@ -21,7 +20,6 @@ import { InventoryController } from './inventory.controller';
       InventoryView,
       Category,
       Subcategory,
-      CodeType,
       CustomField,
       CustomFieldConfig,
       InventoryItem,
@@ -38,7 +36,7 @@ export class InventoryModule implements OnModuleInit {
     private readonly viewRepo: Repository<InventoryView>,
   ) {}
 
-  // Sembrador (Seeder) automático de las 3 Vistas de Inventario al iniciar el módulo
+  // Sembrador automático de las 3 Vistas de Inventario al iniciar el módulo
   async onModuleInit() {
     const defaultViews = [
       {

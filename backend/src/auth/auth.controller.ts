@@ -28,21 +28,21 @@ export class AuthController {
     return this.authService.login(dto.identifier, dto.password);
   }
 
-  //Cambio obligatorio de contraseña inicial (requiere estar autenticado)
+  //Cambio obligatorio de contraseña inicial
   @Post('change-initial-password')
   @UseGuards(JwtAuthGuard)
   changeInitialPassword(@Body() dto: ChangePasswordDto, @Request() req) {
     return this.authService.changeInitialPassword(req.user.id, dto);
   }
 
-  //Completar información personal (requiere estar autenticado)
+  //Completar información personal
   @Post('complete-profile')
   @UseGuards(JwtAuthGuard)
   completeProfile(@Body() dto: CompleteProfileDto, @Request() req) {
     return this.authService.completeProfile(req.user.id, dto);
   }
 
-  //Obtener perfil y rol del usuario autenticado (para que el frontend redirija)
+  //Obtener perfil y rol del usuario autenticado
   @Get('me')
   @UseGuards(JwtAuthGuard)
   getMe(@Request() req) {

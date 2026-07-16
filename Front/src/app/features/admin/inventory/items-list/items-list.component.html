@@ -27,7 +27,7 @@
             {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
           </span>
           <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-item active">Artículos Sin Clasificar</span>
+          <span class="breadcrumb-item active">Artículos Eliminados</span>
         } @else if (!selectedCategory()) {
           <span class="breadcrumb-item active">
             {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
@@ -109,9 +109,9 @@
     <div class="categories-section animate-fade">
       <div class="section-title-bar">
         <h3>Categorías en {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}</h3>
-        <div style="display: flex; gap: 10px;">
-          <button class="btn btn-secondary btn-sm" (click)="selectOrphans()" style="border-color: #f59e0b; color: #f59e0b; display: flex; align-items: center; gap: 6px;">
-            <span class="material-icons-round" style="font-size: 1.1rem;">warning_amber</span> Sin Clasificar / Huérfanos
+        <div style="display: flex; gap: 10px; align-items: center;">
+          <button class="btn btn-secondary btn-sm" (click)="selectOrphans()" style="border-color: #ef4444; color: #ef4444; display: flex; align-items: center; gap: 6px;">
+            <span class="material-icons-round" style="font-size: 1.1rem;">delete</span> Artículos Eliminados
           </button>
           <button class="btn btn-secondary btn-sm" (click)="openCategoryModal()" style="display: flex; align-items: center; gap: 6px;">
             <span class="material-icons-round">add</span> Nueva Categoría
@@ -125,10 +125,6 @@
             <div class="category-card-header" (click)="selectCategory(cat)">
               <h4>{{ cat.nombre }}</h4>
               <div class="category-actions" (click)="$event.stopPropagation()">
-                <!-- Configurar Atributos Dinámicos de la Categoría -->
-                <button class="icon-btn-edit" (click)="openCategoryConfig(cat)" title="Configurar Atributos Técnicos" style="color: var(--color-primary, #6366f1);">
-                  <span class="material-icons-round">settings</span>
-                </button>
                 <button class="icon-btn-edit" (click)="openCategoryModal(cat)" title="Editar Categoría">
                   <span class="material-icons-round">edit</span>
                 </button>
@@ -140,10 +136,26 @@
             
             <div class="category-card-body" (click)="selectCategory(cat)">
               <div class="subcategories-preview">
-                <span class="preview-title">Subcategorías registradas:</span>
+                <span class="preview-title">Subcategorías y campos dinámicos:</span>
                 <div class="sub-tags-wrapper">
                   @for (sub of getSubcategoriesForCategory(cat.id); track sub.id) {
-                    <span class="sub-preview-tag">{{ sub.nombre }}</span>
+                    <div style="margin-bottom: 8px;">
+                      <span class="sub-preview-tag" style="font-weight: 600; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); color: #818cf8;">
+                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle; margin-right: 4px;">list_alt</span>
+                        {{ sub.nombre }}
+                      </span>
+                      @if (sub.configs && sub.configs.length > 0) {
+                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; padding-left: 8px;">
+                          @for (cfg of sub.configs; track cfg.id) {
+                            <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; background: rgba(255,255,255,0.05); color: #9ca3af; border: 1px solid rgba(255,255,255,0.08);">
+                              {{ cfg.customField?.nombre }}
+                            </span>
+                          }
+                        </div>
+                      } @else {
+                        <span style="font-size: 0.72rem; color: #6b7280; padding-left: 8px; display: block; margin-top: 2px;">Sin campos dinámicos</span>
+                      }
+                    </div>
                   }
                   @if (getSubcategoriesForCategory(cat.id).length === 0) {
                     <span class="no-subs-tag">Sin subcategorías creadas</span>
@@ -206,19 +218,19 @@
 
       <div class="section-title-bar">
         <div style="display: flex; align-items: center; gap: 10px;">
-          <span class="material-icons-round" style="color: #f59e0b; font-size: 1.8rem;">warning_amber</span>
-          <h3>Artículos Sin Clasificar / Huérfanos</h3>
+          <span class="material-icons-round" style="color: #ef4444; font-size: 1.8rem;">delete</span>
+          <h3>Artículos Eliminados</h3>
         </div>
       </div>
 
-      <!-- Grid de Cards de Productos Huérfanos -->
+      <!-- Grid de Cards de Productos Eliminados -->
       <div class="items-cards-grid" [class.loading-mask]="loading()">
         @for (item of filteredItems(); track item.id) {
-          <div class="item-card glass-panel animate-slide" style="border-left: 4px solid #f59e0b;">
-            <div class="item-card-header">
-              <div class="title-area">
-                <span class="item-view-badge" style="background: rgba(245, 158, 11, 0.1); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.2);">
-                  HUÉRFANO
+          <div class="item-card glass-panel animate-slide" style="border-left: 4px solid #ef4444;">
+            <div class="item-card-header" style="display: flex; align-items: flex-start; gap: 10px;">
+              <div class="title-area" style="flex-grow: 1;">
+                <span class="item-view-badge" style="background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2);">
+                  ELIMINADO
                 </span>
                 <h4>{{ item.name }}</h4>
               </div>
@@ -229,12 +241,6 @@
                   'badge-inactivo': item.estadoFisico === 'MALO'
                 }">
                   {{ item.estadoFisico }}
-                </span>
-                <span class="badge" [ngClass]="{
-                  'badge-activo': item.status === 'ACTIVO',
-                  'badge-inactivo': item.status === 'INACTIVO'
-                }">
-                  {{ item.status }}
                 </span>
               </div>
             </div>
@@ -250,22 +256,18 @@
               </div>
             </div>
 
-            <div class="item-card-footer" style="display: flex; justify-content: space-between; align-items: center; gap: 10px;">
-              <button class="btn btn-primary btn-sm" (click)="openReclassifyModal(item)" style="display: flex; align-items: center; gap: 6px; font-size: 0.78rem;">
-                <span class="material-icons-round" style="font-size: 1rem;">category</span>
-                Asignar Categoría
-              </button>
-              <button class="btn btn-secondary btn-sm" (click)="deleteItem(item)" style="color: #e05638; border-color: rgba(224, 86, 56, 0.2); font-size: 0.78rem;" title="Eliminar Permanentemente">
-                <span class="material-icons-round" style="font-size: 1rem; vertical-align: middle;">delete</span>
-                Eliminar
+            <div class="item-card-footer" style="display: flex; justify-content: flex-end; align-items: center; gap: 8px;">
+              <button class="btn btn-primary btn-sm" (click)="reactivateItem(item)" style="background-color: #10b981; border-color: #10b981; display: flex; align-items: center; gap: 4px; font-size: 0.78rem;">
+                <span class="material-icons-round" style="font-size: 1rem;">settings_backup_restore</span>
+                Reactivar
               </button>
             </div>
           </div>
         }
         @if (filteredItems().length === 0 && !loading()) {
           <div class="no-data-card glass-panel" style="grid-column: 1 / -1; padding: 40px;">
-            <span class="material-icons-round" style="color: #10b981;">check_circle</span>
-            <p>¡Todo en orden! No existen artículos huérfanos sin clasificar en esta sección.</p>
+            <span class="material-icons-round" style="color: #6b7280;">info_outline</span>
+            <p>No existen artículos eliminados en esta sección.</p>
           </div>
         }
       </div>
@@ -311,8 +313,22 @@
             </div>
             <div class="sub-card-info">
               <h4>{{ sub.nombre }}</h4>
+              @if (sub.configs && sub.configs.length > 0) {
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
+                  @for (cfg of sub.configs; track cfg.id) {
+                    <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; background: rgba(99,102,241,0.08); color: #818cf8; border: 1px solid rgba(99,102,241,0.15);">
+                      {{ cfg.customField?.nombre }}
+                    </span>
+                  }
+                </div>
+              } @else {
+                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 4px;">Sin campos dinámicos</p>
+              }
             </div>
             <div class="sub-card-actions" (click)="$event.stopPropagation()">
+              <button class="icon-btn-edit" (click)="openSubcategoryConfig(sub)" title="Configurar Campos Dinámicos" style="color: #6366f1;">
+                <span class="material-icons-round">settings</span>
+              </button>
               <button class="icon-btn-edit" (click)="openSubcategoryModal(sub)" title="Editar Subcategoría">
                 <span class="material-icons-round">edit</span>
               </button>
@@ -485,13 +501,13 @@
 </div>
 
 <!-- ==========================================================
-     MODAL CONFIGURACIÓN DE ATRIBUTOS POR CATEGORÍA (SIMPLIFICADO)
+     MODAL CONFIGURACIÓN DE ATRIBUTOS POR SUBCATEGORÍA
      ========================================================== -->
 @if (showCategoryConfigModal()) {
   <div class="modal-overlay" style="z-index: 25000 !important;">
     <div class="glass-panel modal-card wide-modal animate-slide">
       <div class="modal-header">
-        <h3>Atributos Dinámicos de la Categoría "{{ selectedCategoryForConfig()?.nombre }}"</h3>
+        <h3>Campos Dinámicos de la Subcategoría "{{ selectedSubcategoryForConfig()?.nombre }}"</h3>
         <button class="close-btn" (click)="closeCategoryConfig()">×</button>
       </div>
 
@@ -500,7 +516,7 @@
           <!-- Columna Izquierda: Formulario Directo de Atributo -->
           <div class="config-side-form">
             <h4>Añadir Nuevo Atributo</h4>
-            <form [formGroup]="customFieldForm" (ngSubmit)="submitCustomFieldForCategory()" class="modal-form">
+            <form [formGroup]="customFieldForm" (ngSubmit)="submitCustomFieldForSubcategory()" class="modal-form">
               <div class="form-group">
                 <label class="form-label" for="attName">Nombre del Atributo*</label>
                 <input id="attName" type="text" class="form-input" placeholder="Ej. Marca, Autor, ISBN..." formControlName="nombre" />
@@ -557,21 +573,21 @@
             </form>
           </div>
 
-          <!-- Columna Derecha: Listado de Atributos de esta Categoría -->
+          <!-- Columna Derecha: Listado de Campos Dinámicos de esta Subcategoría -->
           <div class="config-main-table">
-            <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Atributos Técnicos Requeridos</h4>
+            <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 12px; color: var(--text-primary);">Campos Configurados para esta Subcategoría</h4>
             
             <table class="custom-table" style="font-size: 0.85rem;">
               <thead>
                 <tr>
-                  <th>Nombre Atributo</th>
+                  <th>Nombre Campo</th>
                   <th>Tipo de Dato</th>
-                  <th>Atributos</th>
+                  <th>Opciones</th>
                   <th style="width: 80px;">Acciones</th>
                 </tr>
               </thead>
               <tbody>
-                @for (assoc of categoryConfigFields(); track assoc.id) {
+                @for (assoc of subcategoryConfigFields(); track assoc.id) {
                   <tr>
                     <td>
                       <strong>{{ assoc.customField?.nombre }}</strong>
@@ -582,16 +598,16 @@
                     <td><span class="font-mono" style="font-size: 0.75rem;">{{ assoc.customField?.tipo }}</span></td>
                     <td>{{ assoc.customField?.opciones ? $any(assoc.customField?.opciones).join(', ') : '-' }}</td>
                     <td>
-                      <button class="icon-btn-delete" (click)="removeFieldFromCategory(assoc)" title="Eliminar Atributo">
+                      <button class="icon-btn-delete" (click)="removeFieldFromSubcategory(assoc)" title="Eliminar Campo">
                         <span class="material-icons-round" style="font-size: 1.1rem;">delete</span>
                       </button>
                     </td>
                   </tr>
                 }
-                @if (categoryConfigFields().length === 0) {
+                @if (subcategoryConfigFields().length === 0) {
                   <tr>
                     <td colspan="4" style="text-align: center; color: var(--text-secondary); padding: 30px 10px; font-style: italic;">
-                      Esta categoría no posee atributos dinámicos configurados.
+                      Esta subcategoría no posee campos dinámicos configurados. Añade uno desde el formulario de la izquierda.
                     </td>
                   </tr>
                 }
@@ -729,7 +745,7 @@
 
             <div class="form-group">
               <label class="form-label" for="cantidad">Cantidad / Stock</label>
-              <input id="cantidad" type="number" class="form-input" formControlName="cantidad" placeholder="Cantidad..." />
+              <input id="cantidad" type="number" min="0" (keydown)="preventNegativeSign($event)" (input)="onCantidadInput($event)" class="form-input" formControlName="cantidad" placeholder="Cantidad..." />
               @if (isFieldInvalid('cantidad')) {
                 <span class="error-text">La cantidad debe ser mayor o igual a 0</span>
               }
@@ -1054,6 +1070,117 @@
 
       <div class="form-actions" style="margin-top: 20px;">
         <button class="btn btn-secondary" (click)="closeReclassifyModal()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ==========================================================
+     MODAL DE REACTIVACIÓN INTERACTIVA DE ARTÍCULOS ELIMINADOS
+     ========================================================== -->
+@if (showReactivateModal()) {
+  <div class="modal-overlay" style="z-index: 28000 !important;">
+    <div class="glass-panel modal-card wide-modal animate-slide">
+      <div class="modal-header">
+        <h3>Reactivar Artículo: "{{ selectedItemForReactivate()?.name }}"</h3>
+        <button class="close-btn" (click)="closeReactivateModal()">×</button>
+      </div>
+
+      <div class="modal-body" style="padding-top: 10px;">
+        <p class="section-desc" style="margin-bottom: 15px;">
+          Para reactivar este artículo, selecciona la categoría y subcategoría de destino, y completa sus especificaciones obligatorias.
+        </p>
+
+        <div class="item-form-grid">
+          <!-- Columna 1: Selección de Categoría y Subcategoría -->
+          <div class="form-column">
+            <h4 class="column-title">Destino del Artículo</h4>
+            
+            <div class="form-group">
+              <label class="form-label" style="font-weight: 600;">Categoría Destino*</label>
+              <select class="form-select" [value]="reactivateCategory()?.id || ''" (change)="onReactivateCategoryChange($any($event.target).value)">
+                <option value="">Selecciona una categoría...</option>
+                @for (cat of getFilteredCategories(); track cat.id) {
+                  <option [value]="cat.id">{{ cat.nombre }}</option>
+                }
+              </select>
+            </div>
+
+            @if (reactivateCategory()) {
+              <div class="form-group" style="margin-top: 15px;">
+                <label class="form-label" style="font-weight: 600;">Subcategoría Destino*</label>
+                <select class="form-select" [value]="selectedReactivateSubId()" (change)="onReactivateSubcategoryChange($any($event.target).value)">
+                  <option value="">Selecciona una subcategoría...</option>
+                  @for (sub of getSubcategoriesForCategory(reactivateCategory()!.id); track sub.id) {
+                    <option [value]="sub.id">{{ sub.nombre }}</option>
+                  }
+                </select>
+              </div>
+            }
+          </div>
+
+          <!-- Columna 2: Campos Dinámicos correspondientes a la subcategoría seleccionada -->
+          <div class="form-column">
+            <h4 class="column-title">Especificaciones Dinámicas</h4>
+            
+            @if (selectedReactivateSubId() && reactivateFields().length > 0) {
+              <div class="dynamic-inputs-area">
+                <form [formGroup]="reactivateForm" class="dynamic-fields-form">
+                  <div formGroupName="dynamicValues">
+                    @for (assoc of reactivateFields(); track assoc.id) {
+                      <div class="form-group">
+                        <label class="form-label">
+                          {{ assoc.customField?.nombre }}
+                          @if (assoc.isMandatory) {
+                            <span class="required-asterisk">*</span>
+                          }
+                        </label>
+                        
+                        <ng-container [ngSwitch]="assoc.customField?.tipo">
+                          <input *ngSwitchCase="'TEXT'" type="text" class="form-input" [placeholder]="'Ingresa ' + assoc.customField?.nombre" [formControlName]="assoc.customFieldId" />
+                          <input *ngSwitchCase="'NUMBER_INT'" type="number" step="1" class="form-input" placeholder="Ingresa número entero" [formControlName]="assoc.customFieldId" />
+                          <input *ngSwitchCase="'NUMBER_DECIMAL'" type="number" step="any" class="form-input" placeholder="Ingresa número decimal" [formControlName]="assoc.customFieldId" />
+                          <input *ngSwitchCase="'DATE'" type="date" class="form-input" [formControlName]="assoc.customFieldId" />
+                          <select *ngSwitchCase="'OPTIONS_LIST'" class="form-select" [formControlName]="assoc.customFieldId">
+                            <option value="">Selecciona...</option>
+                            @for (opt of assoc.customField?.opciones; track opt) {
+                              <option [value]="opt">{{ opt }}</option>
+                            }
+                          </select>
+                        </ng-container>
+
+                        @if (isReactivateFieldInvalid(assoc.customFieldId)) {
+                          <span class="error-text">Este campo es requerido</span>
+                        }
+                      </div>
+                    }
+                  </div>
+                </form>
+              </div>
+            } @else if (selectedReactivateSubId()) {
+              <div class="no-dynamic-alert">
+                <span class="material-icons-round">info</span>
+                <p>Esta subcategoría no posee atributos dinámicos adicionales configurados.</p>
+              </div>
+            } @else {
+              <div class="no-dynamic-alert" style="border: 1px dashed var(--border-color);">
+                <span class="material-icons-round">subdirectory_arrow_right</span>
+                <p>Selecciona una subcategoría para cargar sus especificaciones.</p>
+              </div>
+            }
+          </div>
+        </div>
+
+        @if (modalErrorMessage()) {
+          <div class="alert-box error-alert">{{ modalErrorMessage() }}</div>
+        }
+      </div>
+
+      <div class="form-actions" style="margin-top: 20px;">
+        <button class="btn btn-secondary" (click)="closeReactivateModal()">Cancelar</button>
+        <button class="btn btn-primary" (click)="submitReactivate()" [disabled]="!selectedReactivateSubId() || reactivateForm.invalid || modalLoading()">
+          {{ modalLoading() ? 'Reactivando...' : 'Reactivar Artículo' }}
+        </button>
       </div>
     </div>
   </div>

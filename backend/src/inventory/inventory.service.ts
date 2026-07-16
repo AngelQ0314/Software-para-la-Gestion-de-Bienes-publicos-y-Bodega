@@ -11,7 +11,6 @@ import { Repository, IsNull, Not } from 'typeorm';
 import { InventoryView, InventoryViewCode } from './entities/inventory-view.entity';
 import { Category } from './entities/category.entity';
 import { Subcategory } from './entities/subcategory.entity';
-import { CodeType } from './entities/code-type.entity';
 import { CustomField, CustomFieldType } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
@@ -21,7 +20,6 @@ import * as ExcelJS from 'exceljs';
 
 import { CreateCategoryDto } from './dto/create-category.dto';
 import { CreateSubcategoryDto } from './dto/create-subcategory.dto';
-import { CreateCodeTypeDto } from './dto/create-code-type.dto';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
 import { UpdateCustomFieldDto } from './dto/update-custom-field.dto';
 import { AssociateFieldDto } from './dto/associate-field.dto';
@@ -37,8 +35,6 @@ export class InventoryService {
     private readonly categoryRepo: Repository<Category>,
     @InjectRepository(Subcategory)
     private readonly subcategoryRepo: Repository<Subcategory>,
-    @InjectRepository(CodeType)
-    private readonly codeTypeRepo: Repository<CodeType>,
     @InjectRepository(CustomField)
     private readonly customFieldRepo: Repository<CustomField>,
     @InjectRepository(CustomFieldConfig)
@@ -147,19 +143,15 @@ export class InventoryService {
       .getCount();
 
     if (count > 0) {
-      // Para los ítems afectados, también se desaciosa la vista
-      await this.itemRepo
-        .createQueryBuilder()
-        .update(InventoryItem)
-        .set({ inventoryViewId: null })
-        .where('subcategory_id IN (SELECT sub.id FROM subcategories sub WHERE sub.category_id = :categoryId)', { categoryId: id })
-        .execute();
+      throw new BadRequestException(
+        `No se puede eliminar la categoría porque tiene ${count} artículo(s) asociado(s).`,
+      );
     }
 
     // El borrado en cascada
     await this.categoryRepo.remove(category);
 
-    return { desasociados: count };
+    return { desasociados: 0 };
   }
 
   // SUBCATEGORÍAS
@@ -260,71 +252,14 @@ export class InventoryService {
     const count = await this.itemRepo.count({ where: { subcategoryId: id } });
 
     if (count > 0) {
-      // Desasociamos de la vista
-      await this.itemRepo
-        .createQueryBuilder()
-        .update(InventoryItem)
-        .set({ inventoryViewId: null })
-        .where('subcategory_id = :subId', { subId: id })
-        .execute();
+      throw new BadRequestException(
+        `No se puede eliminar la subcategoría porque tiene ${count} artículo(s) asociado(s).`,
+      );
     }
 
     await this.subcategoryRepo.remove(sub);
 
-    return { desasociados: count };
-  }
-
-  // TIPOS DE CÓDIGO
-  async findAllCodeTypes(): Promise<CodeType[]> {
-    return this.codeTypeRepo.find({
-      relations: {
-        configs: {
-          customField: true,
-        },
-      },
-      order: { name: 'ASC' },
-    });
-  }
-
-  async createCodeType(dto: CreateCodeTypeDto): Promise<CodeType> {
-    const existe = await this.codeTypeRepo.findOne({ where: { name: dto.name.toUpperCase() } });
-    if (existe) {
-      throw new ConflictException(`El tipo de código '${dto.name}' ya existe.`);
-    }
-
-    const nuevo = this.codeTypeRepo.create({
-      name: dto.name.toUpperCase(),
-      prefix: dto.prefix?.toUpperCase(),
-    });
-
-    return this.codeTypeRepo.save(nuevo);
-  }
-
-  async updateCodeType(id: string, dto: CreateCodeTypeDto): Promise<CodeType> {
-    const codeType = await this.codeTypeRepo.findOne({ where: { id } });
-    if (!codeType) {
-      throw new NotFoundException('El tipo de código no existe.');
-    }
-
-    const existe = await this.codeTypeRepo.findOne({ where: { name: dto.name.toUpperCase() } });
-    if (existe && existe.id !== id) {
-      throw new ConflictException(`Ya existe otro tipo de código con el nombre '${dto.name}'.`);
-    }
-
-    codeType.name = dto.name.toUpperCase();
-    if (dto.prefix !== undefined) {
-      codeType.prefix = dto.prefix?.toUpperCase();
-    }
-
-    return this.codeTypeRepo.save(codeType);
-  }
-
-  async deleteCodeType(id: string): Promise<void> {
-    const codeType = await this.codeTypeRepo.findOne({ where: { id } });
-    if (!codeType) {
-      throw new NotFoundException('El tipo de código no existe.');
-    }
-    await this.codeTypeRepo.remove(codeType);
+    return { desasociados: 0 };
   }
 
   // CAMPOS PERSONALIZADOS
@@ -409,11 +344,11 @@ export class InventoryService {
     await this.customFieldRepo.remove(field);
   }
 
-  // ASOCIACIÓN DE CAMPOS A TIPOS DE CÓDIGO (CONFIGURACIÓN)
-  async associateFieldToCodeType(codeTypeId: string, dto: AssociateFieldDto): Promise<CustomFieldConfig> {
-    const codeType = await this.codeTypeRepo.findOne({ where: { id: codeTypeId } });
-    if (!codeType) {
-      throw new NotFoundException('El tipo de código no existe.');
+  // ASOCIACIÓN DE CAMPOS A SUBCATEGORÍAS (CONFIGURACIÓN)
+  async associateFieldToSubcategory(subId: string, dto: AssociateFieldDto): Promise<CustomFieldConfig> {
+    const subcategory = await this.subcategoryRepo.findOne({ where: { id: subId } });
+    if (!subcategory) {
+      throw new NotFoundException('La subcategoría no existe.');
     }
 
     let fieldId = dto.customFieldId;
@@ -445,7 +380,7 @@ export class InventoryService {
 
     // Verificar si ya está asociado
     let config = await this.fieldConfigRepo.findOne({
-      where: { codeTypeId, customFieldId: fieldId },
+      where: { subcategoryId: subId, customFieldId: fieldId },
     });
 
     if (config) {
@@ -455,7 +390,7 @@ export class InventoryService {
     } else {
       // Crear nueva asociación
       config = this.fieldConfigRepo.create({
-        codeTypeId,
+        subcategoryId: subId,
         customFieldId: fieldId,
         isMandatory: dto.isMandatory ?? false,
         sortOrder: dto.sortOrder ?? 0,
@@ -465,32 +400,58 @@ export class InventoryService {
     return this.fieldConfigRepo.save(config);
   }
 
-  async findFieldsByCodeType(codeTypeId: string): Promise<any[]> {
+  async findFieldsBySubcategory(subId: string): Promise<any[]> {
     const configs = await this.fieldConfigRepo.find({
-      where: { codeTypeId },
+      where: { subcategoryId: subId },
       relations: { customField: true },
       order: { sortOrder: 'ASC' },
     });
 
     return configs.map((c) => ({
-      id: c.customField.id,
-      name: c.customField.name,
-      label: c.customField.label,
-      type: c.customField.type,
-      options: c.customField.options,
+      id: c.id,
+      customFieldId: c.customField.id,
+      customField: {
+        id: c.customField.id,
+        name: c.customField.name,
+        label: c.customField.label,
+        type: c.customField.type,
+        options: c.customField.options,
+      },
       isMandatory: c.isMandatory,
       sortOrder: c.sortOrder,
     }));
   }
 
-  async removeFieldFromCodeType(codeTypeId: string, customFieldId: string): Promise<void> {
+  async removeFieldFromSubcategory(subId: string, customFieldId: string): Promise<void> {
     const config = await this.fieldConfigRepo.findOne({
-      where: { codeTypeId, customFieldId },
+      where: { subcategoryId: subId, customFieldId },
     });
     if (!config) {
       throw new NotFoundException('La asociación especificada no existe.');
     }
     await this.fieldConfigRepo.remove(config);
+
+    // Limpiar la propiedad en el JSONB de los artículos de esta subcategoría
+    await this.itemRepo.createQueryBuilder()
+      .update(InventoryItem)
+      .set({
+        dynamicValues: () => `dynamic_values - '${customFieldId}'`
+      })
+      .where('subcategory_id = :subId', { subId })
+      .execute();
+
+    // Contar las asociaciones restantes de este campo dinámico global
+    const remainingCount = await this.fieldConfigRepo.count({
+      where: { customFieldId }
+    });
+
+    // Si ya no está asociado a ninguna subcategoría, se borra físicamente
+    if (remainingCount === 0) {
+      const field = await this.customFieldRepo.findOne({ where: { id: customFieldId } });
+      if (field) {
+        await this.customFieldRepo.remove(field);
+      }
+    }
   }
 
   // ELEMENTOS DEL INVENTARIO
@@ -519,26 +480,6 @@ export class InventoryService {
       throw new NotFoundException('La subcategoría seleccionada no existe.');
     }
 
-    let codeTypeId = dto.codeTypeId;
-    if (!codeTypeId && dto.codeTypeName) {
-      const ct = await this.codeTypeRepo.findOne({
-        where: { name: dto.codeTypeName.toUpperCase() },
-      });
-      if (!ct) {
-        throw new NotFoundException(`El tipo de código con nombre '${dto.codeTypeName}' no existe.`);
-      }
-      codeTypeId = ct.id;
-    }
-
-    if (!codeTypeId) {
-      throw new BadRequestException('Debe proporcionar el codeTypeId (UUID) o el codeTypeName.');
-    }
-
-    const codeType = await this.codeTypeRepo.findOne({ where: { id: codeTypeId } });
-    if (!codeType) {
-      throw new NotFoundException('El tipo de código seleccionado no existe.');
-    }
-
     let formattedCodeValue: string | null = null;
     if (dto.codeValue && dto.codeValue.trim() !== '') {
       formattedCodeValue = dto.codeValue.trim();
@@ -558,7 +499,7 @@ export class InventoryService {
       }
     }
 
-    const validatedValues = await this.validateAndFormatDynamicValues(codeTypeId, dto.dynamicValues || {});
+    const validatedValues = await this.validateAndFormatDynamicValues(subId, dto.dynamicValues || {});
 
     // Validar cantidad según la vista
     const viewCode = subcategory.category.inventoryView?.code;
@@ -583,7 +524,6 @@ export class InventoryService {
       name: dto.name,
       codeValue: formattedCodeValue,
       subcategoryId: subId,
-      codeTypeId: codeTypeId,
       inventoryViewId: subcategory.category.inventoryViewId,
       cantidad: cantidadToSave,
       dynamicValues: validatedValues,
@@ -634,25 +574,6 @@ export class InventoryService {
       item.subcategoryId = targetSubId;
       item.inventoryViewId = subcategory.category.inventoryViewId;
       item.inventoryView = subcategory.category.inventoryView;
-    }
-
-    let targetCodeTypeId = dto.codeTypeId;
-    if (!targetCodeTypeId && dto.codeTypeName) {
-      const ct = await this.codeTypeRepo.findOne({
-        where: { name: dto.codeTypeName.toUpperCase() },
-      });
-      if (!ct) {
-        throw new NotFoundException(`El tipo de código con nombre '${dto.codeTypeName}' no existe.`);
-      }
-      targetCodeTypeId = ct.id;
-    }
-
-    if (targetCodeTypeId) {
-      const codeType = await this.codeTypeRepo.findOne({ where: { id: targetCodeTypeId } });
-      if (!codeType) {
-        throw new NotFoundException('El tipo de código seleccionado no existe.');
-      }
-      item.codeTypeId = targetCodeTypeId;
     }
 
     if (dto.codeValue !== undefined) {
@@ -712,6 +633,19 @@ export class InventoryService {
             );
           }
         }
+
+        // Si se reactiva, validar que tenga subcategoría y campos dinámicos obligatorios
+        const subId = dto.subcategoryId || item.subcategoryId;
+        if (!subId) {
+          throw new BadRequestException('Para reactivar este artículo debe asociarlo a una subcategoría.');
+        }
+
+        const valuesToValidate = {
+          ...(item.dynamicValues || {}),
+          ...(dto.dynamicValues || {}),
+        };
+        item.dynamicValues = await this.validateAndFormatDynamicValues(subId, valuesToValidate);
+
         item.deletedAt = null;
       } else if (dto.status === 'INACTIVO') {
         if (!item.deletedAt) {
@@ -733,9 +667,14 @@ export class InventoryService {
       item.isPending = !!dto.isPending;
     }
 
-    if (dto.dynamicValues) {
+    if (dto.dynamicValues && !(dto.status === 'ACTIVO' && item.status === 'INACTIVO')) {
+      const subId = dto.subcategoryId || item.subcategoryId;
+      if (!subId) {
+        throw new BadRequestException('No se pueden asignar campos dinámicos a un artículo sin subcategoría.');
+      }
+
       const configs = await this.fieldConfigRepo.find({
-        where: { codeTypeId: item.codeTypeId },
+        where: { subcategoryId: subId },
         relations: { customField: true },
       });
 
@@ -755,7 +694,7 @@ export class InventoryService {
         ...(item.dynamicValues || {}),
         ...normalizedDtoValues,
       };
-      item.dynamicValues = await this.validateAndFormatDynamicValues(item.codeTypeId, mergedDynamicValues);
+      item.dynamicValues = await this.validateAndFormatDynamicValues(subId, mergedDynamicValues);
     }
 
     return this.itemRepo.save(item);
@@ -769,8 +708,6 @@ export class InventoryService {
         inventoryView: true,
         subcategory: {
           category: true,
-        },
-        codeType: {
           configs: {
             customField: true,
           },
@@ -793,7 +730,9 @@ export class InventoryService {
     }
 
     // Resolver los nombres legibles de las propiedades dinámicas
-    const resolvedValues = await this.resolveDynamicValuesLabels(item.codeTypeId, item.dynamicValues);
+    const resolvedValues = item.subcategoryId
+      ? await this.resolveDynamicValuesLabels(item.subcategoryId, item.dynamicValues || {})
+      : [];
 
     let distribucionEspacios: any[] = [];
     const isInsumo = item.inventoryView?.code === 'INSUMOS';
@@ -802,7 +741,7 @@ export class InventoryService {
       const distributions = await this.itemRepo.find({
         where: {
           name: item.name,
-          codeTypeId: item.codeTypeId,
+          subcategoryId: item.subcategoryId === null ? IsNull() : item.subcategoryId,
           codeValue: item.codeValue === null ? IsNull() : item.codeValue,
           physicalSpaceId: Not(IsNull()),
           status: 'ACTIVO',
@@ -846,12 +785,12 @@ export class InventoryService {
     inventoryViewCode?: string;
     categoryId?: string;
     subcategoryId?: string;
-    codeTypeId?: string;
     status?: string; // ACTIVO / INACTIVO
     search?: string;
     page?: number;
     limit?: number;
     onlyOrphans?: boolean;
+    showOrphansAndDeleted?: boolean;
   }): Promise<{ data: InventoryItem[]; total: number; page: number; lastPage: number }> {
     const page = filters.page || 1;
     const limit = filters.limit || 10;
@@ -863,15 +802,15 @@ export class InventoryService {
       .leftJoinAndSelect('item.inventoryView', 'inventoryView')
       .leftJoinAndSelect('item.subcategory', 'subcategory')
       .leftJoinAndSelect('subcategory.category', 'category')
-      .leftJoinAndSelect('item.codeType', 'codeType')
-      .leftJoinAndSelect('codeType.configs', 'configs')
+      .leftJoinAndSelect('subcategory.configs', 'configs')
       .leftJoinAndSelect('configs.customField', 'customField')
       .leftJoinAndSelect('item.physicalSpace', 'physicalSpace')
+      .leftJoinAndSelect('physicalSpace.responsibleTeachers', 'responsibleTeachers')
       .orderBy('item.createdAt', 'DESC')
       .skip(skip)
       .take(limit);
 
-    // Para insumos, en el listado general solo mostrar el lote principal de bodega (evitar duplicados)
+    // Para insumos, en el listado general solo mostrar el lote principal de bodega
     query.andWhere("(inventoryView.code != 'INSUMOS' OR item.physicalSpaceId IS NULL)");
 
     if (filters.inventoryViewId) {
@@ -880,7 +819,9 @@ export class InventoryService {
       query.andWhere('inventoryView.code = :inventoryViewCode', { inventoryViewCode: filters.inventoryViewCode });
     }
 
-    if (filters.onlyOrphans) {
+    if (filters.showOrphansAndDeleted) {
+      query.andWhere('(item.subcategoryId IS NULL OR item.status = :inactivoStatus)', { inactivoStatus: 'INACTIVO' });
+    } else if (filters.onlyOrphans) {
       query.andWhere('item.subcategoryId IS NULL');
     } else {
       if (filters.subcategoryId) {
@@ -890,11 +831,9 @@ export class InventoryService {
       }
     }
 
-    if (filters.codeTypeId) {
-      query.andWhere('item.codeTypeId = :codeTypeId', { codeTypeId: filters.codeTypeId });
-    }
-
-    if (filters.status) {
+    if (filters.showOrphansAndDeleted) {
+      // Permite activos e inactivos al unificar huérfanos y eliminados
+    } else if (filters.status) {
       query.andWhere('item.status = :status', { status: filters.status });
     } else {
       // Por defecto, listar solo los activos si no se especifica estado
@@ -919,7 +858,7 @@ export class InventoryService {
         const distributions = await this.itemRepo.find({
           where: {
             name: item.name,
-            codeTypeId: item.codeTypeId,
+            subcategoryId: item.subcategoryId === null ? IsNull() : item.subcategoryId,
             codeValue: item.codeValue === null ? IsNull() : item.codeValue,
             physicalSpaceId: Not(IsNull()),
             status: 'ACTIVO',
@@ -940,7 +879,11 @@ export class InventoryService {
 
       let mensajeDisponibilidad = 'Disponible';
       if (item.physicalSpaceId !== null) {
-        mensajeDisponibilidad = `Asignado al espacio '${item.physicalSpace?.name || ''}' (Número ${item.physicalSpace?.roomNumber || ''})`;
+        const responsables = item.physicalSpace?.responsibleTeachers
+          ? item.physicalSpace.responsibleTeachers.map((u) => `${u.name} ${u.lastName || ''}`.trim()).join(', ')
+          : '';
+        mensajeDisponibilidad = `Asignado al espacio '${item.physicalSpace?.name || ''}' (Número ${item.physicalSpace?.roomNumber || ''}).` +
+          (responsables ? ` Responsable(s): ${responsables}.` : ' Sin responsable.');
       } else if (isInsumo) {
         const totalAsignado = distribucionEspacios.reduce((sum, d) => sum + d.cantidad, 0);
         mensajeDisponibilidad = `En Bodega: ${item.cantidad} unidades.` +
@@ -949,7 +892,9 @@ export class InventoryService {
             : ' Sin asignaciones.');
       }
 
-      const resolvedValues = await this.resolveDynamicValuesLabels(item.codeTypeId, item.dynamicValues);
+      const resolvedValues = item.subcategoryId
+        ? await this.resolveDynamicValuesLabels(item.subcategoryId, item.dynamicValues || {})
+        : [];
 
       mappedData.push({
         ...item,
@@ -979,8 +924,10 @@ export class InventoryService {
       throw new NotFoundException('El elemento no existe.');
     }
 
-    // Cambiar estado a INACTIVO
+    // Cambiar estado a INACTIVO, limpiar valores dinámicos y quitar subcategoría
     item.status = 'INACTIVO';
+    item.dynamicValues = {};
+    item.subcategoryId = null;
     await this.itemRepo.save(item);
 
     // Aplicar borrado lógico
@@ -989,11 +936,11 @@ export class InventoryService {
 
   // MÉTODOS DE AYUDA
   private async validateAndFormatDynamicValues(
-    codeTypeId: string,
+    subId: string,
     valuesInput: Record<string, any>,
   ): Promise<Record<string, any>> {
     const configs = await this.fieldConfigRepo.find({
-      where: { codeTypeId },
+      where: { subcategoryId: subId },
       relations: { customField: true },
     });
 
@@ -1043,7 +990,6 @@ export class InventoryService {
               `El valor del campo '${field.label}' debe ser una fecha válida (YYYY-MM-DD).`,
             );
           }
-          // Guardamos como string ISO de fecha corta
           validated[field.id] = dateObj.toISOString().split('T')[0];
           break;
 
@@ -1066,11 +1012,11 @@ export class InventoryService {
   }
 
   private async resolveDynamicValuesLabels(
-    codeTypeId: string,
+    subId: string,
     dynamicValues: Record<string, any>,
   ): Promise<any[]> {
     const configs = await this.fieldConfigRepo.find({
-      where: { codeTypeId },
+      where: { subcategoryId: subId },
       relations: { customField: true },
       order: { sortOrder: 'ASC' },
     });
@@ -1098,14 +1044,13 @@ export class InventoryService {
 
     const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
     
-    // Pre-cargar vistas de inventario, subcategorías y tipos de código para optimizar velocidad
+    // Pre-cargar vistas de inventario y subcategorías para optimizar velocidad
     const allViews = await this.findAllViews();
     const allSubcategories = await this.subcategoryRepo.find({ relations: { category: true } });
-    const allCodeTypes = await this.codeTypeRepo.find();
     
-    // Obtener todas las configuraciones de campos personalizados asociadas a los esquemas
+    // Obtener todas las configuraciones de campos personalizados asociadas a las subcategorías
     const allConfigs = await this.fieldConfigRepo.find({
-      relations: { customField: true, codeType: true },
+      relations: { customField: true, subcategory: true },
     });
 
     const itemsToSave: any[] = [];
@@ -1132,7 +1077,6 @@ export class InventoryService {
       }
 
       if (!currentViewId) {
-        // Si no se puede determinar la vista y no hay default, ignoramos la hoja
         continue;
       }
 
@@ -1145,10 +1089,10 @@ export class InventoryService {
 
       headerRow.eachCell((cell, colNumber) => {
         const rawVal = cell.value?.toString() || '';
-        const val = rawVal.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // Quitar acentos
+        const val = rawVal.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, ""); 
         if (val) {
           headers[val] = colNumber;
-          colMapByIndex[colNumber] = rawVal.trim(); // Guardar el nombre real de la cabecera
+          colMapByIndex[colNumber] = rawVal.trim();
         }
       });
 
@@ -1156,11 +1100,10 @@ export class InventoryService {
       const nameCol = headers['nombre'] || headers['descripcion'] || headers['articulo'];
       const codeCol = headers['codigo yavirac'] || headers['codigo institucional'] || headers['codigo'] || headers['codigo_yavirac'];
       const subcategoryCol = headers['subcategoria'] || headers['subcategoria_nombre'] || headers['categoria'];
-      const codeTypeCol = headers['tipo de codigo'] || headers['tipo codigo'] || headers['esquema'] || headers['tipo_codigo'];
 
-      if (!nameCol || !codeCol || !subcategoryCol || !codeTypeCol) {
+      if (!nameCol || !codeCol || !subcategoryCol) {
         errors.push(
-          `Hoja "${worksheet.name}": Faltan columnas obligatorias (Nombre, Código Yavirac, Subcategoría y Tipo de Código).`
+          `Hoja "${worksheet.name}": Faltan columnas obligatorias (Nombre, Código Yavirac, Subcategoría).`
         );
         continue;
       }
@@ -1178,14 +1121,13 @@ export class InventoryService {
         const nameVal = row.getCell(nameCol).value?.toString().trim();
         const codeVal = row.getCell(codeCol).value?.toString().trim();
         const subVal = row.getCell(subcategoryCol).value?.toString().trim();
-        const codeTypeVal = row.getCell(codeTypeCol).value?.toString().trim();
 
         // Fila vacía
-        if (!nameVal && !codeVal && !subVal && !codeTypeVal) {
+        if (!nameVal && !codeVal && !subVal) {
           continue;
         }
 
-        if (!nameVal || !codeVal || !subVal || !codeTypeVal) {
+        if (!nameVal || !codeVal || !subVal) {
           errors.push(
             `Hoja "${worksheet.name}" - Fila ${r}: Faltan campos obligatorios.`
           );
@@ -1207,17 +1149,6 @@ export class InventoryService {
         if (subcategory.category?.inventoryViewId !== currentViewId) {
           errors.push(
             `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría "${subVal}" no corresponde al tipo de inventario de la hoja.`
-          );
-          continue;
-        }
-
-        // Buscar tipo de código
-        const codeType = allCodeTypes.find(
-          (ct) => ct.name.toLowerCase().trim() === codeTypeVal.toLowerCase()
-        );
-        if (!codeType) {
-          errors.push(
-            `Hoja "${worksheet.name}" - Fila ${r}: El tipo de código "${codeTypeVal}" no existe.`
           );
           continue;
         }
@@ -1269,16 +1200,14 @@ export class InventoryService {
         // ==========================================================
         const dynamicValues: Record<string, any> = {};
         
-        // Obtener campos permitidos para el tipo de código de esta fila
-        const allowedConfigs = allConfigs.filter((c) => c.codeTypeId === codeType.id);
+        // Obtener campos permitidos para la subcategoría de esta fila
+        const allowedConfigs = allConfigs.filter((c) => c.subcategoryId === subcategory.id);
 
         row.eachCell((cell, colIndex) => {
-          // Si el índice de columna está fuera del mapeo de cabecera o es una columna base, lo ignoramos
           if (
             colIndex === nameCol ||
             colIndex === codeCol ||
             colIndex === subcategoryCol ||
-            colIndex === codeTypeCol ||
             colIndex === auxCol ||
             colIndex === statusCol ||
             colIndex === quantityCol
@@ -1303,14 +1232,13 @@ export class InventoryService {
         });
 
         // Validar e inicializar valores dinámicos
-        const validatedValues = await this.validateAndFormatDynamicValues(codeType.id, dynamicValues);
+        const validatedValues = await this.validateAndFormatDynamicValues(subcategory.id, dynamicValues);
 
         itemsToSave.push({
           name: nameVal,
           codeValue: formattedCodeValue,
           codigoAuxiliar: auxVal,
           subcategoryId: subcategory.id,
-          codeTypeId: codeType.id,
           inventoryViewId: currentViewId,
           cantidad: qtyVal,
           status: 'ACTIVO',
@@ -1354,9 +1282,9 @@ export class InventoryService {
   async generateExcelTemplate(): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     
-    // Obtener todos los esquemas y sus campos para colocarlos como columnas dinámicas
+    // Obtener todas las configuraciones de campos personalizados
     const allConfigs = await this.fieldConfigRepo.find({
-      relations: { customField: true, codeType: true },
+      relations: { customField: true, subcategory: true },
       order: { sortOrder: 'ASC' },
     });
 
@@ -1365,19 +1293,16 @@ export class InventoryService {
         name: 'BIENES PUBLICOS',
         viewCode: 'BIENES_PUBLICOS',
         defaultSubcategory: 'EQUIPOS TECNOLOGICOS',
-        defaultCodeType: 'BIENES GENERALES',
       },
       {
         name: 'BODEGA (INSUMOS)',
         viewCode: 'INSUMOS',
         defaultSubcategory: 'SUMINISTROS DE ASEO',
-        defaultCodeType: 'INSUMOS GENERALES',
       },
       {
         name: 'BIBLIOTECA',
         viewCode: 'BIBLIOTECA',
         defaultSubcategory: 'LIBROS',
-        defaultCodeType: 'LIBROS Y TEXTOS',
       },
     ];
 
@@ -1390,14 +1315,13 @@ export class InventoryService {
         'Código Yavirac',
         'Código Auxiliar',
         'Subcategoría',
-        'Tipo de Código',
         'Estado Físico',
         'Cantidad',
       ];
 
-      // Buscar campos dinámicos asociados al tipo de código por defecto de esta hoja
+      // Buscar campos dinámicos asociados a la subcategoría por defecto de esta hoja
       const dynamicFields = allConfigs
-        .filter((c) => c.codeType?.name.toUpperCase().trim() === sc.defaultCodeType.toUpperCase().trim())
+        .filter((c) => c.subcategory?.name.toUpperCase().trim() === sc.defaultSubcategory.toUpperCase().trim())
         .map((c) => c.customField?.label || c.customField?.name)
         .filter(Boolean);
 
@@ -1434,7 +1358,6 @@ export class InventoryService {
         `${sc.viewCode.substring(0,3)}-EX-001`,
         'AUX-999',
         sc.defaultSubcategory,
-        sc.defaultCodeType,
         'BUENO',
         1,
       ];

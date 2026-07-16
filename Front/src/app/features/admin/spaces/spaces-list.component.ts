@@ -84,6 +84,17 @@ export class SpacesListComponent implements OnInit {
     this.loadTeachers();
     this.loadInventoryViews();
     this.loadInventoryItems();
+
+    this.inventoryForm.get('selectedItemId')?.valueChanges.subscribe((itemId) => {
+      if (!itemId) return;
+      const itemObj = this.inventoryItems().find((i) => i.id === itemId);
+      if (itemObj) {
+        const viewCode = itemObj.inventoryView?.code;
+        if (viewCode === 'BIENES_PUBLICOS' || viewCode === 'BIBLIOTECA') {
+          this.inventoryForm.get('assignQuantity')?.setValue(1);
+        }
+      }
+    });
   }
 
   // Cargar Espacios
@@ -605,6 +616,15 @@ export class SpacesListComponent implements OnInit {
     this.teacherSearchQuery.set(val);
   }
 
+
+  isQuantityReadOnly(): boolean {
+    const itemId = this.inventoryForm.get('selectedItemId')?.value;
+    if (!itemId) return false;
+    const itemObj = this.inventoryItems().find((i) => i.id === itemId);
+    if (!itemObj) return false;
+    const viewCode = itemObj.inventoryView?.code;
+    return viewCode === 'BIENES_PUBLICOS' || viewCode === 'BIBLIOTECA';
+  }
 
   formatType(type: string): string {
     if (type === 'AULA') return 'Aula';

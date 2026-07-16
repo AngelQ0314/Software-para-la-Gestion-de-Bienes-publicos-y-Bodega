@@ -1,8 +1,0 @@
-- [x] Modificar items-list.component.ts para implementar getOrCreateCodeTypeForCategory, remover codigoTipoId del itemForm, manejar el modal de Atributos de Categoría simplificado y asociar/crear campos en caliente.
-- [x] Modificar items-list.component.html para remover el botón de configuración de la cabecera superior, añadir el botón de configuración (engranaje) en la tarjeta de categorías, integrar el modal simplificado de Atributos por Categoría, y remover el selector de Tipo de Código del modal de artículo.
-- [x] Modificar items-list.component.css para ajustar la barra de acciones de la tarjeta de categorías y estilizar el modal de Atributos de Categoría simplificado.
-- [x] Ejecutar compilación del frontend y validar consistencia.
-- [x] Corregir validación y mapeo de subcategoriaId/subcategoryId usando la señal del frontend para evitar errores de payload en el backend.
-- [x] Verificar manualmente el registro de un artículo con campos dinámicos automáticos.
-- [x] Modificar backend (controlador y servicio de inventario) para añadir soporte al filtro onlyOrphans (subcategoryId IS NULL) conservando la pertenencia a su vista de origen.
-- [x] Modificar frontend (plantilla html y lógica del componente) para listar los artículos huérfanos, posibilitar su asignación interactiva a categorías/subcategorías mediante un modal dedicado, y eliminarlos de forma directa.
