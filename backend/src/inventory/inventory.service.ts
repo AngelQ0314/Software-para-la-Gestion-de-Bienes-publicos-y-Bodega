@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Not } from 'typeorm';
+import { Repository, IsNull, Not, In } from 'typeorm';
 
 import { InventoryView, InventoryViewCode } from './entities/inventory-view.entity';
 import { Category } from './entities/category.entity';
@@ -148,8 +148,36 @@ export class InventoryService {
       );
     }
 
-    // El borrado en cascada
+    // Buscar todas las subcategorías pertenecientes a esta categoría
+    const subcategories = await this.subcategoryRepo.find({
+      where: { categoryId: id },
+    });
+    const subcategoryIds = subcategories.map((s) => s.id);
+
+    // Obtener los customFieldId asociados a estas subcategorías antes de eliminar
+    let fieldIds: string[] = [];
+    if (subcategoryIds.length > 0) {
+      const configs = await this.fieldConfigRepo.find({
+        where: { subcategoryId: In(subcategoryIds) },
+      });
+      fieldIds = [...new Set(configs.map((c) => c.customFieldId))];
+    }
+
+    // El borrado en cascada (elimina categoría, sus subcategorías y sus configuraciones)
     await this.categoryRepo.remove(category);
+
+    // Limpiar los atributos dinámicos globales que quedaron huérfanos
+    for (const fieldId of fieldIds) {
+      const remainingCount = await this.fieldConfigRepo.count({
+        where: { customFieldId: fieldId },
+      });
+      if (remainingCount === 0) {
+        const field = await this.customFieldRepo.findOne({ where: { id: fieldId } });
+        if (field) {
+          await this.customFieldRepo.remove(field);
+        }
+      }
+    }
 
     return { desasociados: 0 };
   }
@@ -257,7 +285,27 @@ export class InventoryService {
       );
     }
 
+    // Obtener los customFieldId asociados a esta subcategoría antes de eliminar
+    const configs = await this.fieldConfigRepo.find({
+      where: { subcategoryId: id },
+    });
+    const fieldIds = configs.map((c) => c.customFieldId);
+
+    // Eliminar la subcategoría (esto hace cascade delete en custom_fields_configs)
     await this.subcategoryRepo.remove(sub);
+
+    // Limpiar los atributos dinámicos globales que quedaron huérfanos
+    for (const fieldId of fieldIds) {
+      const remainingCount = await this.fieldConfigRepo.count({
+        where: { customFieldId: fieldId },
+      });
+      if (remainingCount === 0) {
+        const field = await this.customFieldRepo.findOne({ where: { id: fieldId } });
+        if (field) {
+          await this.customFieldRepo.remove(field);
+        }
+      }
+    }
 
     return { desasociados: 0 };
   }

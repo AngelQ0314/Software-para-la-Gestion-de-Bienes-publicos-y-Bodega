@@ -515,7 +515,7 @@
         <div class="config-split-layout">
           <!-- Columna Izquierda: Formulario Directo de Atributo -->
           <div class="config-side-form">
-            <h4>Añadir Nuevo Atributo</h4>
+            <h4>{{ editingCustomFieldAssoc() ? 'Editar Atributo' : 'Añadir Nuevo Atributo' }}</h4>
             <form [formGroup]="customFieldForm" (ngSubmit)="submitCustomFieldForSubcategory()" class="modal-form">
               <div class="form-group">
                 <label class="form-label" for="attName">Nombre del Atributo*</label>
@@ -565,10 +565,15 @@
                 <div class="alert-box error-alert">{{ modalErrorMessage() }}</div>
               }
 
-              <div class="form-actions" style="border: none; padding-top: 5px; margin-top: 10px;">
+              <div class="form-actions" style="border: none; padding-top: 5px; margin-top: 10px; display: flex; gap: 8px;">
                 <button type="submit" class="btn btn-primary btn-sm" [disabled]="customFieldForm.invalid || modalLoading()">
-                  {{ modalLoading() ? 'Agregando...' : 'Agregar Atributo' }}
+                  {{ modalLoading() ? (editingCustomFieldAssoc() ? 'Actualizando...' : 'Agregando...') : (editingCustomFieldAssoc() ? 'Guardar Cambios' : 'Agregar Atributo') }}
                 </button>
+                @if (editingCustomFieldAssoc()) {
+                  <button type="button" class="btn btn-secondary btn-sm" (click)="cancelEditCustomField()">
+                    Cancelar
+                  </button>
+                }
               </div>
             </form>
           </div>
@@ -598,9 +603,14 @@
                     <td><span class="font-mono" style="font-size: 0.75rem;">{{ assoc.customField?.tipo }}</span></td>
                     <td>{{ assoc.customField?.opciones ? $any(assoc.customField?.opciones).join(', ') : '-' }}</td>
                     <td>
-                      <button class="icon-btn-delete" (click)="removeFieldFromSubcategory(assoc)" title="Eliminar Campo">
-                        <span class="material-icons-round" style="font-size: 1.1rem;">delete</span>
-                      </button>
+                      <div style="display: flex; gap: 8px; justify-content: center; align-items: center;">
+                        <button type="button" class="btn btn-secondary btn-xs" style="padding: 4px; display: inline-flex; align-items: center; min-width: auto; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border-color);" (click)="startEditCustomField(assoc)" title="Editar Campo">
+                          <span class="material-icons-round" style="font-size: 1.1rem; color: var(--text-primary);">edit</span>
+                        </button>
+                        <button type="button" class="icon-btn-delete" (click)="removeFieldFromSubcategory(assoc)" title="Eliminar Campo" style="margin: 0; padding: 4px; display: inline-flex; align-items: center;">
+                          <span class="material-icons-round" style="font-size: 1.1rem;">delete</span>
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 }

@@ -78,6 +78,7 @@ export class ItemsListComponent implements OnInit {
   // Opciones temporales para tipos OPTIONS_LIST
   newOption = '';
   tempOptions = signal<string[]>([]);
+  editingCustomFieldAssoc = signal<SubcategoryFieldAssociation | null>(null);
 
   // Filtros dinámicos locales
   dynamicFilters = signal<Record<string, string>>({});
@@ -955,6 +956,7 @@ export class ItemsListComponent implements OnInit {
   closeCategoryConfig(): void {
     this.showCategoryConfigModal.set(false);
     this.selectedSubcategoryForConfig.set(null);
+    this.cancelEditCustomField();
   }
 
   reloadSubcategoryConfigFields(subcategoryId: string): void {
@@ -982,6 +984,27 @@ export class ItemsListComponent implements OnInit {
     this.tempOptions.set(this.tempOptions().filter((o) => o !== opt));
   }
 
+  startEditCustomField(assoc: SubcategoryFieldAssociation): void {
+    this.editingCustomFieldAssoc.set(assoc);
+    this.customFieldForm.patchValue({
+      nombre: assoc.customField?.nombre || '',
+      tipo: assoc.customField?.tipo || 'TEXT',
+      isMandatory: assoc.isMandatory || false
+    });
+    if (assoc.customField?.tipo === 'OPTIONS_LIST') {
+      this.tempOptions.set([...(assoc.customField?.opciones || [])]);
+    } else {
+      this.tempOptions.set([]);
+    }
+  }
+
+  cancelEditCustomField(): void {
+    this.editingCustomFieldAssoc.set(null);
+    this.customFieldForm.reset({ nombre: '', tipo: 'TEXT', isMandatory: false });
+    this.tempOptions.set([]);
+    this.newOption = '';
+  }
+
   submitCustomFieldForSubcategory(): void {
     if (this.customFieldForm.invalid) return;
     const sub = this.selectedSubcategoryForConfig();
@@ -999,34 +1022,69 @@ export class ItemsListComponent implements OnInit {
     this.modalLoading.set(true);
     this.modalErrorMessage.set(null);
 
-    this.inventoryService.createCustomField({ nombre: val.nombre.trim(), tipo: val.tipo, opciones }).subscribe({
-      next: (newField) => {
-        const sortOrder = this.subcategoryConfigFields().length + 1;
-        const isMandatory = !!val.isMandatory;
+    const editAssoc = this.editingCustomFieldAssoc();
 
-        this.inventoryService.associateFieldToSubcategory(sub.id, {
-          customFieldId: newField.id,
-          sortOrder,
-          isMandatory
-        }).subscribe({
-          next: () => {
-            this.customFieldForm.reset({ nombre: '', tipo: 'TEXT', isMandatory: false });
-            this.tempOptions.set([]);
-            this.reloadSubcategoryConfigFields(sub.id);
-            this.loadMetadata();
-            Swal.fire('¡Éxito!', 'Atributo configurado correctamente en esta subcategoría.', 'success');
-          },
-          error: () => {
-            this.modalLoading.set(false);
-            this.modalErrorMessage.set('Error al vincular el atributo a la subcategoría.');
-          }
-        });
-      },
-      error: (err) => {
-        this.modalLoading.set(false);
-        this.modalErrorMessage.set(err.error?.message || 'Error al crear el atributo.');
-      }
-    });
+    if (editAssoc) {
+      // MODO EDICIÓN
+      this.inventoryService.updateCustomField(editAssoc.customFieldId, {
+        nombre: val.nombre.trim(),
+        tipo: val.tipo,
+        opciones
+      }).subscribe({
+        next: (updatedField) => {
+          this.inventoryService.associateFieldToSubcategory(sub.id, {
+            customFieldId: updatedField.id,
+            sortOrder: editAssoc.orden,
+            isMandatory: !!val.isMandatory
+          }).subscribe({
+            next: () => {
+              this.cancelEditCustomField();
+              this.reloadSubcategoryConfigFields(sub.id);
+              this.loadMetadata();
+              Swal.fire('¡Éxito!', 'Atributo actualizado correctamente.', 'success');
+            },
+            error: (err) => {
+              this.modalLoading.set(false);
+              this.modalErrorMessage.set('Error al actualizar la obligatoriedad del atributo.');
+            }
+          });
+        },
+        error: (err) => {
+          this.modalLoading.set(false);
+          this.modalErrorMessage.set(err.error?.message || 'Error al actualizar el atributo.');
+        }
+      });
+    } else {
+      // MODO REGISTRO
+      this.inventoryService.createCustomField({ nombre: val.nombre.trim(), tipo: val.tipo, opciones }).subscribe({
+        next: (newField) => {
+          const sortOrder = this.subcategoryConfigFields().length + 1;
+          const isMandatory = !!val.isMandatory;
+
+          this.inventoryService.associateFieldToSubcategory(sub.id, {
+            customFieldId: newField.id,
+            sortOrder,
+            isMandatory
+          }).subscribe({
+            next: () => {
+              this.customFieldForm.reset({ nombre: '', tipo: 'TEXT', isMandatory: false });
+              this.tempOptions.set([]);
+              this.reloadSubcategoryConfigFields(sub.id);
+              this.loadMetadata();
+              Swal.fire('¡Éxito!', 'Atributo configurado correctamente en esta subcategoría.', 'success');
+            },
+            error: () => {
+              this.modalLoading.set(false);
+              this.modalErrorMessage.set('Error al vincular el atributo a la subcategoría.');
+            }
+          });
+        },
+        error: (err) => {
+          this.modalLoading.set(false);
+          this.modalErrorMessage.set(err.error?.message || 'Error al crear el atributo.');
+        }
+      });
+    }
   }
 
   removeFieldFromSubcategory(assoc: SubcategoryFieldAssociation): void {
