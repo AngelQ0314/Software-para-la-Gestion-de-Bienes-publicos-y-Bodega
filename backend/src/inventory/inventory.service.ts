@@ -6,7 +6,7 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, Not, In } from 'typeorm';
+import { Repository, IsNull, Not, In, ILike } from 'typeorm';
 
 import { InventoryView, InventoryViewCode } from './entities/inventory-view.entity';
 import { Category } from './entities/category.entity';
@@ -322,11 +322,6 @@ export class InventoryService {
       .replace(/\s+/g, '_')
       .replace(/[^a-z0-9_]/g, '');
 
-    const existe = await this.customFieldRepo.findOne({ where: { name: normalizedName } });
-    if (existe) {
-      throw new ConflictException(`El campo técnico '${normalizedName}' ya existe.`);
-    }
-
     if (dto.type === CustomFieldType.OPTIONS_LIST && (!dto.options || dto.options.length === 0)) {
       throw new BadRequestException('Los campos tipo OPTIONS_LIST requieren ingresar opciones.');
     }
@@ -354,10 +349,6 @@ export class InventoryService {
         .replace(/\s+/g, '_')
         .replace(/[^a-z0-9_]/g, '');
 
-      const existe = await this.customFieldRepo.findOne({ where: { name: normalizedName } });
-      if (existe && existe.id !== id) {
-        throw new ConflictException(`Ya existe otro campo técnico con el nombre '${normalizedName}'.`);
-      }
       field.name = normalizedName;
     }
 
@@ -424,6 +415,22 @@ export class InventoryService {
     const field = await this.customFieldRepo.findOne({ where: { id: fieldId } });
     if (!field) {
       throw new NotFoundException('El campo personalizado no existe.');
+    }
+
+    // Validar que la subcategoría no tenga ya asociado un campo con el mismo nombre técnico
+    const existingConfigs = await this.fieldConfigRepo.find({
+      where: { subcategoryId: subId },
+      relations: { customField: true },
+    });
+
+    const isDuplicateName = existingConfigs.some(
+      (c) => c.customFieldId !== fieldId && c.customField.name === field.name
+    );
+
+    if (isDuplicateName) {
+      throw new ConflictException(
+        `La subcategoría ya cuenta con un atributo configurado con el nombre '${field.label}'.`
+      );
     }
 
     // Verificar si ya está asociado
@@ -530,9 +537,9 @@ export class InventoryService {
 
     let formattedCodeValue: string | null = null;
     if (dto.codeValue && dto.codeValue.trim() !== '') {
-      formattedCodeValue = dto.codeValue.trim();
+      formattedCodeValue = dto.codeValue.trim().toUpperCase();
       const existeCodigo = await this.itemRepo.findOne({
-        where: { codeValue: formattedCodeValue, physicalSpaceId: IsNull() },
+        where: { codeValue: ILike(formattedCodeValue), physicalSpaceId: IsNull() },
         withDeleted: true,
       });
 
@@ -544,6 +551,20 @@ export class InventoryService {
         } else {
           throw new ConflictException(`El código '${dto.codeValue}' ya está registrado.`);
         }
+      }
+    } else {
+      // Validar duplicidad de Nombre + Subcategoría para artículos sin Código Yavirac
+      const existeNombre = await this.itemRepo.findOne({
+        where: {
+          name: ILike(dto.name.trim()),
+          subcategoryId: subId,
+          status: 'ACTIVO',
+        },
+      });
+      if (existeNombre) {
+        throw new ConflictException(
+          `El artículo con nombre '${dto.name}' ya está registrado en esta subcategoría.`
+        );
       }
     }
 
@@ -626,9 +647,9 @@ export class InventoryService {
 
     if (dto.codeValue !== undefined) {
       if (dto.codeValue && dto.codeValue.trim() !== '') {
-        const formattedCode = dto.codeValue.trim();
+        const formattedCode = dto.codeValue.trim().toUpperCase();
         const existeCodigo = await this.itemRepo.findOne({
-          where: { codeValue: formattedCode, physicalSpaceId: IsNull() },
+          where: { codeValue: ILike(formattedCode), physicalSpaceId: IsNull() },
           withDeleted: true,
         });
         if (existeCodigo && existeCodigo.id !== id) {
@@ -673,7 +694,7 @@ export class InventoryService {
         // Validar si el código ya está siendo usado por otro item activo
         if (item.codeValue) {
           const duplicadoActivo = await this.itemRepo.findOne({
-            where: { codeValue: item.codeValue, physicalSpaceId: IsNull() },
+            where: { codeValue: ILike(item.codeValue), physicalSpaceId: IsNull() },
           });
           if (duplicadoActivo && duplicadoActivo.id !== id) {
             throw new ConflictException(
@@ -972,10 +993,29 @@ export class InventoryService {
       throw new NotFoundException('El elemento no existe.');
     }
 
-    // Cambiar estado a INACTIVO, limpiar valores dinámicos y quitar subcategoría
+    // Desvincular de espacio físico si es insumo distribuido o artículo principal
+    const isBienesOBiblioteca = item.inventoryViewId !== null; // O validar mediante consulta
+    
+    // Si es insumo, desactivar y desvincular todos sus registros distribuidos asociados
+    if (item.subcategoryId) {
+      await this.itemRepo.update(
+        {
+          name: item.name,
+          subcategoryId: item.subcategoryId,
+          physicalSpaceId: Not(IsNull()),
+        },
+        {
+          status: 'INACTIVO',
+          physicalSpaceId: null,
+        }
+      );
+    }
+
+    // Cambiar estado a INACTIVO, limpiar valores dinámicos, quitar subcategoría y desvincular del espacio físico
     item.status = 'INACTIVO';
     item.dynamicValues = {};
     item.subcategoryId = null;
+    item.physicalSpaceId = null;
     await this.itemRepo.save(item);
 
     // Aplicar borrado lógico
@@ -1092,8 +1132,9 @@ export class InventoryService {
 
     const activePeriod = await this.periodRepo.findOne({ where: { status: 'ACTIVO' } });
     
-    // Pre-cargar vistas de inventario y subcategorías para optimizar velocidad
+    // Pre-cargar vistas, categorías y subcategorías para optimizar velocidad
     const allViews = await this.findAllViews();
+    const allCategories = await this.categoryRepo.find();
     const allSubcategories = await this.subcategoryRepo.find({ relations: { category: true } });
     
     // Obtener todas las configuraciones de campos personalizados asociadas a las subcategorías
@@ -1128,7 +1169,9 @@ export class InventoryService {
         continue;
       }
 
-      const viewCodeName = allViews.find((v) => v.id === currentViewId)?.name || 'Inventario';
+      const currentView = allViews.find((v) => v.id === currentViewId);
+      const currentViewCode = currentView?.code || '';
+      const viewCodeName = currentView?.name || 'Inventario';
 
       // Cabecera: normalizamos para encontrar las columnas
       const headerRow = worksheet.getRow(1);
@@ -1147,17 +1190,17 @@ export class InventoryService {
       // Mapeo flexible de columnas obligatorias
       const nameCol = headers['nombre'] || headers['descripcion'] || headers['articulo'];
       const codeCol = headers['codigo yavirac'] || headers['codigo institucional'] || headers['codigo'] || headers['codigo_yavirac'];
-      const subcategoryCol = headers['subcategoria'] || headers['subcategoria_nombre'] || headers['categoria'];
+      const categoryCol = headers['categoria'] || headers['categoria_nombre'];
+      const subcategoryCol = headers['subcategoria'] || headers['subcategoria_nombre'];
 
-      if (!nameCol || !codeCol || !subcategoryCol) {
+      if (!nameCol || !subcategoryCol) {
         errors.push(
-          `Hoja "${worksheet.name}": Faltan columnas obligatorias (Nombre, Código Yavirac, Subcategoría).`
+          `Hoja "${worksheet.name}": Faltan columnas obligatorias (Nombre, Subcategoría) en la cabecera.`
         );
         continue;
       }
 
       // Columnas opcionales
-      const auxCol = headers['codigo auxiliar'] || headers['auxiliar'] || headers['codigo_auxiliar'];
       const statusCol = headers['estado fisico'] || headers['estado'] || headers['estado_fisico'];
       const quantityCol = headers['cantidad'] || headers['stock'];
 
@@ -1167,65 +1210,123 @@ export class InventoryService {
       for (let r = 2; r <= worksheet.rowCount; r++) {
         const row = worksheet.getRow(r);
         const nameVal = row.getCell(nameCol).value?.toString().trim();
-        const codeVal = row.getCell(codeCol).value?.toString().trim();
+        const codeVal = codeCol ? row.getCell(codeCol).value?.toString().trim() : null;
+        const catVal = categoryCol ? row.getCell(categoryCol).value?.toString().trim() : null;
         const subVal = row.getCell(subcategoryCol).value?.toString().trim();
 
         // Fila vacía
-        if (!nameVal && !codeVal && !subVal) {
+        if (!nameVal && !codeVal && !subVal && !catVal) {
           continue;
         }
 
-        if (!nameVal || !codeVal || !subVal) {
+        if (!nameVal || !subVal) {
           errors.push(
-            `Hoja "${worksheet.name}" - Fila ${r}: Faltan campos obligatorios.`
+            `Hoja "${worksheet.name}" - Fila ${r}: El Nombre y la Subcategoría son obligatorios.`
           );
           continue;
         }
 
-        // Buscar subcategoría
+        // Si es Bienes o Biblioteca, el Código Yavirac es obligatorio y único
+        const isBienesOBiblioteca = currentViewCode === 'BIENES_PUBLICOS' || currentViewCode === 'BIBLIOTECA';
+        if (isBienesOBiblioteca && !codeVal) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: El Código Yavirac es obligatorio para Bienes Públicos y Biblioteca.`
+          );
+          continue;
+        }
+
+        // Buscar categoría en la base de datos para la vista actual
+        let category: any = null;
+        if (catVal) {
+          category = allCategories.find(
+            (c) =>
+              c.name.toLowerCase().trim() === catVal.toLowerCase().trim() &&
+              c.inventoryViewId === currentViewId
+          );
+          if (!category) {
+            errors.push(
+              `Hoja "${worksheet.name}" - Fila ${r}: La categoría '${catVal}' no existe para esta sección del inventario.`
+            );
+            continue;
+          }
+        }
+
+        // Buscar subcategoría en la base de datos
         const subcategory = allSubcategories.find(
-          (s) => s.name.toLowerCase().trim() === subVal.toLowerCase()
+          (s) => s.name.toLowerCase().trim() === subVal.toLowerCase().trim()
         );
         if (!subcategory) {
           errors.push(
-            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría "${subVal}" no existe.`
+            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría '${subVal}' no existe.`
           );
           continue;
         }
 
-        // Validar que corresponda a la vista
+        // Si el usuario especificó categoría en el excel, validar que la subcategoría pertenezca a ella
+        if (category && subcategory.categoryId !== category.id) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría '${subVal}' no pertenece a la categoría '${catVal}'.`
+          );
+          continue;
+        }
+
+        // Validar que la subcategoría pertenezca a la vista actual
         if (subcategory.category?.inventoryViewId !== currentViewId) {
           errors.push(
-            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría "${subVal}" no corresponde al tipo de inventario de la hoja.`
+            `Hoja "${worksheet.name}" - Fila ${r}: La subcategoría '${subVal}' no corresponde al tipo de inventario de esta sección.`
           );
           continue;
         }
 
-        // Validar duplicado de código Yavirac en base de datos
-        const formattedCodeValue = codeVal.toUpperCase();
-        const existingItem = await this.itemRepo.findOne({
-          where: { codeValue: formattedCodeValue },
-          withDeleted: true,
-        });
-        if (existingItem) {
-          errors.push(
-            `Hoja "${worksheet.name}" - Fila ${r}: El código Yavirac "${formattedCodeValue}" ya está registrado.`
-          );
-          continue;
-        }
+        // Detección de artículo existente (para actualizar en lote en vez de fallar o duplicar)
+        let matchedItem: any = null;
+        let isNew = true;
+        let formattedCodeValue: string | null = null;
 
-        // Validar duplicado en el lote a guardar
-        const duplicateInBatch = itemsToSave.some((item) => item.codeValue === formattedCodeValue);
-        if (duplicateInBatch) {
-          errors.push(
-            `Hoja "${worksheet.name}" - Fila ${r}: El código Yavirac "${formattedCodeValue}" está duplicado en el archivo.`
+        if (codeVal) {
+          const codeUpper = codeVal.toUpperCase();
+          formattedCodeValue = codeUpper;
+          
+          // Buscar primero en el lote en memoria actual
+          matchedItem = itemsToSave.find((item) => item.codeValue === codeUpper);
+          if (matchedItem) {
+            isNew = false;
+          } else {
+            // Buscar en la base de datos
+            const dbItem = await this.itemRepo.findOne({
+              where: { codeValue: ILike(codeUpper), status: 'ACTIVO' },
+            });
+            if (dbItem) {
+              matchedItem = dbItem;
+              isNew = false;
+            }
+          }
+        } else {
+          const nameUpper = nameVal.toUpperCase().trim();
+          
+          // Buscar primero en el lote en memoria (por Nombre + Subcategoría)
+          matchedItem = itemsToSave.find(
+            (item) => !item.codeValue && item.name.toUpperCase().trim() === nameUpper && item.subcategoryId === subcategory.id
           );
-          continue;
+          if (matchedItem) {
+            isNew = false;
+          } else {
+            // Buscar en la base de datos
+            const dbItem = await this.itemRepo.findOne({
+              where: {
+                name: ILike(nameVal.trim()),
+                subcategoryId: subcategory.id,
+                status: 'ACTIVO',
+              },
+            });
+            if (dbItem) {
+              matchedItem = dbItem;
+              isNew = false;
+            }
+          }
         }
 
         // Campos opcionales
-        const auxVal = auxCol ? row.getCell(auxCol).value?.toString().trim() || null : null;
-        
         let statusVal = 'BUENO';
         if (statusCol) {
           const rawStatus = row.getCell(statusCol).value?.toString().toUpperCase().trim();
@@ -1254,11 +1355,11 @@ export class InventoryService {
         row.eachCell((cell, colIndex) => {
           if (
             colIndex === nameCol ||
-            colIndex === codeCol ||
+            (codeCol && colIndex === codeCol) ||
+            (categoryCol && colIndex === categoryCol) ||
             colIndex === subcategoryCol ||
-            colIndex === auxCol ||
-            colIndex === statusCol ||
-            colIndex === quantityCol
+            (statusCol && colIndex === statusCol) ||
+            (quantityCol && colIndex === quantityCol)
           ) {
             return;
           }
@@ -1276,25 +1377,56 @@ export class InventoryService {
           if (matchedConfig) {
             const rawCellVal = cell.value?.toString().trim() || '';
             dynamicValues[matchedConfig.customField.id] = rawCellVal;
+          } else {
+            // Si la celda tiene algún valor escrito en esa columna, pero no está asociado a la subcategoría, lanzar error
+            const rawCellVal = cell.value?.toString().trim() || '';
+            if (rawCellVal) {
+              errors.push(
+                `Hoja "${worksheet.name}" - Fila ${r}: El atributo '${headerName}' no está configurado para la subcategoría '${subcategory.name}'. Por favor, regístralo primero en la interfaz web.`
+              );
+            }
           }
         });
 
         // Validar e inicializar valores dinámicos
-        const validatedValues = await this.validateAndFormatDynamicValues(subcategory.id, dynamicValues);
+        let validatedValues = {};
+        try {
+          validatedValues = await this.validateAndFormatDynamicValues(subcategory.id, dynamicValues);
+        } catch (err: any) {
+          errors.push(
+            `Hoja "${worksheet.name}" - Fila ${r}: ${err.message}`
+          );
+          continue;
+        }
 
-        itemsToSave.push({
-          name: nameVal,
-          codeValue: formattedCodeValue,
-          codigoAuxiliar: auxVal,
-          subcategoryId: subcategory.id,
-          inventoryViewId: currentViewId,
-          cantidad: qtyVal,
-          status: 'ACTIVO',
-          estadoFisico: statusVal,
-          dynamicValues: validatedValues,
-          academicPeriodId: activePeriod ? activePeriod.id : null,
-          isPending: !activePeriod,
-        });
+        if (!isNew) {
+          matchedItem.name = nameVal;
+          matchedItem.estadoFisico = statusVal;
+          if (currentViewCode === 'INSUMOS') {
+            // Si es insumo y ya existe en la DB o lote, acumulamos la cantidad del Excel
+            matchedItem.cantidad = (matchedItem.cantidad || 0) + qtyVal;
+          } else {
+            matchedItem.cantidad = qtyVal;
+          }
+          matchedItem.dynamicValues = {
+            ...(matchedItem.dynamicValues || {}),
+            ...validatedValues,
+          };
+        } else {
+          matchedItem = {
+            name: nameVal,
+            codeValue: formattedCodeValue,
+            subcategoryId: subcategory.id,
+            inventoryViewId: currentViewId,
+            cantidad: qtyVal,
+            status: 'ACTIVO',
+            estadoFisico: statusVal,
+            dynamicValues: validatedValues,
+            academicPeriodId: activePeriod ? activePeriod.id : null,
+            isPending: !activePeriod,
+          };
+          itemsToSave.push(matchedItem);
+        }
 
         sheetImportedCount++;
       }
@@ -1327,7 +1459,7 @@ export class InventoryService {
     };
   }
 
-  async generateExcelTemplate(): Promise<Buffer> {
+  async generateExcelTemplate(inventoryViewId?: string): Promise<Buffer> {
     const workbook = new ExcelJS.Workbook();
     
     // Obtener todas las configuraciones de campos personalizados
@@ -1336,23 +1468,33 @@ export class InventoryService {
       order: { sortOrder: 'ASC' },
     });
 
-    const sheetsConfig = [
-      {
-        name: 'BIENES PUBLICOS',
-        viewCode: 'BIENES_PUBLICOS',
-        defaultSubcategory: 'EQUIPOS TECNOLOGICOS',
-      },
-      {
-        name: 'BODEGA (INSUMOS)',
-        viewCode: 'INSUMOS',
-        defaultSubcategory: 'SUMINISTROS DE ASEO',
-      },
-      {
-        name: 'BIBLIOTECA',
-        viewCode: 'BIBLIOTECA',
-        defaultSubcategory: 'LIBROS',
-      },
-    ];
+    const allViews = await this.findAllViews();
+    const allSubcategories = await this.subcategoryRepo.find({ relations: { category: { inventoryView: true } } });
+    let viewsToGenerate = allViews;
+
+    if (inventoryViewId) {
+      const filtered = allViews.filter((v) => v.id === inventoryViewId);
+      if (filtered.length > 0) {
+        viewsToGenerate = filtered;
+      }
+    }
+
+    const sheetsConfig = viewsToGenerate.map((view) => {
+      let defaultSubcategory = 'LIBROS';
+      let name = 'BIBLIOTECA';
+      if (view.code === 'BIENES_PUBLICOS') {
+        name = 'BIENES PUBLICOS';
+        defaultSubcategory = 'EQUIPOS TECNOLOGICOS';
+      } else if (view.code === 'INSUMOS') {
+        name = 'BODEGA (INSUMOS)';
+        defaultSubcategory = 'SUMINISTROS DE ASEO';
+      }
+      return {
+        name,
+        viewCode: view.code,
+        defaultSubcategory,
+      };
+    });
 
     for (const sc of sheetsConfig) {
       const worksheet = workbook.addWorksheet(sc.name);
@@ -1361,20 +1503,33 @@ export class InventoryService {
       const headers = [
         'Nombre',
         'Código Yavirac',
-        'Código Auxiliar',
+        'Categoría',
         'Subcategoría',
         'Estado Físico',
         'Cantidad',
       ];
 
-      // Buscar campos dinámicos asociados a la subcategoría por defecto de esta hoja
-      const dynamicFields = allConfigs
-        .filter((c) => c.subcategory?.name.toUpperCase().trim() === sc.defaultSubcategory.toUpperCase().trim())
-        .map((c) => c.customField?.label || c.customField?.name)
-        .filter(Boolean);
+      // Obtener todas las subcategorías que pertenecen a la vista actual
+      const viewSubcategories = allSubcategories.filter(
+        (s) => s.category?.inventoryView?.code === sc.viewCode
+      );
+      const viewSubIds = viewSubcategories.map((s) => s.id);
+
+      // Buscar campos dinámicos unificados de forma insensible a mayúsculas/minúsculas
+      const uniqueDynamicFieldsMap = new Map<string, string>();
+      for (const config of allConfigs) {
+        if (!viewSubIds.includes(config.subcategoryId)) continue;
+        const nameOrLabel = config.customField?.label || config.customField?.name;
+        if (!nameOrLabel) continue;
+        const key = nameOrLabel.toUpperCase().trim();
+        if (!uniqueDynamicFieldsMap.has(key)) {
+          uniqueDynamicFieldsMap.set(key, nameOrLabel);
+        }
+      }
+      const uniqueDynamicFields = Array.from(uniqueDynamicFieldsMap.values());
 
       // Agregar los campos dinámicos como columnas adicionales a la derecha
-      const allHeaders = [...headers, ...dynamicFields];
+      const allHeaders = [...headers, ...uniqueDynamicFields];
       worksheet.addRow(allHeaders);
 
       // Estilizar la cabecera
@@ -1385,14 +1540,14 @@ export class InventoryService {
         const isDynamic = colNum > headers.length;
         cell.font = {
           bold: true,
-          color: { argb: 'FFFFFF' },
+          color: { argb: 'FFFFFFFF' },
           name: 'Arial',
           size: 10,
         };
         cell.fill = {
           type: 'pattern',
           pattern: 'solid',
-          fgColor: { argb: isDynamic ? '6366F1' : 'F97316' }, // Lila para campos dinámicos, Naranja para base
+          fgColor: { argb: isDynamic ? 'FF6366F1' : 'FFF97316' }, // Lila para campos dinámicos, Naranja para base
         };
         cell.alignment = {
           vertical: 'middle',
@@ -1403,15 +1558,15 @@ export class InventoryService {
       // Agregar fila de ejemplo útil para guiar al usuario
       const exampleRow = [
         `Ejemplo de ${sc.name.toLowerCase()}`,
-        `${sc.viewCode.substring(0,3)}-EX-001`,
-        'AUX-999',
+        sc.viewCode === 'INSUMOS' ? '' : `${sc.viewCode.substring(0, 3)}-EX-001`,
+        sc.viewCode === 'BIENES_PUBLICOS' ? 'TECNOLOGIA' : sc.viewCode === 'INSUMOS' ? 'LIMPIEZA' : 'LITERATURA',
         sc.defaultSubcategory,
         'BUENO',
-        1,
+        sc.viewCode === 'INSUMOS' ? 10 : 1,
       ];
 
       // Rellenar valores de ejemplo para los campos dinámicos
-      for (let i = 0; i < dynamicFields.length; i++) {
+      for (let i = 0; i < uniqueDynamicFields.length; i++) {
         exampleRow.push('Ejemplo Valor');
       }
 
@@ -1422,6 +1577,135 @@ export class InventoryService {
         column.width = 22;
       });
     }
+
+    return workbook.xlsx.writeBuffer() as any;
+  }
+
+  async exportItemsToExcel(inventoryViewId: string): Promise<Buffer> {
+    const workbook = new ExcelJS.Workbook();
+
+    const allViews = await this.findAllViews();
+    const currentView = allViews.find((v) => v.id === inventoryViewId);
+    if (!currentView) {
+      throw new NotFoundException('La vista de inventario seleccionada no existe.');
+    }
+
+    const allSubcategories = await this.subcategoryRepo.find({ relations: { category: true } });
+    
+    // Obtener las subcategorías de esta vista
+    const viewSubcategories = allSubcategories.filter(
+      (s) =>
+        s.category?.inventoryViewId === inventoryViewId ||
+        s.category?.inventoryView?.id === inventoryViewId
+    );
+    const viewSubIds = viewSubcategories.map((s) => s.id);
+
+    // Obtener todas las configuraciones de campos personalizados de estas subcategorías
+    let allConfigs: CustomFieldConfig[] = [];
+    if (viewSubIds.length > 0) {
+      allConfigs = await this.fieldConfigRepo.find({
+        where: { subcategoryId: In(viewSubIds) },
+        relations: { customField: true },
+        order: { sortOrder: 'ASC' },
+      });
+    }
+
+    // Consolidar campos dinámicos unificados por nombre (insensible a mayúsculas/minúsculas)
+    const unifiedFieldsMap = new Map<string, { label: string; fieldIds: string[] }>();
+    for (const c of allConfigs) {
+      const f = c.customField;
+      if (!f) continue;
+      const labelOrName = f.label || f.name;
+      const key = labelOrName.toUpperCase().trim();
+      if (!unifiedFieldsMap.has(key)) {
+        unifiedFieldsMap.set(key, { label: labelOrName, fieldIds: [] });
+      }
+      unifiedFieldsMap.get(key)!.fieldIds.push(f.id);
+    }
+    const unifiedFields = Array.from(unifiedFieldsMap.values());
+
+    // Cargar los artículos de la vista actual
+    const items = await this.itemRepo.find({
+      where: { inventoryViewId, status: 'ACTIVO' },
+      relations: { subcategory: { category: true } },
+      order: { name: 'ASC' },
+    });
+
+    let sheetName = 'BIBLIOTECA';
+    if (currentView.code === 'BIENES_PUBLICOS') {
+      sheetName = 'BIENES PUBLICOS';
+    } else if (currentView.code === 'INSUMOS') {
+      sheetName = 'BODEGA (INSUMOS)';
+    }
+
+    const worksheet = workbook.addWorksheet(sheetName);
+
+    // Cabeceras base
+    const headers = [
+      'Nombre',
+      'Código Yavirac',
+      'Categoría',
+      'Subcategoría',
+      'Estado Físico',
+      'Cantidad',
+    ];
+
+    // Cabeceras dinámicas unificadas
+    const dynamicHeaders = unifiedFields.map((f) => f.label);
+    const allHeaders = [...headers, ...dynamicHeaders];
+    worksheet.addRow(allHeaders);
+
+    // Estilizar la cabecera
+    const headerRow = worksheet.getRow(1);
+    headerRow.height = 25;
+    headerRow.eachCell((cell, colNum) => {
+      const isDynamic = colNum > headers.length;
+      cell.font = {
+        bold: true,
+        color: { argb: 'FFFFFFFF' },
+        name: 'Arial',
+        size: 10,
+      };
+      cell.fill = {
+        type: 'pattern',
+        pattern: 'solid',
+        fgColor: { argb: isDynamic ? 'FF6366F1' : 'FFF97316' },
+      };
+      cell.alignment = {
+        vertical: 'middle',
+        horizontal: 'center',
+      };
+    });
+
+    // Agregar filas de artículos
+    for (const item of items) {
+      const rowData = [
+        item.name,
+        item.codeValue || '',
+        item.subcategory?.category?.name || '',
+        item.subcategory?.name || '',
+        item.estadoFisico || 'BUENO',
+        item.cantidad,
+      ];
+
+      // Escribir los valores de los atributos dinámicos
+      for (const fieldGroup of unifiedFields) {
+        let val = '';
+        for (const fieldId of fieldGroup.fieldIds) {
+          if (item.dynamicValues?.[fieldId] !== undefined && item.dynamicValues?.[fieldId] !== null) {
+            val = item.dynamicValues[fieldId].toString();
+            break;
+          }
+        }
+        rowData.push(val);
+      }
+
+      worksheet.addRow(rowData);
+    }
+
+    worksheet.columns.forEach((column) => {
+      column.width = 22;
+    });
 
     return workbook.xlsx.writeBuffer() as any;
   }

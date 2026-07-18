@@ -184,6 +184,33 @@ export class InventoryController {
     });
   }
 
+  @Get('items/export')
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
+  async exportItems(
+    @Query('inventoryViewId') inventoryViewId: string,
+    @Res() res: Response,
+  ) {
+    if (!inventoryViewId) {
+      throw new BadRequestException('Debe proporcionar el inventoryViewId.');
+    }
+    const buffer = await this.inventoryService.exportItemsToExcel(inventoryViewId);
+    
+    // Obtener nombre dinámico para el archivo según la vista
+    const allViews = await this.inventoryService.findAllViews();
+    const currentView = allViews.find((v) => v.id === inventoryViewId);
+    const viewCode = currentView?.code?.toLowerCase() || 'inventario';
+
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=inventario_exportado_${viewCode}.xlsx`,
+    );
+    res.end(Buffer.from(buffer));
+  }
+
   @Get('items/:id')
   async getItemById(
     @Request() req,
@@ -218,17 +245,20 @@ export class InventoryController {
 
   @Get('template')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
-  async downloadTemplate(@Res() res: Response) {
-    const buffer = await this.inventoryService.generateExcelTemplate();
+  async downloadTemplate(
+    @Query('inventoryViewId') inventoryViewId: string | undefined,
+    @Res() res: Response,
+  ) {
+    const buffer = await this.inventoryService.generateExcelTemplate(inventoryViewId);
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     );
     res.setHeader(
       'Content-Disposition',
-      'attachment; filename=plantilla_inventario_unificada.xlsx',
+      'attachment; filename=plantilla_inventario.xlsx',
     );
-    return res.send(buffer);
+    res.end(Buffer.from(buffer));
   }
 
   @Post('items/import')
@@ -243,5 +273,7 @@ export class InventoryController {
     }
     return this.inventoryService.importItemsFromExcel(file.buffer, inventoryViewId);
   }
+
+
 }
 

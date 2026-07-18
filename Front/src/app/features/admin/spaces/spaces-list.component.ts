@@ -235,7 +235,7 @@ export class SpacesListComponent implements OnInit {
       itemId: item.id,
       name: item.name,
       codeValue: item.codeValue || '',
-      cantidad: item.cantidad || 1
+      cantidad: (item.cantidad !== undefined && item.cantidad !== null) ? item.cantidad : 1
     })) || [];
     this.assignedItemsTemp.set(items);
     this.itemSearchQuery.set('');
@@ -291,7 +291,7 @@ export class SpacesListComponent implements OnInit {
       itemId: item.id,
       name: item.name,
       codeValue: item.codeValue || '',
-      cantidad: item.cantidad || 1
+      cantidad: (item.cantidad !== undefined && item.cantidad !== null) ? item.cantidad : 1
     })) || [];
     
     this.assignedItemsTemp.set(items);

@@ -5,11 +5,15 @@
       <h2>Bienes y Existencias</h2>
       <p class="section-desc">Consulta, gestiona y cataloga los recursos institucionales a través de una navegación jerárquica.</p>
     </div>
-    <div class="header-actions">
+    <div class="header-actions" style="display: flex; gap: 10px;">
       @if (selectedView()) {
+        <button class="btn btn-secondary" (click)="exportCurrentInventory()" style="display: flex; align-items: center; gap: 8px; background-color: #4f46e5; color: white; border-color: #4f46e5;">
+          <span class="material-icons-round">download</span>
+          Exportar Inventario
+        </button>
         <button class="btn btn-primary" (click)="openImportModal()" style="display: flex; align-items: center; gap: 8px;">
           <span class="material-icons-round">upload</span>
-          Importar Excel
+          Importar Inventario
         </button>
       }
     </div>
@@ -136,29 +140,16 @@
             
             <div class="category-card-body" (click)="selectCategory(cat)">
               <div class="subcategories-preview">
-                <span class="preview-title">Subcategorías y campos dinámicos:</span>
-                <div class="sub-tags-wrapper">
+                <span class="preview-title" style="font-size: 0.8rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; display: block; margin-bottom: 8px;">Subcategorías:</span>
+                <div class="sub-tags-wrapper" style="display: flex; flex-wrap: wrap; gap: 6px;">
                   @for (sub of getSubcategoriesForCategory(cat.id); track sub.id) {
-                    <div style="margin-bottom: 8px;">
-                      <span class="sub-preview-tag" style="font-weight: 600; background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.2); color: #818cf8;">
-                        <span class="material-icons-round" style="font-size: 0.9rem; vertical-align: middle; margin-right: 4px;">list_alt</span>
-                        {{ sub.nombre }}
-                      </span>
-                      @if (sub.configs && sub.configs.length > 0) {
-                        <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; padding-left: 8px;">
-                          @for (cfg of sub.configs; track cfg.id) {
-                            <span style="font-size: 0.72rem; padding: 2px 8px; border-radius: 20px; background: rgba(255,255,255,0.05); color: #9ca3af; border: 1px solid rgba(255,255,255,0.08);">
-                              {{ cfg.customField?.nombre }}
-                            </span>
-                          }
-                        </div>
-                      } @else {
-                        <span style="font-size: 0.72rem; color: #6b7280; padding-left: 8px; display: block; margin-top: 2px;">Sin campos dinámicos</span>
-                      }
-                    </div>
+                    <span class="sub-preview-tag" style="font-weight: 500; font-size: 0.75rem; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.07); color: var(--text-primary); padding: 4px 10px; border-radius: 6px; display: inline-flex; align-items: center; gap: 4px;">
+                      <span class="material-icons-round" style="font-size: 0.85rem; color: #818cf8;">subdirectory_arrow_right</span>
+                      {{ sub.nombre }}
+                    </span>
                   }
                   @if (getSubcategoriesForCategory(cat.id).length === 0) {
-                    <span class="no-subs-tag">Sin subcategorías creadas</span>
+                    <span class="no-subs-tag" style="color: var(--text-secondary); font-size: 0.78rem; font-style: italic;">Sin subcategorías creadas</span>
                   }
                 </div>
               </div>
@@ -307,28 +298,25 @@
 
       <div class="subcategories-grid">
         @for (sub of getSubcategoriesForCategory(selectedCategory()!.id); track sub.id) {
-          <div class="subcategory-card glass-panel" (click)="selectSubcategory(sub)">
-            <div class="sub-card-icon">
-              <span class="material-icons-round">list_alt</span>
+          <div class="subcategory-card glass-panel" (click)="selectSubcategory(sub)" style="display: flex; flex-direction: column; align-items: stretch; padding: 16px; gap: 12px; height: auto;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <div class="sub-card-icon" style="flex-shrink: 0; background: rgba(99, 102, 241, 0.1); color: #6366f1; border-radius: 8px; padding: 8px; display: flex; align-items: center; justify-content: center;">
+                <span class="material-icons-round">list_alt</span>
+              </div>
+              <div class="sub-card-info" style="flex-grow: 1;">
+                <h4 style="margin: 0; font-size: 0.98rem; font-weight: 600; color: var(--text-primary);">{{ sub.nombre }}</h4>
+              </div>
             </div>
-            <div class="sub-card-info">
-              <h4>{{ sub.nombre }}</h4>
-              @if (sub.configs && sub.configs.length > 0) {
-                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px;">
-                  @for (cfg of sub.configs; track cfg.id) {
-                    <span style="font-size: 0.7rem; padding: 2px 8px; border-radius: 20px; background: rgba(99,102,241,0.08); color: #818cf8; border: 1px solid rgba(99,102,241,0.15);">
-                      {{ cfg.customField?.nombre }}
-                    </span>
-                  }
-                </div>
-              } @else {
-                <p style="font-size: 0.75rem; color: #6b7280; margin-top: 4px;">Sin campos dinámicos</p>
-              }
-            </div>
-            <div class="sub-card-actions" (click)="$event.stopPropagation()">
-              <button class="icon-btn-edit" (click)="openSubcategoryConfig(sub)" title="Configurar Campos Dinámicos" style="color: #6366f1;">
-                <span class="material-icons-round">settings</span>
+
+            <!-- Botón Ver Campos Dinámicos -->
+            <div style="margin-top: 2px;">
+              <button class="btn btn-secondary btn-sm" (click)="openSubcategoryConfig(sub); $event.stopPropagation()" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.78rem; padding: 6px 12px; border-color: rgba(99, 102, 241, 0.3); color: #818cf8; background: rgba(99, 102, 241, 0.03);">
+                <span class="material-icons-round" style="font-size: 1.05rem;">settings</span>
+                Ver Campos Dinámicos
               </button>
+            </div>
+
+            <div class="sub-card-actions" (click)="$event.stopPropagation()" style="display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 10px; margin-top: auto;">
               <button class="icon-btn-edit" (click)="openSubcategoryModal(sub)" title="Editar Subcategoría">
                 <span class="material-icons-round">edit</span>
               </button>
@@ -437,10 +425,29 @@
                 <span class="detail-val font-mono">{{ item.codigoYavirac || 'Sin Código' }}</span>
               </div>
               
-              <div class="detail-row">
-                <span class="detail-label">Cantidad / Stock:</span>
-                <span class="detail-val quantity-value">{{ item.cantidad ?? 1 }} unidades</span>
-              </div>
+              @if ((selectedView() || item.subcategoria?.categoria?.baseView) === 'INSUMOS') {
+                <div class="detail-row">
+                  <span class="detail-label">Cantidad / Stock:</span>
+                  <span class="detail-val quantity-value">
+                    @if ((item.cantidad ?? 0) > 0) {
+                      {{ item.cantidad }} unidades
+                    } @else {
+                      <span style="color: #ef4444; font-weight: bold;">No Disponible</span>
+                    }
+                  </span>
+                </div>
+              } @else {
+                <div class="detail-row">
+                  <span class="detail-label">Disponibilidad:</span>
+                  <span class="detail-val">
+                    @if (!item.physicalSpace) {
+                      <span style="color: #10b981; font-weight: bold;">Disponible</span>
+                    } @else {
+                      <span style="color: #ef4444; font-weight: bold;">No Disponible</span>
+                    }
+                  </span>
+                </div>
+              }
 
               <!-- Atributos Dinámicos en la Card -->
               @if (item.resolvedValues && item.resolvedValues.length > 0) {
@@ -906,8 +913,20 @@
                 </div>
 
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
-                  <span style="color: var(--text-secondary);">Cantidad / Stock</span>
-                  <strong style="color: var(--text-primary);">{{ selectedItem()?.cantidad || 1 }} unidades</strong>
+                  <span style="color: var(--text-secondary);">{{ (selectedView() || selectedItem()?.subcategoria?.categoria?.baseView) === 'INSUMOS' ? 'Cantidad / Stock' : 'Disponibilidad' }}</span>
+                  @if ((selectedView() || selectedItem()?.subcategoria?.categoria?.baseView) === 'INSUMOS') {
+                    @if ((selectedItem()?.cantidad ?? 0) > 0) {
+                      <strong style="color: #10b981;">{{ selectedItem()?.cantidad }} unidades disponibles</strong>
+                    } @else {
+                      <strong style="color: #ef4444;">No Disponible</strong>
+                    }
+                  } @else {
+                    @if (!selectedItem()?.physicalSpace) {
+                      <strong style="color: #10b981;">Disponible</strong>
+                    } @else {
+                      <strong style="color: #ef4444;">No Disponible</strong>
+                    }
+                  }
                 </div>
 
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
@@ -927,7 +946,20 @@
 
                 <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
                   <span style="color: var(--text-secondary);">Aula / Ubicación</span>
-                  <strong style="color: var(--text-primary);">{{ selectedItem()?.physicalSpace?.name || 'Bodega General (Sin Asignar)' }}</strong>
+                  <strong style="color: var(--text-primary);">{{ selectedItem()?.physicalSpace?.name || 'sin asignar' }}</strong>
+                </div>
+
+                <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
+                  <span style="color: var(--text-secondary);">Responsable(s)</span>
+                  <strong style="color: var(--text-primary);">
+                    @if (selectedItem()?.physicalSpace?.responsibleTeachers && selectedItem()!.physicalSpace!.responsibleTeachers!.length > 0) {
+                      @for (t of selectedItem()!.physicalSpace!.responsibleTeachers; track t.id) {
+                        <div style="display: block; text-align: right;">{{ t.nombres }} {{ t.apellidos }}</div>
+                      }
+                    } @else {
+                      -
+                    }
+                  </strong>
                 </div>
               </div>
             </div>
@@ -968,7 +1000,7 @@
   <div class="modal-overlay" style="z-index: 30000 !important;">
     <div class="glass-panel modal-card animate-slide" style="max-width: 550px;">
       <div class="modal-header">
-        <h3>Importar Elementos desde Excel</h3>
+        <h3>Importar Inventario</h3>
         <button class="close-btn" (click)="closeImportModal()">×</button>
       </div>
 

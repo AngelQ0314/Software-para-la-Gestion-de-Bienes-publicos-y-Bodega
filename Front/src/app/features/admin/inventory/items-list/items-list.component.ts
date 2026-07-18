@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormControl, FormsModule } from '@angular/forms';
 import { InventoryService, InventoryItem, Subcategory, SubcategoryFieldAssociation, Category, CustomField } from '../services/inventory.service';
 import Swal from 'sweetalert2';
-import { forkJoin } from 'rxjs';
 
 @Component({
   selector: 'app-items-list',
@@ -91,8 +90,6 @@ export class ItemsListComponent implements OnInit {
   selectedItemForReclassify = signal<InventoryItem | null>(null);
   reclassifyCategory = signal<Category | null>(null);
   viewsList = signal<any[]>([]);
-  selectedItemIds = signal<Set<string>>(new Set());
-  selectionMode = signal(false);
 
   // Mapeo de IDs de vistas del backend (valores por defecto)
   private readonly viewIds: Record<string, string> = {
@@ -130,108 +127,7 @@ export class ItemsListComponent implements OnInit {
     return list;
   });
 
-  isAllSelected = computed(() => {
-    const visible = this.filteredItems();
-    if (visible.length === 0) return false;
-    const selected = this.selectedItemIds();
-    return visible.every(item => selected.has(item.id!));
-  });
 
-  toggleSelectItem(itemId: string): void {
-    const current = new Set(this.selectedItemIds());
-    if (current.has(itemId)) {
-      current.delete(itemId);
-    } else {
-      current.add(itemId);
-    }
-    this.selectedItemIds.set(current);
-  }
-
-  isItemSelected(itemId: string): boolean {
-    return this.selectedItemIds().has(itemId);
-  }
-
-  clearSelections(): void {
-    this.selectedItemIds.set(new Set());
-  }
-
-  toggleSelectionMode(): void {
-    const nextVal = !this.selectionMode();
-    this.selectionMode.set(nextVal);
-    if (!nextVal) {
-      this.clearSelections();
-    }
-  }
-
-  toggleSelectAll(): void {
-    const current = new Set(this.selectedItemIds());
-    const visibleItems = this.filteredItems();
-    const allSelected = visibleItems.length > 0 && visibleItems.every(item => current.has(item.id!));
-    
-    if (allSelected) {
-      visibleItems.forEach(item => current.delete(item.id!));
-    } else {
-      visibleItems.forEach(item => current.add(item.id!));
-    }
-    this.selectedItemIds.set(current);
-  }
-
-
-
-  bulkDelete(): void {
-    const selectedIds = Array.from(this.selectedItemIds());
-    const selectedItems = this.filteredItems().filter(item => selectedIds.includes(item.id!));
-    const activeItems = selectedItems.filter(item => item.status === 'ACTIVO');
-    
-    if (activeItems.length === 0) {
-      Swal.fire({
-        title: 'Atención',
-        text: 'No hay artículos activos seleccionados para eliminar.',
-        icon: 'warning',
-        confirmButtonColor: '#3085d6'
-      });
-      return;
-    }
-
-    Swal.fire({
-      title: '¿Eliminar Artículos Seleccionados?',
-      text: `Los ${activeItems.length} artículo(s) activo(s) se desvincularán de su categoría, subcategoría y espacio físico asignado. Esta acción no se puede deshacer.`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonColor: '#ef4444',
-      cancelButtonColor: '#6b7280',
-      confirmButtonText: 'Sí, eliminar',
-      cancelButtonText: 'Cancelar'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        this.loading.set(true);
-        const requests = activeItems.map(item =>
-          this.inventoryService.deleteItem(item.id!)
-        );
-
-        forkJoin(requests).subscribe({
-          next: () => {
-            this.loading.set(false);
-            Swal.fire({
-              title: '¡Eliminados!',
-              text: `Se eliminaron y desvincularon ${activeItems.length} artículo(s) correctamente.`,
-              icon: 'success',
-              confirmButtonColor: '#3085d6'
-            });
-            this.selectedItemIds.set(new Set());
-            this.loadItems();
-          },
-          error: (err) => {
-            this.loading.set(false);
-            const msg = Array.isArray(err.error?.message)
-              ? err.error.message.join(', ')
-              : err.error?.message || 'Error al eliminar artículos.';
-            Swal.fire('Error', msg, 'error');
-          }
-        });
-      }
-    });
-  }
 
   constructor(private readonly fb: FormBuilder, private readonly inventoryService: InventoryService) {
     this.filterForm = this.fb.group({
@@ -370,8 +266,6 @@ export class ItemsListComponent implements OnInit {
     const viewCode = this.selectedView();
     if (!viewCode) return;
 
-    this.selectedItemIds.set(new Set());
-    this.selectionMode.set(false);
     this.loading.set(true);
     const filters = { ...this.filterForm.value };
 
@@ -879,12 +773,17 @@ export class ItemsListComponent implements OnInit {
   }
 
   downloadTemplate(): void {
-    this.inventoryService.downloadTemplate().subscribe({
+    const viewCode = this.selectedView();
+    const currentView = this.viewsList().find(v => v.code === viewCode);
+    const viewId = currentView ? currentView.id : undefined;
+
+    this.inventoryService.downloadTemplate(viewId).subscribe({
       next: (blob) => {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = 'plantilla_importacion_inventario.xlsx';
+        const filename = viewCode ? `plantilla_importacion_${viewCode.toLowerCase()}.xlsx` : 'plantilla_importacion_inventario.xlsx';
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -892,6 +791,34 @@ export class ItemsListComponent implements OnInit {
       },
       error: (err) => {
         console.error('Error al descargar la plantilla', err);
+      }
+    });
+  }
+
+  exportCurrentInventory(): void {
+    const viewCode = this.selectedView();
+    const currentView = this.viewsList().find(v => v.code === viewCode);
+    if (!currentView) return;
+
+    this.loading.set(true);
+    this.inventoryService.exportItemsToExcel(currentView.id).subscribe({
+      next: (blob) => {
+        this.loading.set(false);
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        const filename = `inventario_exportado_${viewCode?.toLowerCase()}.xlsx`;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        Swal.fire('¡Éxito!', 'Inventario exportado a Excel correctamente.', 'success');
+      },
+      error: (err) => {
+        this.loading.set(false);
+        console.error('Error al exportar inventario', err);
+        Swal.fire('Error', 'No se pudo exportar el inventario.', 'error');
       }
     });
   }

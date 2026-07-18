@@ -49,7 +49,16 @@ export interface InventoryItem {
   cantidad?: number;
   status?: string;
   isPending?: boolean;
-  physicalSpace?: { id: string; name: string } | null;
+  physicalSpace?: { 
+    id: string; 
+    name: string; 
+    roomNumber?: string; 
+    responsibleTeachers?: Array<{ id: string; nombres: string; apellidos: string }> 
+  } | null;
+  physicalSpaceId?: string | null;
+  inventoryView?: { id: string; name: string; code: string } | null;
+  disponible?: boolean;
+  mensajeDisponibilidad?: string;
 }
 
 @Injectable({
@@ -268,10 +277,15 @@ export class InventoryService {
           estadoFisico: i.estadoFisico || 'BUENO',
           dynamicValues: i.dynamicValues || {},
           resolvedValues: i.resolvedValues || [],
-          cantidad: i.cantidad || 1,
+          cantidad: (i.cantidad !== undefined && i.cantidad !== null) ? i.cantidad : 1,
           status: i.status || 'ACTIVO',
           isPending: !!i.isPending,
-          physicalSpace: i.physicalSpace ? { id: i.physicalSpace.id, name: i.physicalSpace.name } : null,
+          physicalSpace: i.physicalSpace ? { 
+            id: i.physicalSpace.id, 
+            name: i.physicalSpace.name, 
+            roomNumber: i.physicalSpace.roomNumber,
+            responsibleTeachers: i.physicalSpace.responsibleTeachers || []
+          } : null,
         })),
         total: res.total || 0,
         lastPage: res.lastPage || 1,
@@ -307,10 +321,15 @@ export class InventoryService {
         estadoFisico: i.estadoFisico || 'BUENO',
         dynamicValues: i.dynamicValues || {},
         resolvedValues: i.resolvedValues || [],
-        cantidad: i.cantidad || 1,
+        cantidad: (i.cantidad !== undefined && i.cantidad !== null) ? i.cantidad : 1,
         status: i.status || 'ACTIVO',
         isPending: !!i.isPending,
-        physicalSpace: i.physicalSpace ? { id: i.physicalSpace.id, name: i.physicalSpace.name } : null,
+        physicalSpace: i.physicalSpace ? { 
+          id: i.physicalSpace.id, 
+          name: i.physicalSpace.name, 
+          roomNumber: i.physicalSpace.roomNumber,
+          responsibleTeachers: i.physicalSpace.responsibleTeachers || []
+        } : null,
       }))
     );
   }
@@ -360,8 +379,13 @@ export class InventoryService {
     return this.http.post(`${this.apiUrl}/items/import${query}`, formData);
   }
 
-  downloadTemplate(): Observable<Blob> {
-    return this.http.get(`${this.apiUrl}/template`, { responseType: 'blob' });
+  downloadTemplate(inventoryViewId?: string): Observable<Blob> {
+    const query = inventoryViewId ? `?inventoryViewId=${inventoryViewId}` : '';
+    return this.http.get(`${this.apiUrl}/template${query}`, { responseType: 'blob' });
+  }
+
+  exportItemsToExcel(inventoryViewId: string): Observable<Blob> {
+    return this.http.get(`${this.apiUrl}/items/export?inventoryViewId=${inventoryViewId}`, { responseType: 'blob' });
   }
 }
 

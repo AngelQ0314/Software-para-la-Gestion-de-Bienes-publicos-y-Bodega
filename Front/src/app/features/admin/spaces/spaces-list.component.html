@@ -219,14 +219,28 @@
             <form [formGroup]="inventoryForm" (ngSubmit)="addTempItem()" class="modal-form" style="margin-top: 10px;">
               <div class="form-group">
                 <label class="form-label" style="font-size: 0.72rem;">Seleccionar Artículo*</label>
-                <select class="form-select" formControlName="selectedItemId" style="padding: 8px 12px;">
-                  <option value="">-- Elige un artículo --</option>
-                  @for (item of filteredInventoryItems(); track item.id) {
-                    <option [value]="item.id">
-                      [{{ item.codigoYavirac }}] {{ item.name }} - {{ item.subcategoria?.nombre || 'General' }} (Stock: {{ item.cantidad || 1 }})
-                    </option>
-                  }
-                </select>
+                  <select class="form-select" formControlName="selectedItemId" style="padding: 8px 12px;">
+                    <option value="">-- Elige un artículo --</option>
+                    @for (item of filteredInventoryItems(); track item.id) {
+                      <option [value]="item.id">
+                        [{{ item.codigoYavirac }}] {{ item.name }} 
+                        - {{ item.subcategoria?.nombre || 'General' }} 
+                        - @if (item.inventoryView?.code === 'INSUMOS') {
+                          @if ((item.cantidad ?? 0) > 0) {
+                            Disponible (Bodega: {{ item.cantidad }} ud)
+                          } @else {
+                            NO DISPONIBLE
+                          }
+                        } @else {
+                          @if (!item.physicalSpace) {
+                            Disponible
+                          } @else {
+                            NO DISPONIBLE (Ubicado en: {{ item.physicalSpace.name }})
+                          }
+                        }
+                      </option>
+                    }
+                  </select>
               </div>
 
               <div class="form-group">
@@ -467,7 +481,21 @@
                       <option value="">-- Elige un artículo --</option>
                       @for (item of filteredInventoryItems(); track item.id) {
                         <option [value]="item.id">
-                          [{{ item.codigoYavirac }}] {{ item.name }} - {{ item.subcategoria?.nombre || 'General' }} (Stock: {{ item.cantidad || 1 }})
+                          [{{ item.codigoYavirac }}] {{ item.name }} 
+                          - {{ item.subcategoria?.nombre || 'General' }} 
+                          - @if (item.inventoryView?.code === 'INSUMOS') {
+                            @if ((item.cantidad ?? 0) > 0) {
+                              Disponible (Bodega: {{ item.cantidad }} ud)
+                            } @else {
+                              NO DISPONIBLE
+                            }
+                          } @else {
+                            @if (!item.physicalSpace) {
+                              Disponible
+                            } @else {
+                              NO DISPONIBLE (Ubicado en: {{ item.physicalSpace.name }})
+                            }
+                          }
                         </option>
                       }
                     </select>
