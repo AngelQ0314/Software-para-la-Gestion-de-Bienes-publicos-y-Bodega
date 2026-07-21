@@ -10,6 +10,7 @@ import { User } from '../users/entities/user.entity';
 import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { UserLog } from '../users/entities/user-log.entity';
 import { AcademicPeriod } from '../periods/entities/academic-period.entity';
+import { IncidentReportItem } from '../incidents/entities/incident-report-item.entity';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { AcademicPeriod } from '../periods/entities/academic-period.entity';
       InventoryItem,
       UserLog,
       AcademicPeriod,
+      IncidentReportItem,
     ]),
     InventoryModule,
     UsersModule,

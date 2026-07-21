@@ -17,6 +17,7 @@ import { UpdateSpaceDto } from './dto/update-space.dto';
 import { LinkTeachersDto } from './dto/link-teachers.dto';
 import { AssignItemsDto } from './dto/assign-items.dto';
 import { AcademicPeriod } from '../periods/entities/academic-period.entity';
+import { IncidentReportItem } from '../incidents/entities/incident-report-item.entity';
 
 @Injectable()
 export class SpacesService {
@@ -33,6 +34,8 @@ export class SpacesService {
     private readonly userLogRepo: Repository<UserLog>,
     @InjectRepository(AcademicPeriod)
     private readonly periodRepo: Repository<AcademicPeriod>,
+    @InjectRepository(IncidentReportItem)
+    private readonly reportItemRepo: Repository<IncidentReportItem>,
   ) {}
 
   // CREAR ESPACIO FÍSICO
@@ -64,19 +67,23 @@ export class SpacesService {
     location?: string;
     teacherId?: string;
     role?: string;
+    jornada?: string;
+    teacherName?: string;
   }): Promise<PhysicalSpace[]> {
     const query = this.spaceRepo
       .createQueryBuilder('space')
       .leftJoinAndSelect('space.responsibleTeachers', 'responsibleTeachers')
       .leftJoinAndSelect('space.items', 'items')
+      .leftJoinAndSelect('items.inventoryView', 'inventoryView')
+      .leftJoinAndSelect('items.subcategory', 'subcategory')
+      .leftJoinAndSelect('subcategory.category', 'category')
       .orderBy('space.roomNumber', 'ASC');
 
-    if (filters.roomNumber) {
-      query.andWhere('space.roomNumber ILIKE :roomNumber', { roomNumber: `%${filters.roomNumber}%` });
-    }
-
-    if (filters.name) {
-      query.andWhere('space.name ILIKE :name', { name: `%${filters.name}%` });
+    if (filters.roomNumber || filters.name) {
+      query.andWhere(
+        '(space.roomNumber ILIKE :search OR space.name ILIKE :search)',
+        { search: `%${filters.name || filters.roomNumber}%` }
+      );
     }
 
     if (filters.type) {
@@ -85,6 +92,17 @@ export class SpacesService {
 
     if (filters.location) {
       query.andWhere('space.location ILIKE :location', { location: `%${filters.location}%` });
+    }
+
+    if (filters.jornada) {
+      query.andWhere('space.jornadas LIKE :jornada', { jornada: `%${filters.jornada}%` });
+    }
+
+    if (filters.teacherName) {
+      query.andWhere(
+        '(responsibleTeachers.nombres ILIKE :teacherName OR responsibleTeachers.apellidos ILIKE :teacherName)',
+        { teacherName: `%${filters.teacherName}%` }
+      );
     }
 
     // Si el rol es DOCENTE, filtrar por espacios asignados al docente
@@ -101,7 +119,12 @@ export class SpacesService {
       where: { id },
       relations: {
         responsibleTeachers: true,
-        items: true,
+        items: {
+          inventoryView: true,
+          subcategory: {
+            category: true,
+          },
+        },
       },
     });
 
@@ -347,7 +370,7 @@ export class SpacesService {
 
       if (!isInsumo) {
         // BIENES PÚBLICOS / BIBLIOTECA: Asignación normal completa
-        if (item.physicalSpaceId !== null) {
+        if (item.physicalSpaceId !== null && item.physicalSpaceId !== spaceId) {
           throw new BadRequestException(
             `Este artículo ya se encuentra ubicado en: ${item.physicalSpace?.name || ''} (Número ${item.physicalSpace?.roomNumber || ''})`,
           );
@@ -481,6 +504,10 @@ export class SpacesService {
       if (generalItem) {
         generalItem.cantidad += item.cantidad;
         await this.itemRepo.save(generalItem);
+
+        // Si el clon del aula está referenciado en incident_report_items, reasignar esas referencias al lote general de bodega
+        await this.reportItemRepo.update({ itemId: item.id }, { itemId: generalItem.id });
+
         // Eliminar físicamente el registro clonado del aula
         await this.itemRepo.remove(item);
       } else {
@@ -561,7 +588,9 @@ export class SpacesService {
         view: item.subcategory?.category?.inventoryView?.name || '',
         cantidad: item.cantidad,
         jornada: normalizedJornada,
-        estadoFisico: shiftInfo ? shiftInfo.estadoFisico : 'BUENO',
+        estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
+          ? item.estadoFisico 
+          : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
         observacion: shiftInfo ? shiftInfo.observacion : null,
         novedades: shiftInfo ? shiftInfo.novedades : null,
       };
@@ -666,9 +695,10 @@ export class SpacesService {
           roomNumber: item.physicalSpace?.roomNumber || '',
           spaceName: item.physicalSpace?.name || '',
           cantidad: item.cantidad,
-          jornada: normalizedJornada,
-          estadoFisico: shiftInfo ? shiftInfo.estadoFisico : 'BUENO',
-          observacion: shiftInfo ? shiftInfo.observacion : null,
+          estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
+            ? item.estadoFisico 
+            : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
+          observacion: shiftInfo ? (shiftInfo.observacion || shiftInfo.novedades) : null,
           novedades: shiftInfo ? shiftInfo.novedades : null,
         };
       });
@@ -701,8 +731,10 @@ export class SpacesService {
           spaceName: item.physicalSpace?.name || '',
           cantidad: item.cantidad,
           jornada: j,
-          estadoFisico: shiftInfo ? shiftInfo.estadoFisico : 'BUENO',
-          observacion: shiftInfo ? shiftInfo.observacion : null,
+          estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
+            ? item.estadoFisico 
+            : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
+          observacion: shiftInfo ? (shiftInfo.observacion || shiftInfo.novedades) : null,
           novedades: shiftInfo ? shiftInfo.novedades : null,
         });
       }

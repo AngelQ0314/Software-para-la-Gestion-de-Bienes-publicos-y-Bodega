@@ -22,6 +22,7 @@ export class AdminLayoutComponent {
   notifications = computed(() => this.notificationsService.notifications());
   unreadCount = computed(() => this.notificationsService.unreadCount());
   currentUser = computed(() => this.authService.currentUser());
+  isAdmin = computed(() => this.currentUser()?.rol === 'ADMINISTRADOR');
 
   userFullName = computed(() => {
     const u = this.currentUser();

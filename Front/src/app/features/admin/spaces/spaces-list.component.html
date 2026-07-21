@@ -13,45 +13,85 @@
     </div>
   </div>
 
-  <!-- Barra de Filtros -->
-  <div class="glass-panel filter-bar">
-    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
-      <div class="filter-group">
-        <label class="form-label">Código / Número</label>
-        <input type="text" class="form-input" placeholder="Ej: LAB-3..." formControlName="roomNumber" />
+  <!-- Barra de Filtros Reestructurada y Moderna -->
+  <div class="glass-panel filter-bar-modern" style="padding: 20px; border-radius: 16px; margin-bottom: 25px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);">
+    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" style="display: flex; flex-direction: column; gap: 15px;">
+      
+      <!-- Fila 1: Buscador de texto completo (Código o Nombre) -->
+      <div style="display: flex; gap: 12px; width: 100%; align-items: center;">
+        <div style="position: relative; flex: 1;">
+          <span class="material-icons-round" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); opacity: 0.7; font-size: 1.2rem;">search</span>
+          <input type="text" 
+                 style="width: 100%; padding: 12px 16px 12px 42px; border-radius: 30px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.05); color: var(--text-primary); font-size: 0.9rem; outline: none; transition: all 0.2s ease;" 
+                 placeholder="Buscar por código, número o nombre del espacio físico..." 
+                 formControlName="search"
+                 (input)="applyFilters()" />
+        </div>
       </div>
 
-      <div class="filter-group">
-        <label class="form-label">Nombre del Espacio</label>
-        <input type="text" class="form-input" placeholder="Ej: Laboratorio de modas..." formControlName="name" />
-      </div>
+      <!-- Fila 2: Selects de Filtros y Botones -->
+      <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; justify-content: space-between;">
+        
+        <div style="display: flex; flex-wrap: wrap; gap: 15px; flex: 1;">
+          <!-- Tipo de Espacio -->
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 160px;">
+            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Tipo de Espacio</label>
+            <select style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none; cursor: pointer;" 
+                    formControlName="type"
+                    (change)="applyFilters()">
+              <option value="" style="background: var(--bg-card); color: var(--text-primary);">Todos los tipos</option>
+              <option value="AULA" style="background: var(--bg-card); color: var(--text-primary);">Aula</option>
+              <option value="LABORATORIO" style="background: var(--bg-card); color: var(--text-primary);">Laboratorio</option>
+              <option value="TALLER" style="background: var(--bg-card); color: var(--text-primary);">Taller</option>
+              <option value="OFICINA" style="background: var(--bg-card); color: var(--text-primary);">Oficina</option>
+              <option value="BODEGA" style="background: var(--bg-card); color: var(--text-primary);">Bodega</option>
+            </select>
+          </div>
 
-      <div class="filter-group">
-        <label class="form-label">Tipo de Espacio</label>
-        <select class="form-select" formControlName="type">
-          <option value="">Todos</option>
-          <option value="AULA">Aula</option>
-          <option value="LABORATORIO">Laboratorio</option>
-          <option value="TALLER">Taller</option>
-          <option value="OFICINA">Oficina</option>
-          <option value="BODEGA">Bodega</option>
-        </select>
-      </div>
+          <!-- Jornada -->
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 160px;">
+            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Jornada</label>
+            <select style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none; cursor: pointer;" 
+                    formControlName="jornada"
+                    (change)="applyFilters()">
+              <option value="" style="background: var(--bg-card); color: var(--text-primary);">Todas las jornadas</option>
+              <option value="MATUTINA" style="background: var(--bg-card); color: var(--text-primary);">Matutina</option>
+              <option value="VESPERTINA" style="background: var(--bg-card); color: var(--text-primary);">Vespertina</option>
+              <option value="NOCTURNA" style="background: var(--bg-card); color: var(--text-primary);">Nocturna</option>
+            </select>
+          </div>
 
-      <div class="filter-group">
-        <label class="form-label">Ubicación</label>
-        <input type="text" class="form-input" placeholder="Ej: Bloque B..." formControlName="location" />
-      </div>
+          <!-- Ubicación -->
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
+            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Ubicación / Piso</label>
+            <input type="text" 
+                   style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none;" 
+                   placeholder="Ej: Piso 1, Bloque B..." 
+                   formControlName="location"
+                   (input)="applyFilters()" />
+          </div>
+ 
+          <!-- Docente Responsable -->
+          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
+            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Docente Responsable</label>
+            <input type="text" 
+                   style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none;" 
+                   placeholder="Ej: Ángel Quihpe..." 
+                   formControlName="teacherName"
+                   (input)="applyFilters()" />
+          </div>
+        </div>
+ 
+        <!-- Botón Limpiar Filtros -->
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <button type="button" 
+                  style="display: flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); transition: all 0.2s ease;"
+                  (click)="resetFilters()">
+            <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+            Limpiar Filtros
+          </button>
+        </div>
 
-      <div class="filter-actions">
-        <button type="submit" class="btn btn-primary btn-filter">
-          <span class="material-icons-round" style="font-size:1.1rem">search</span>
-          Filtrar
-        </button>
-        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
-          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
-          Limpiar
-        </button>
       </div>
     </form>
   </div>
@@ -187,128 +227,155 @@
   <!-- MODAL: ASIGNAR ELEMENTOS DE INVENTARIO -->
   @if (showInventoryModal()) {
     <div class="modal-overlay animate-fade">
-      <div class="glass-panel modal-card animate-slide modal-card-lg">
+      <div class="glass-panel modal-card animate-slide modal-card-lg" style="max-width: 850px;">
         <div class="modal-header">
-          <h3>Inventario del Espacio: {{ selectedSpace()?.roomNumber }}</h3>
+          <h3>Inventario del Espacio: {{ selectedSpace()?.roomNumber }} - {{ selectedSpace()?.name }}</h3>
           <button class="close-btn" (click)="closeInventoryModal()">×</button>
         </div>
         
-        <div class="modal-grid-2">
-          <!-- Lado Izquierdo: Agregar Item -->
-          <div class="modal-column">
-            <h4>Asignar Nuevo Elemento</h4>
-            <div class="form-grid-2" style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; margin-top: 15px;">
-              <div class="form-group">
-                <label class="form-label" style="font-size: 0.72rem;">Tipo</label>
-                <select class="form-select" (change)="updateItemFilterView($any($event.target).value)" style="padding: 8px 12px; font-size: 0.8rem;">
-                  <option value="">Todos</option>
-                  @for (view of inventoryViews(); track view.id) {
-                    <option [value]="view.id" [selected]="selectedFilterView() === view.id">
-                      {{ view.name }}
-                    </option>
-                  }
-                </select>
-              </div>
-              <div class="form-group">
-                <label class="form-label" style="font-size: 0.72rem;">Buscar Artículo</label>
-                <input type="text" class="form-input" placeholder="Buscar por código o nombre..." 
-                       #searchField [value]="itemSearchQuery()" (input)="updateItemSearch(searchField.value)" style="padding: 8px 12px;" />
-              </div>
-            </div>
-
-            <form [formGroup]="inventoryForm" (ngSubmit)="addTempItem()" class="modal-form" style="margin-top: 10px;">
-              <div class="form-group">
-                <label class="form-label" style="font-size: 0.72rem;">Seleccionar Artículo*</label>
-                  <select class="form-select" formControlName="selectedItemId" style="padding: 8px 12px;">
-                    <option value="">-- Elige un artículo --</option>
-                    @for (item of filteredInventoryItems(); track item.id) {
-                      <option [value]="item.id">
-                        [{{ item.codigoYavirac }}] {{ item.name }} 
-                        - {{ item.subcategoria?.nombre || 'General' }} 
-                        - @if (item.inventoryView?.code === 'INSUMOS') {
-                          @if ((item.cantidad ?? 0) > 0) {
-                            Disponible (Bodega: {{ item.cantidad }} ud)
-                          } @else {
-                            NO DISPONIBLE
-                          }
-                        } @else {
-                          @if (!item.physicalSpace) {
-                            Disponible
-                          } @else {
-                            NO DISPONIBLE (Ubicado en: {{ item.physicalSpace.name }})
-                          }
-                        }
-                      </option>
-                    }
-                  </select>
-              </div>
-
-              <div class="form-group">
-                <label class="form-label">Cantidad a Trasladar*</label>
-                <input type="number" class="form-input" min="1" step="1" formControlName="assignQuantity" />
-                <span class="error-text" *ngIf="inventoryForm.get('assignQuantity')?.touched && inventoryForm.get('assignQuantity')?.invalid" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger);">
-                  Mínimo 1
-                </span>
-              </div>
-
-              <button type="submit" class="btn btn-secondary btn-block" [disabled]="inventoryForm.invalid">
-                + Añadir a la lista temporal
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-top: 10px;">
+          <!-- Barra de Filtros y Búsqueda Premium -->
+          <div class="filter-toolbar-card">
+            <!-- Categorías / Secciones (Pill Tabs) -->
+            <div class="pill-tabs-group">
+              <button type="button" class="pill-tab" [class.active]="selectedFilterView() === ''" (click)="updateItemFilterView('')">
+                Todos
               </button>
-            </form>
-          </div>
+              @for (view of inventoryViews(); track view.id) {
+                <button type="button" class="pill-tab" [class.active]="selectedFilterView() === view.id" (click)="updateItemFilterView(view.id)">
+                  {{ view.name }}
+                </button>
+              }
+            </div>
 
-          <!-- Lado Derecho: Lista temporal / Actual -->
-          <div class="modal-column">
-            <h4>Artículos a ser Asignados</h4>
-            
-            <div class="assigned-items-table-container">
-              <table class="assigned-items-table">
-                <thead>
-                  <tr>
-                    <th>Código</th>
-                    <th>Nombre</th>
-                    <th>Cantidad</th>
-                    <th style="width: 50px;"></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (item of assignedItemsTemp(); track $index) {
-                    <tr>
-                      <td class="font-mono">{{ item.codeValue }}</td>
-                      <td>{{ item.name }}</td>
-                      <td class="font-mono">{{ item.cantidad }}</td>
-                      <td>
-                        <button class="btn-delete-row" (click)="removeTempItem($index)">×</button>
-                      </td>
-                    </tr>
-                  } @empty {
-                    <tr>
-                      <td colspan="4" class="empty-table-cell">No hay elementos seleccionados.</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+            <!-- Buscador Amplio Ovalado -->
+            <div class="search-pill-wrapper">
+              <span class="material-icons-round search-icon">search</span>
+              <input type="text" class="search-pill-input" placeholder="Buscar código o nombre..." 
+                     #searchFieldModal [value]="itemSearchQuery()" (input)="updateItemSearch(searchFieldModal.value)" />
             </div>
           </div>
-        </div>
 
-        <!-- Alertas -->
-        @if (errorMessage()) {
-          <div class="alert-box error-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-            <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
-          </div>
-        }
-        @if (successMessage()) {
-          <div class="alert-box success-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-            <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
-          </div>
-        }
+          <!-- SECCIÓN 1: Artículos Asignados a este Espacio (si existen) -->
+          @if (assignedSpaceItems().length > 0) {
+            <div style="margin-top: 5px;">
+              <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #6366f1; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px; margin-bottom: 8px;">
+                <span class="material-icons-round" style="font-size: 1.1rem;">check_circle</span>
+                Artículos Asignados a este Espacio ({{ assignedSpaceItems().length }})
+              </span>
+              <div class="inventory-select-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; max-height: 180px; overflow-y: auto; padding: 2px;">
+                @for (item of assignedSpaceItems(); track item.id) {
+                  <div class="item-assigned-card">
+                    <div class="item-select-card-header">
+                      <span class="item-view-tag tag-bienes">{{ item.inventoryView?.name || 'General' }}</span>
+                      <span class="stock-badge in-space" style="font-size: 0.7rem; padding: 2px 6px;">En Aula</span>
+                    </div>
+                    <div class="item-select-card-body">
+                      <h5 class="item-name">{{ item.name }}</h5>
+                      <span class="item-code font-mono">Cod: {{ item.codigoYavirac || item.codeValue || 'Sin código' }}</span>
+                      <span class="item-sub">{{ item.subcategoria?.nombre || 'General' }}</span>
+                    </div>
+                    <div class="item-select-card-footer" style="justify-content: flex-end; padding-top: 6px;">
+                      <button type="button" class="btn-unlink-action" (click)="unassignItemFromSpace(item); $event.stopPropagation();">
+                        <span class="material-icons-round" style="font-size: 0.95rem;">link_off</span>
+                        Desvincular
+                      </button>
+                    </div>
+                  </div>
+                }
+              </div>
+            </div>
+          }
 
-        <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-          <button type="button" class="btn btn-secondary" (click)="closeInventoryModal()">Cancelar</button>
-          <button type="button" class="btn btn-primary" [disabled]="modalLoading()" (click)="onInventorySubmit()">
-            Confirmar y Asignar
-          </button>
+          <!-- SECCIÓN 2: Asignar Más Artículos (Disponibles) -->
+          <div style="margin-top: 10px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 2px;">
+              <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                <span class="material-icons-round" style="font-size: 1.1rem;">add_circle_outline</span>
+                Asignar Más Artículos (Disponibles: {{ availableSpaceItems().length }})
+              </span>
+              <button type="button" class="btn btn-secondary btn-sm" (click)="toggleSelectAllItems()" style="font-size: 0.75rem; padding: 3px 8px; display: flex; align-items: center; gap: 4px;">
+                <span class="material-icons-round" style="font-size: 0.95rem;">select_all</span>
+                {{ areAllVisibleItemsSelected() ? 'Desmarcar Todos' : 'Seleccionar Todos' }}
+              </button>
+            </div>
+
+            <div class="inventory-select-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; max-height: 220px; overflow-y: auto; padding: 2px;">
+              @for (item of availableSpaceItems(); track item.id) {
+                <div class="item-select-card" [class.selected]="isItemSelected(item.id)" (click)="toggleItemSelection(item)">
+                  <div class="item-select-card-header">
+                    <span class="item-view-tag" [ngClass]="{
+                      'tag-bienes': item.inventoryView?.code === 'BIENES_PUBLICOS',
+                      'tag-insumos': item.inventoryView?.code === 'INSUMOS',
+                      'tag-biblioteca': item.inventoryView?.code === 'BIBLIOTECA'
+                    }">
+                      {{ item.inventoryView?.name || 'General' }}
+                    </span>
+                    <span class="material-icons-round check-icon" *ngIf="isItemSelected(item.id)">check_circle</span>
+                    <span class="material-icons-round check-icon unchecked" *ngIf="!isItemSelected(item.id)">radio_button_unchecked</span>
+                  </div>
+
+                  <div class="item-select-card-body">
+                    <h5 class="item-name">{{ item.name }}</h5>
+                    <span class="item-code font-mono">Cod: {{ item.codigoYavirac || item.codeValue || 'Sin código' }}</span>
+                    <span class="item-sub">{{ item.subcategoria?.nombre || 'General' }}</span>
+                  </div>
+
+                   <div class="item-select-card-footer">
+                    @if (item.inventoryView?.code === 'INSUMOS') {
+                      <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;" (click)="$event.stopPropagation()">
+                        <span class="stock-badge" [class.in-stock]="(item.cantidad ?? 0) > 0" [class.no-stock]="(item.cantidad ?? 0) <= 0" style="margin: 0;">
+                          Stock: {{ item.cantidad ?? 0 }} ud
+                        </span>
+                        @if (isItemSelected(item.id)) {
+                          <div style="display: flex; align-items: center; gap: 4px;">
+                            <label style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Cant:</label>
+                            <input type="number" 
+                                   [value]="getItemQuantity(item.id)"
+                                   [max]="item.cantidad || 999"
+                                   min="1"
+                                   (input)="setItemQuantity(item, +$any($event.target).value)"
+                                   style="width: 55px; padding: 2px 6px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-primary); background: var(--bg-card); color: var(--text-primary);" />
+                          </div>
+                        }
+                      </div>
+                    } @else {
+                      <span class="stock-badge in-stock">Disponible</span>
+                    }
+                  </div>
+                </div>
+              } @empty {
+                <div class="empty-state" style="grid-column: 1 / -1; padding: 25px; text-align: center; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed var(--border-color);">
+                  <span class="material-icons-round" style="font-size: 1.8rem; color: var(--text-muted);">inventory_2</span>
+                  <p style="margin-top: 4px; font-size: 0.82rem;">No hay más artículos disponibles en este filtro.</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions" style="margin-top: 15px; border-top: 1px solid var(--border-color); padding-top: 15px; display: flex; justify-content: space-between; align-items: center;">
+            <button type="button" class="btn btn-secondary" (click)="closeInventoryModal()">Cancelar</button>
+            <div style="display: flex; align-items: center; gap: 15px;">
+              <span style="font-size: 0.88rem; color: var(--text-secondary); font-weight: 600;">
+                Asignados: <strong style="color: var(--color-primary);">{{ assignedItemsTemp().length }}</strong>
+              </span>
+              <button type="button" class="btn btn-primary" [disabled]="modalLoading()" (click)="onInventorySubmit()">
+                Guardar Asignación
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -333,18 +400,15 @@
 
         <!-- Pestañas de Navegación -->
         <div class="modal-tabs" style="display: flex; gap: 10px; border-bottom: 1px solid var(--border-color); margin-bottom: 20px; padding-bottom: 10px;">
-          <button class="tab-btn" [class.active]="activeTab() === 'info'" (click)="activeTab.set('info')" 
-                  style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          <button class="tab-btn" [class.active]="activeTab() === 'info'" (click)="activeTab.set('info')">
             <span class="material-icons-round" style="font-size: 1.1rem;">info</span>
             Ficha Técnica
           </button>
-          <button class="tab-btn" [class.active]="activeTab() === 'docentes'" (click)="activeTab.set('docentes')"
-                  style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          <button class="tab-btn" [class.active]="activeTab() === 'docentes'" (click)="activeTab.set('docentes')">
             <span class="material-icons-round" style="font-size: 1.1rem;">group</span>
             Docentes Responsables
           </button>
-          <button class="tab-btn" [class.active]="activeTab() === 'inventario'" (click)="activeTab.set('inventario')"
-                  style="display: flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: 8px; border: none; background: none; color: var(--text-secondary); font-weight: 600; cursor: pointer; transition: all 0.2s;">
+          <button class="tab-btn" [class.active]="activeTab() === 'inventario'" (click)="activeTab.set('inventario')">
             <span class="material-icons-round" style="font-size: 1.1rem;">inventory_2</span>
             Inventario Asignado
           </button>
@@ -404,44 +468,53 @@
           <!-- 2. Pestaña: Docentes Responsables -->
           @if (activeTab() === 'docentes') {
             <form [formGroup]="teachersForm" (ngSubmit)="onTeachersSubmit()" class="modal-form">
-              <p class="modal-hint" style="margin-bottom: 12px;">Selecciona los docentes asignados al espacio físico actual.</p>
-              
-              <div class="form-group" style="margin-bottom: 12px;">
-                <label class="form-label" style="font-size: 0.72rem;">Buscar Docente</label>
+              <p class="modal-hint" style="margin: 0 0 12px 0; color: var(--text-secondary); font-size: 0.88rem;">Selecciona los docentes asignados al espacio físico actual.</p>
+
+              <!-- Buscador de Docente -->
+              <div class="form-group" style="margin-bottom: 15px;">
+                <label class="form-label" style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--text-secondary);">BUSCAR DOCENTE</label>
                 <input type="text" class="form-input" placeholder="Buscar por nombre, cédula o correo..." 
-                       #teacherSearchField (input)="updateTeacherSearch(teacherSearchField.value)" style="padding: 8px 12px;" />
+                       #teacherSearchField [value]="teacherSearchQuery()" (input)="updateTeacherSearch(teacherSearchField.value)" style="padding: 10px 14px;" />
               </div>
 
-              <div class="teachers-selection-scroll" style="max-height: 200px; overflow-y: auto; background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); border-radius: 8px; padding: 10px;">
+              <!-- Grid de Tarjetas de Docentes -->
+              <div class="teachers-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; max-height: 280px; overflow-y: auto; padding: 4px;">
                 @for (t of filteredTeachers(); track t.id) {
-                  <label class="teacher-checkbox-row" style="display: flex; align-items: center; gap: 12px; padding: 8px; border-bottom: 1px solid rgba(255,255,255,0.03); cursor: pointer;">
-                    <input type="checkbox" [formControlName]="t.id" />
-                    <div class="teacher-row-info" style="display: flex; flex-direction: column;">
-                      <span class="teacher-name" style="font-weight: 600; font-size: 0.9rem;">{{ t.nombres }} {{ t.apellidos }}</span>
-                      <span class="teacher-meta" style="font-size: 0.75rem; color: var(--text-muted);">Cédula: {{ t.cedula }} | {{ t.correoInstitucional }}</span>
+                  <div class="teacher-select-card" [class.selected]="isTeacherSelected(t.id)" (click)="toggleTeacherSelection(t.id)">
+                    <div class="teacher-avatar">
+                      {{ (t.nombres?.[0] || 'D') + (t.apellidos?.[0] || '') }}
                     </div>
-                  </label>
+                    <div class="teacher-info">
+                      <span class="teacher-name">{{ t.nombres }} {{ t.apellidos }}</span>
+                      <span class="teacher-cedula">Cédula: {{ t.cedula || 'N/A' }}</span>
+                      <span class="teacher-email">{{ t.correoInstitucional }}</span>
+                    </div>
+                    <div class="selection-checkbox">
+                      <span class="material-icons-round" *ngIf="isTeacherSelected(t.id)">check_circle</span>
+                      <span class="material-icons-round unchecked" *ngIf="!isTeacherSelected(t.id)">radio_button_unchecked</span>
+                    </div>
+                  </div>
                 } @empty {
-                  <div class="empty-state" style="padding: 20px; text-align: center; color: var(--text-muted);">
-                    <p>No se encontraron docentes que coincidan con la búsqueda.</p>
+                  <div class="empty-state" style="grid-column: 1 / -1; padding: 30px; text-align: center; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed var(--border-color);">
+                    <span class="material-icons-round" style="font-size: 2rem; color: var(--text-muted);">person_search</span>
+                    <p style="margin-top: 6px;">No se encontraron docentes que coincidan con la búsqueda.</p>
                   </div>
                 }
               </div>
 
-
               <!-- Alertas -->
               @if (errorMessage()) {
-                <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px; margin-top: 15px;">
                   <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
                 </div>
               }
               @if (successMessage()) {
-                <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px; margin-top: 10px;">
+                <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px; margin-top: 15px;">
                   <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
                 </div>
               }
 
-              <div class="modal-actions" style="margin-top: 15px;">
+              <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
                 <button type="submit" class="btn btn-primary" [disabled]="modalLoading()">
                   Guardar Vinculación
                 </button>
@@ -451,126 +524,202 @@
 
           <!-- 3. Pestaña: Inventario Asignado -->
           @if (activeTab() === 'inventario') {
-            <div class="modal-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-              <!-- Lado Izquierdo: Agregar Item -->
-              <div class="modal-column">
-                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 10px;">Asignar Nuevo Elemento</h4>
-                <div class="form-grid-2" style="display: grid; grid-template-columns: 120px 1fr; gap: 10px;">
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 0.72rem;">Tipo</label>
-                    <select class="form-select" (change)="updateItemFilterView($any($event.target).value)" style="padding: 8px 12px; font-size: 0.8rem;">
-                      <option value="">Todos</option>
-                      @for (view of inventoryViews(); track view.id) {
-                        <option [value]="view.id" [selected]="selectedFilterView() === view.id">
-                          {{ view.name }}
-                        </option>
-                      }
-                    </select>
-                  </div>
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 0.72rem;">Buscar Artículo</label>
-                    <input type="text" class="form-input" placeholder="Buscar por código o nombre..." 
-                           #searchField [value]="itemSearchQuery()" (input)="updateItemSearch(searchField.value)" style="padding: 8px 12px;" />
-                  </div>
+            <div style="display: flex; flex-direction: column; gap: 15px;">
+              <!-- Barra de Filtros y Búsqueda Premium -->
+              <div class="filter-toolbar-card">
+                <!-- Categorías / Secciones (Pill Tabs) -->
+                <div class="pill-tabs-group">
+                  @for (view of inventoryViews(); track view.id) {
+                    <button type="button" class="pill-tab" [class.active]="selectedFilterView() === view.id" (click)="updateItemFilterView(view.id)">
+                      {{ view.name }}
+                    </button>
+                  }
                 </div>
 
-                <form [formGroup]="inventoryForm" (ngSubmit)="addTempItem()" class="modal-form" style="gap: 12px; margin-top: 10px;">
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 0.72rem;">Seleccionar Artículo*</label>
-                    <select class="form-select" formControlName="selectedItemId" style="padding: 8px 12px;">
-                      <option value="">-- Elige un artículo --</option>
-                      @for (item of filteredInventoryItems(); track item.id) {
-                        <option [value]="item.id">
-                          [{{ item.codigoYavirac }}] {{ item.name }} 
-                          - {{ item.subcategoria?.nombre || 'General' }} 
-                          - @if (item.inventoryView?.code === 'INSUMOS') {
-                            @if ((item.cantidad ?? 0) > 0) {
-                              Disponible (Bodega: {{ item.cantidad }} ud)
-                            } @else {
-                              NO DISPONIBLE
-                            }
-                          } @else {
-                            @if (!item.physicalSpace) {
-                              Disponible
-                            } @else {
-                              NO DISPONIBLE (Ubicado en: {{ item.physicalSpace.name }})
-                            }
-                          }
-                        </option>
-                      }
-                    </select>
-                  </div>
+                <!-- Buscador Amplio Ovalado -->
+                <div class="search-pill-wrapper">
+                  <span class="material-icons-round search-icon">search</span>
+                  <input type="text" class="search-pill-input" placeholder="Buscar código o nombre..." 
+                         #searchFieldTab [value]="itemSearchQuery()" (input)="updateItemSearch(searchFieldTab.value)" />
+                </div>
+              </div>
 
-                  <div class="form-group">
-                    <label class="form-label" style="font-size: 0.72rem;">Cantidad a Trasladar*</label>
-                    <input type="number" class="form-input" min="1" max="500" step="1" 
-                           formControlName="assignQuantity" 
-                           [readonly]="isQuantityReadOnly()"
-                           [style.opacity]="isQuantityReadOnly() ? 0.6 : 1"
-                           [style.cursor]="isQuantityReadOnly() ? 'not-allowed' : 'default'"
-                           style="padding: 8px 12px;" />
-                    <span class="error-text" *ngIf="inventoryForm.get('assignQuantity')?.touched && inventoryForm.get('assignQuantity')?.invalid" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger);">
-                      Rango permitido: 1 a 500
+              <!-- SECCIÓN 1: Artículos Asignados a este Espacio (si existen) -->
+              @if (assignedSpaceItems().length > 0) {
+                <div style="margin-top: 5px; margin-bottom: 12px;">
+                  <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                    <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: #6366f1; letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                      <span class="material-icons-round" style="font-size: 1.1rem;">check_circle</span>
+                      Artículos Asignados a este Espacio ({{ assignedSpaceItems().length }})
                     </span>
+                    <button type="button" class="btn btn-secondary btn-sm" (click)="hideAssignedItems.set(!hideAssignedItems())" style="font-size: 0.75rem; padding: 3px 8px; display: flex; align-items: center; gap: 4px;">
+                      <span class="material-icons-round" style="font-size: 0.95rem;">{{ hideAssignedItems() ? 'expand_more' : 'expand_less' }}</span>
+                      {{ hideAssignedItems() ? 'Mostrar Asignados' : 'Ocultar Asignados' }}
+                    </button>
                   </div>
-
-                  <button type="submit" class="btn btn-secondary btn-block" [disabled]="inventoryForm.invalid">
-                    + Añadir a la lista temporal
-                  </button>
-                </form>
-              </div>
-
-              <!-- Lado Derecho: Lista temporal / Actual -->
-              <div class="modal-column">
-                <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 10px;">Artículos a ser Asignados</h4>
-                
-                <div class="assigned-items-table-container" style="max-height: 180px; overflow-y: auto; background: rgba(0,0,0,0.1); border: 1px solid var(--border-color); border-radius: 8px;">
-                  <table class="assigned-items-table" style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                      <tr style="border-bottom: 1px solid var(--border-color); background: rgba(255,255,255,0.02);">
-                        <th style="padding: 8px; text-align: left; font-size: 0.75rem; color: var(--text-secondary);">Código</th>
-                        <th style="padding: 8px; text-align: left; font-size: 0.75rem; color: var(--text-secondary);">Nombre</th>
-                        <th style="padding: 8px; text-align: left; font-size: 0.75rem; color: var(--text-secondary);">Cantidad</th>
-                        <th style="width: 40px;"></th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      @for (item of assignedItemsTemp(); track $index) {
-                        <tr style="border-bottom: 1px solid rgba(255,255,255,0.02);">
-                          <td class="font-mono" style="padding: 8px; font-size: 0.8rem;">{{ item.codeValue }}</td>
-                          <td style="padding: 8px; font-size: 0.8rem;">{{ item.name }}</td>
-                          <td class="font-mono" style="padding: 8px; font-size: 0.8rem;">{{ item.cantidad }}</td>
-                          <td style="padding: 8px;">
-                            <button class="btn-delete-row" (click)="removeTempItem($index)" style="background: none; border: none; color: var(--color-danger); cursor: pointer; font-size: 1.1rem; line-height: 1;">×</button>
-                          </td>
-                        </tr>
-                      } @empty {
-                        <tr>
-                          <td colspan="4" class="empty-table-cell" style="padding: 20px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">No hay elementos seleccionados.</td>
-                        </tr>
+                  
+                  @if (!hideAssignedItems()) {
+                    <div class="inventory-select-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; max-height: 180px; overflow-y: auto; padding: 2px;">
+                      @for (item of assignedSpaceItems(); track item.id) {
+                        <div class="item-assigned-card">
+                          <div class="item-select-card-header" style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <span class="item-view-tag" [ngClass]="{
+                              'tag-bienes': item.inventoryView?.code === 'BIENES_PUBLICOS',
+                              'tag-insumos': item.inventoryView?.code === 'INSUMOS',
+                              'tag-biblioteca': item.inventoryView?.code === 'BIBLIOTECA'
+                            }">
+                              {{ item.inventoryView?.name || 'General' }}
+                            </span>
+                            <span class="badge" [ngClass]="{
+                              'badge-bueno': (item.estadoFisico || 'BUENO') === 'BUENO',
+                              'badge-regular': (item.estadoFisico || 'BUENO') === 'REGULAR',
+                              'badge-malo': (item.estadoFisico || 'BUENO') === 'MALO' || (item.estadoFisico || 'BUENO') === 'DANADO'
+                            }" style="font-size: 0.72rem; padding: 2px 8px; border-radius: 12px; font-weight: 700;">
+                              {{ item.estadoFisico || 'BUENO' }}
+                            </span>
+                          </div>
+                          <div class="item-select-card-body">
+                            <h5 class="item-name">{{ item.name }}</h5>
+                            <span class="item-code font-mono">Cod: {{ item.codigoYavirac || item.codeValue || 'Sin código' }}</span>
+                            @if (item.inventoryView?.code === 'INSUMOS') {
+                              <span style="font-size: 0.78rem; color: var(--text-secondary); display: block; margin-top: 4px;">
+                                Cantidad asignada: <strong style="color: var(--text-primary);">{{ item.cantidad }} ud</strong>
+                              </span>
+                            }
+                          </div>
+                          <div class="item-select-card-footer" style="justify-content: flex-end; padding-top: 6px;">
+                            <button type="button" class="btn-unlink-action" (click)="unassignItemFromSpace(item); $event.stopPropagation();">
+                              <span class="material-icons-round" style="font-size: 0.95rem;">link_off</span>
+                              Desvincular
+                            </button>
+                          </div>
+                        </div>
                       }
-                    </tbody>
-                  </table>
+                    </div>
+                  }
+                </div>
+              }
+
+              <!-- SECCIÓN 2: Asignar Más Artículos (Disponibles / No Disponibles) -->
+              <div style="margin-top: 10px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 0 2px;">
+                  <span style="font-size: 0.8rem; font-weight: 700; text-transform: uppercase; color: var(--text-muted); letter-spacing: 0.05em; display: flex; align-items: center; gap: 6px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">add_circle_outline</span>
+                    {{ showUnavailableItems() ? 'Artículos No Disponibles (En otra aula o Agotados)' : 'Asignar Más Artículos (Disponibles: ' + availableSpaceItems().length + ')' }}
+                  </span>
+                  <div style="display: flex; gap: 8px; align-items: center;">
+                    <button type="button" class="btn btn-secondary btn-sm" [class.btn-primary]="showUnavailableItems()" (click)="showUnavailableItems.set(!showUnavailableItems())" style="font-size: 0.75rem; padding: 3px 8px; display: flex; align-items: center; gap: 4px;">
+                      <span class="material-icons-round" style="font-size: 0.95rem;">{{ showUnavailableItems() ? 'visibility' : 'visibility_off' }}</span>
+                      Ver No Disponibles
+                    </button>
+                    @if (!showUnavailableItems()) {
+                      <button type="button" class="btn btn-secondary btn-sm" (click)="toggleSelectAllItems()" style="font-size: 0.75rem; padding: 3px 8px; display: flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 0.95rem;">select_all</span>
+                        {{ areAllVisibleItemsSelected() ? 'Desmarcar Todos' : 'Seleccionar Todos' }}
+                      </button>
+                    }
+                  </div>
+                </div>
+
+                <div class="inventory-select-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 10px; max-height: 220px; overflow-y: auto; padding: 2px;">
+                  @for (item of availableSpaceItems(); track item.id) {
+                    <div class="item-select-card" 
+                         [class.selected]="isItemSelected(item.id)" 
+                         [class.unavailable-card]="!isItemAvailable(item)"
+                         (click)="toggleItemSelection(item)">
+                      <div class="item-select-card-header">
+                        <span class="item-view-tag" [ngClass]="{
+                          'tag-bienes': item.inventoryView?.code === 'BIENES_PUBLICOS',
+                          'tag-insumos': item.inventoryView?.code === 'INSUMOS',
+                          'tag-biblioteca': item.inventoryView?.code === 'BIBLIOTECA'
+                        }">
+                          {{ item.inventoryView?.name || 'General' }}
+                        </span>
+                        @if (isItemAvailable(item)) {
+                          <span class="material-icons-round check-icon" *ngIf="isItemSelected(item.id)">check_circle</span>
+                          <span class="material-icons-round check-icon unchecked" *ngIf="!isItemSelected(item.id)">radio_button_unchecked</span>
+                        } @else {
+                          <span class="material-icons-round check-icon" style="color: #ef4444;">block</span>
+                        }
+                      </div>
+
+                      <div class="item-select-card-body">
+                        <h5 class="item-name">{{ item.name }}</h5>
+                        <span class="item-code font-mono">Cod: {{ item.codigoYavirac || item.codeValue || 'Sin código' }}</span>
+                        <span class="item-sub">{{ item.subcategoria?.nombre || 'General' }}</span>
+                        
+                        @if (!isItemAvailable(item)) {
+                          <div style="margin-top: 4px; padding: 6px 8px; border-radius: 6px; background: rgba(239, 68, 68, 0.08); border-left: 2px solid #ef4444; font-size: 0.72rem; color: var(--text-primary); text-align: left;" (click)="$event.stopPropagation()">
+                            @if (item.inventoryView?.code === 'INSUMOS') {
+                              <strong style="color: #ef4444;">Agotado en Bodega</strong>
+                            } @else {
+                              <strong style="color: #ef4444; display: block;">Asignado a otro espacio:</strong>
+                              <span>Aula: {{ item.physicalSpace?.name || 'Otro' }} ({{ item.physicalSpace?.roomNumber || '--' }})</span>
+                              @if (item.physicalSpace?.responsibleTeachers?.length > 0) {
+                                <span style="display: block; margin-top: 2px; color: var(--text-secondary); font-size: 0.7rem;">
+                                  Responsable: {{ item.physicalSpace.responsibleTeachers[0].nombres }} {{ item.physicalSpace.responsibleTeachers[0].apellidos }}
+                                </span>
+                              }
+                            }
+                          </div>
+                        }
+                      </div>
+
+                      <div class="item-select-card-footer">
+                        @if (item.inventoryView?.code === 'INSUMOS') {
+                          <div style="display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%;" (click)="$event.stopPropagation()">
+                            <span class="stock-badge" [class.in-stock]="(item.cantidad ?? 0) > 0" [class.no-stock]="(item.cantidad ?? 0) <= 0" style="margin: 0;">
+                              Stock: {{ item.cantidad ?? 0 }} ud
+                            </span>
+                            @if (isItemSelected(item.id) && isItemAvailable(item)) {
+                              <div style="display: flex; align-items: center; gap: 4px;">
+                                <label style="font-size: 0.72rem; color: var(--text-secondary); font-weight: 600;">Cant:</label>
+                                <input type="number" 
+                                       [value]="getItemQuantity(item.id)"
+                                       [max]="item.cantidad || 999"
+                                       min="1"
+                                       (input)="setItemQuantity(item, +$any($event.target).value)"
+                                       style="width: 55px; padding: 2px 6px; font-size: 0.8rem; border-radius: 6px; border: 1px solid var(--color-primary); background: var(--bg-card); color: var(--text-primary);" />
+                              </div>
+                            }
+                          </div>
+                        } @else {
+                          <span class="stock-badge" [class.in-stock]="isItemAvailable(item)" [class.no-stock]="!isItemAvailable(item)">
+                            {{ isItemAvailable(item) ? 'Disponible' : 'No Disponible' }}
+                          </span>
+                        }
+                      </div>
+                    </div>
+                  } @empty {
+                    <div class="empty-state" style="grid-column: 1 / -1; padding: 25px; text-align: center; color: var(--text-muted); background: rgba(255,255,255,0.02); border-radius: 10px; border: 1px dashed var(--border-color);">
+                      <span class="material-icons-round" style="font-size: 1.8rem; color: var(--text-muted);">inventory_2</span>
+                      <p style="margin-top: 4px; font-size: 0.82rem;">No hay más artículos en este filtro.</p>
+                    </div>
+                  }
                 </div>
               </div>
-            </div>
 
-            <!-- Alertas -->
-            @if (errorMessage()) {
-              <div class="alert-box error-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-                <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
-              </div>
-            }
-            @if (successMessage()) {
-              <div class="alert-box success-alert" style="margin-top: 15px; display: flex; align-items: center; gap: 8px;">
-                <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
-              </div>
-            }
+              <!-- Alertas -->
+              @if (errorMessage()) {
+                <div class="alert-box error-alert" style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                  <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+                </div>
+              }
+              @if (successMessage()) {
+                <div class="alert-box success-alert" style="margin-top: 10px; display: flex; align-items: center; gap: 8px;">
+                  <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+                </div>
+              }
 
-            <div style="display: flex; justify-content: flex-end; margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
-              <button type="button" class="btn btn-primary" [disabled]="modalLoading()" (click)="onInventorySubmit()">
-                Confirmar y Asignar
-              </button>
+              <!-- Footer con Conteo de Seleccionados y Botón de Confirmación -->
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 10px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+                <span style="font-size: 0.88rem; color: var(--text-secondary); font-weight: 600;">
+                  Asignados: <strong style="color: var(--color-primary);">{{ assignedItemsTemp().length }}</strong>
+                </span>
+                <button type="button" class="btn btn-primary" [disabled]="modalLoading()" (click)="onInventorySubmit()">
+                  Guardar Asignación
+                </button>
+              </div>
             </div>
           }
         </div>

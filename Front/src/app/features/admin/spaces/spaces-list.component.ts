@@ -19,6 +19,8 @@ export class SpacesListComponent implements OnInit {
   inventoryItems = signal<any[]>([]);
   inventoryViews = signal<any[]>([]);
   selectedFilterView = signal<string>('');
+  showUnavailableItems = signal<boolean>(false);
+  hideAssignedItems = signal<boolean>(false);
   
   isLoading = signal(false);
   modalLoading = signal(false);
@@ -53,10 +55,11 @@ export class SpacesListComponent implements OnInit {
     private readonly inventoryService: InventoryService
   ) {
     this.filterForm = this.fb.group({
-      roomNumber: [''],
-      name: [''],
+      search: [''],
       type: [''],
-      location: ['']
+      location: [''],
+      jornada: [''],
+      teacherName: ['']
     });
 
     this.spaceForm = this.fb.group({
@@ -100,7 +103,20 @@ export class SpacesListComponent implements OnInit {
   // Cargar Espacios
   loadSpaces(): void {
     this.isLoading.set(true);
-    const filters = this.filterForm.value;
+    const formVal = this.filterForm.value;
+
+    const filters: any = {
+      type: formVal.type,
+      location: formVal.location,
+      jornada: formVal.jornada,
+      teacherName: formVal.teacherName
+    };
+
+    if (formVal.search?.trim()) {
+      filters.name = formVal.search.trim();
+      filters.roomNumber = formVal.search.trim();
+    }
+
     this.spacesService.getAllSpaces(filters).subscribe({
       next: (res: PhysicalSpace[]) => {
         this.spaces.set(res);
@@ -111,6 +127,21 @@ export class SpacesListComponent implements OnInit {
         this.isLoading.set(false);
       }
     });
+  }
+
+  applyFilters(): void {
+    this.loadSpaces();
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset({
+      search: '',
+      type: '',
+      location: '',
+      jornada: '',
+      teacherName: ''
+    });
+    this.loadSpaces();
   }
 
   // Cargar Docentes (para vinculación)
@@ -126,6 +157,11 @@ export class SpacesListComponent implements OnInit {
     this.inventoryService.getViews().subscribe({
       next: (res: any[]) => {
         this.inventoryViews.set(res || []);
+        if (res && res.length > 0 && !this.selectedFilterView()) {
+          const firstViewId = res[0].id;
+          this.selectedFilterView.set(firstViewId);
+          this.loadInventoryItems('', firstViewId);
+        }
       }
     });
   }
@@ -155,19 +191,7 @@ export class SpacesListComponent implements OnInit {
     });
   }
 
-  applyFilters(): void {
-    this.loadSpaces();
-  }
 
-  resetFilters(): void {
-    this.filterForm.reset({
-      roomNumber: '',
-      name: '',
-      type: '',
-      location: ''
-    });
-    this.loadSpaces();
-  }
 
   // Modales
   openCreateModal(): void {
@@ -239,8 +263,11 @@ export class SpacesListComponent implements OnInit {
     })) || [];
     this.assignedItemsTemp.set(items);
     this.itemSearchQuery.set('');
-    this.selectedFilterView.set('');
-    this.loadInventoryItems('', '');
+    const firstViewId = this.inventoryViews().length > 0 ? this.inventoryViews()[0].id : '';
+    this.selectedFilterView.set(firstViewId);
+    this.showUnavailableItems.set(false);
+    this.hideAssignedItems.set(false);
+    this.loadInventoryItems('', firstViewId);
 
     this.inventoryForm.reset({
       selectedItemId: '',
@@ -296,8 +323,11 @@ export class SpacesListComponent implements OnInit {
     
     this.assignedItemsTemp.set(items);
     this.itemSearchQuery.set('');
-    this.selectedFilterView.set('');
-    this.loadInventoryItems('', '');
+    const firstViewId = this.inventoryViews().length > 0 ? this.inventoryViews()[0].id : '';
+    this.selectedFilterView.set(firstViewId);
+    this.showUnavailableItems.set(false);
+    this.hideAssignedItems.set(false);
+    this.loadInventoryItems('', firstViewId);
 
     this.inventoryForm.reset({
       selectedItemId: '',
@@ -546,6 +576,27 @@ export class SpacesListComponent implements OnInit {
     const spaceId = this.selectedSpace()?.id;
     if (!spaceId) return;
 
+    // Validar que para insumos la cantidad asignada no exceda el stock real en bodega
+    for (const assigned of this.assignedItemsTemp()) {
+      // Si el ítem ya estaba previamente asignado, no lo validamos contra el stock restante de bodega
+      const isPreExisting = this.selectedSpace()?.items?.some((i: any) => i.id === assigned.itemId);
+      if (isPreExisting) continue;
+
+      const originalItem = this.inventoryItems().find((i) => i.id === assigned.itemId);
+      if (originalItem && originalItem.inventoryView?.code === 'INSUMOS') {
+        const maxStock = Number(originalItem.cantidad || 0);
+        if (assigned.cantidad > maxStock) {
+          Swal.fire({
+            title: 'Cantidad Excedida',
+            text: `No puedes asignar ${assigned.cantidad} unidades del insumo "${assigned.name}" porque el stock máximo disponible en bodega es de ${maxStock} unidades.`,
+            icon: 'error',
+            confirmButtonText: 'Aceptar'
+          });
+          return;
+        }
+      }
+    }
+
     this.modalLoading.set(true);
     this.errorMessage.set(null);
 
@@ -559,12 +610,20 @@ export class SpacesListComponent implements OnInit {
         this.modalLoading.set(false);
         this.successMessage.set('Inventario del espacio actualizado correctamente.');
         
-        // Recargar los espacios y actualizar el espacio seleccionado para el modal de detalles
+        // Recargar inventario y espacios para refrescar la vista en tiempo real
+        this.loadInventoryItems(this.itemSearchQuery(), this.selectedFilterView());
         this.spacesService.getAllSpaces().subscribe((res) => {
           this.spaces.set(res);
           const updated = res.find((s) => s.id === spaceId);
           if (updated) {
             this.selectedSpace.set(updated);
+            const newAssigned = updated.items?.map((item: any) => ({
+              itemId: item.id,
+              name: item.name,
+              codeValue: item.codigoYavirac || item.codeValue || '',
+              cantidad: item.cantidad || 1
+            })) || [];
+            this.assignedItemsTemp.set(newAssigned);
           }
         });
 
@@ -582,10 +641,85 @@ export class SpacesListComponent implements OnInit {
     });
   }
 
+  unassignItemFromSpace(item: any): void {
+    const spaceId = this.selectedSpace()?.id;
+    if (!spaceId) return;
 
-  // Los items ahora vienen pre-filtrados desde el backend
+    this.modalLoading.set(true);
+    this.errorMessage.set(null);
+
+    this.spacesService.removeItem(spaceId, item.id).subscribe({
+      next: () => {
+        this.modalLoading.set(false);
+        this.successMessage.set(`Artículo "${item.name}" desvinculado del espacio correctamente.`);
+
+        // Actualizar lista temporal desmarcando el ítem
+        const updatedTemp = this.assignedItemsTemp().filter((i) => i.itemId !== item.id);
+        this.assignedItemsTemp.set(updatedTemp);
+
+        // Recargar inventario de espacios
+        this.loadInventoryItems(this.itemSearchQuery(), this.selectedFilterView());
+        this.spacesService.getAllSpaces().subscribe((res) => {
+          this.spaces.set(res);
+          const updated = res.find((s) => s.id === spaceId);
+          if (updated) {
+            this.selectedSpace.set(updated);
+          }
+        });
+
+        setTimeout(() => this.successMessage.set(null), 2500);
+      },
+      error: (err: any) => {
+        this.modalLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Error al desvincular el artículo.');
+      }
+    });
+  }
+
+
+  // Filtrar ítems elegibles (Disponibles o Asignados a este Espacio)
   filteredInventoryItems = computed(() => {
     return this.inventoryItems();
+  });
+
+  // Ítems que YA pertenecen al espacio actual y a la pestaña/vista activa
+  assignedSpaceItems = computed(() => {
+    const currentItems = this.selectedSpace()?.items || [];
+    const filterViewId = this.selectedFilterView();
+    if (!filterViewId) return currentItems;
+
+    return currentItems.filter((item) => {
+      const itemViewId = item.inventoryViewId || item.inventoryView?.id;
+      return itemViewId === filterViewId;
+    });
+  });
+
+  // Ítems elegibles para ser asignados
+  availableSpaceItems = computed(() => {
+    const currentSpaceId = this.selectedSpace()?.id;
+    const showUnavailable = this.showUnavailableItems();
+
+    return this.filteredInventoryItems().filter((item) => {
+      const itemSpaceId = item.physicalSpaceId || item.physicalSpace?.id;
+      
+      // Para insumos
+      if (item.inventoryView?.code === 'INSUMOS') {
+        const isBodega = !itemSpaceId;
+        if (showUnavailable) {
+          return isBodega && (item.cantidad ?? 0) <= 0; // Agotados en bodega
+        }
+        return isBodega && (item.cantidad ?? 0) > 0; // Con stock en bodega
+      }
+
+      // Para bienes y biblioteca
+      if (showUnavailable) {
+        // No disponibles: Asignados a otras aulas
+        return itemSpaceId && itemSpaceId !== currentSpaceId;
+      } else {
+        // Disponibles: Sin asignar a ningún aula
+        return !itemSpaceId;
+      }
+    });
   });
 
   updateItemSearch(val: string): void {
@@ -616,6 +750,119 @@ export class SpacesListComponent implements OnInit {
     this.teacherSearchQuery.set(val);
   }
 
+
+  isItemAvailable(item: any): boolean {
+    const itemSpaceId = item.physicalSpaceId || item.physicalSpace?.id;
+    if (item.inventoryView?.code === 'INSUMOS') {
+      return !itemSpaceId && (item.cantidad ?? 0) > 0;
+    }
+    return !itemSpaceId;
+  }
+
+  // ==========================================================
+  // LÓGICA DE SELECCIÓN MULTI-CARD (INVENTARIO Y DOCENTES)
+  // ==========================================================
+  isItemSelected(itemId: string): boolean {
+    return this.assignedItemsTemp().some((i) => i.itemId === itemId);
+  }
+
+  toggleItemSelection(item: any): void {
+    if (!this.isItemAvailable(item)) return;
+
+    const current = [...this.assignedItemsTemp()];
+    const index = current.findIndex((i) => i.itemId === item.id);
+
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push({
+        itemId: item.id,
+        name: item.name || item.dynamicValues?.['nombre'] || 'Artículo',
+        codeValue: item.codigoYavirac || item.codeValue || '',
+        cantidad: 1
+      });
+    }
+
+    this.assignedItemsTemp.set(current);
+  }
+
+  setItemQuantity(item: any, qty: number): void {
+    const validQty = isNaN(qty) || qty < 1 ? 1 : qty;
+    const current = [...this.assignedItemsTemp()];
+    const index = current.findIndex((i) => i.itemId === item.id);
+    if (index > -1) {
+      current[index].cantidad = validQty;
+      this.assignedItemsTemp.set(current);
+    }
+  }
+
+  getItemQuantity(itemId: string): number {
+    const found = this.assignedItemsTemp().find((i) => i.itemId === itemId);
+    return found ? (found.cantidad || 1) : 1;
+  }
+
+  areAllVisibleItemsSelected = computed(() => {
+    const visible = this.availableSpaceItems().filter((item) => this.isItemAvailable(item));
+    if (visible.length === 0) return false;
+    const temp = this.assignedItemsTemp();
+    return visible.every((item) => temp.some((t) => t.itemId === item.id));
+  });
+
+  toggleSelectAllItems(): void {
+    const visible = this.availableSpaceItems().filter((item) => this.isItemAvailable(item));
+    if (visible.length === 0) return;
+
+    let current = [...this.assignedItemsTemp()];
+    const allSelected = this.areAllVisibleItemsSelected();
+
+    if (allSelected) {
+      const visibleIds = new Set(visible.map((v) => v.id));
+      current = current.filter((i) => !visibleIds.has(i.itemId));
+    } else {
+      visible.forEach((item) => {
+        if (!current.some((i) => i.itemId === item.id)) {
+          current.push({
+            itemId: item.id,
+            name: item.name || item.dynamicValues?.['nombre'] || 'Artículo',
+            codeValue: item.codigoYavirac || item.codeValue || '',
+            cantidad: 1
+          });
+        }
+      });
+    }
+
+    this.assignedItemsTemp.set(current);
+  }
+
+  isTeacherSelected(teacherId: string): boolean {
+    return !!this.teachersForm.get(teacherId)?.value;
+  }
+
+  toggleTeacherSelection(teacherId: string): void {
+    const control = this.teachersForm.get(teacherId);
+    if (control) {
+      control.setValue(!control.value);
+    }
+  }
+
+  areAllVisibleTeachersSelected = computed(() => {
+    const visible = this.filteredTeachers();
+    if (visible.length === 0) return false;
+    return visible.every((t) => this.isTeacherSelected(t.id));
+  });
+
+  toggleSelectAllTeachers(): void {
+    const visible = this.filteredTeachers();
+    if (visible.length === 0) return;
+
+    const shouldSelect = !this.areAllVisibleTeachersSelected();
+    visible.forEach((t) => {
+      const control = this.teachersForm.get(t.id);
+      if (control) {
+        control.setValue(shouldSelect);
+      }
+    });
+  }
 
   isQuantityReadOnly(): boolean {
     const itemId = this.inventoryForm.get('selectedItemId')?.value;

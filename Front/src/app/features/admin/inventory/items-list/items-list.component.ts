@@ -262,6 +262,16 @@ export class ItemsListComponent implements OnInit {
     this.dynamicFilters.set({});
   }
 
+  handleBack(): void {
+    if (this.selectedSubcategory()) {
+      this.goBackToSubcategories();
+    } else if (this.selectedCategory()) {
+      this.goBackToCategories();
+    } else if (this.selectedView() || this.viewingOrphans()) {
+      this.goBackToViews();
+    }
+  }
+
   loadItems(): void {
     const viewCode = this.selectedView();
     if (!viewCode) return;

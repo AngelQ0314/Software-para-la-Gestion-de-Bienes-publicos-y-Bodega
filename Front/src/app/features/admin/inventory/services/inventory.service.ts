@@ -286,6 +286,7 @@ export class InventoryService {
             roomNumber: i.physicalSpace.roomNumber,
             responsibleTeachers: i.physicalSpace.responsibleTeachers || []
           } : null,
+          inventoryView: i.inventoryView,
         })),
         total: res.total || 0,
         lastPage: res.lastPage || 1,

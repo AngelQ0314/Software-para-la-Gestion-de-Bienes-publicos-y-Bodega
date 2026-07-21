@@ -62,6 +62,8 @@ export const routes: Routes = [
       },
       {
         path: 'users',
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR'] },
         loadComponent: () =>
           import('./features/admin/users/users-list.component').then(
             (m) => m.UsersListComponent
@@ -91,6 +93,8 @@ export const routes: Routes = [
       },
       {
         path: 'requests',
+        canActivate: [roleGuard],
+        data: { roles: ['ADMINISTRADOR'] },
         loadComponent: () =>
           import('./features/admin/requests/requests-list.component').then(
             (m) => m.RequestsListComponent

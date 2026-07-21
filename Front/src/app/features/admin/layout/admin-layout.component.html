@@ -16,14 +16,15 @@
         <span class="material-icons-round">dashboard</span> Dashboard
       </a>
       
-      <a routerLink="/admin/users" routerLinkActive="active" class="nav-item">
-        <span class="material-icons-round">people</span> Usuarios
-      </a>
+      @if (isAdmin()) {
+        <a routerLink="/admin/users" routerLinkActive="active" class="nav-item">
+          <span class="material-icons-round">people</span> Usuarios
+        </a>
+      }
       
       <a routerLink="/admin/inventory" routerLinkActive="active" class="nav-item">
         <span class="material-icons-round">inventory_2</span> Inventario
       </a>
-
 
       <a routerLink="/admin/spaces" routerLinkActive="active" class="nav-item">
         <span class="material-icons-round">corporate_fare</span> Espacios físicos
@@ -33,9 +34,11 @@
         <span class="material-icons-round">calendar_today</span> Período académico
       </a>
 
-      <a routerLink="/admin/requests" routerLinkActive="active" class="nav-item">
-        <span class="material-icons-round">assignment</span> Solicitudes
-      </a>
+      @if (isAdmin()) {
+        <a routerLink="/admin/requests" routerLinkActive="active" class="nav-item">
+          <span class="material-icons-round">assignment</span> Solicitudes
+        </a>
+      }
 
       <a routerLink="/admin/incidents" routerLinkActive="active" class="nav-item">
         <span class="material-icons-round">warning_amber</span> Reporte de novedades

@@ -20,6 +20,8 @@ export class AdminDashboardComponent implements OnInit {
     return u ? `${u.nombres || ''} ${u.apellidos || ''}`.trim() || u.cedula : 'Administrador';
   });
 
+  isAdmin = computed(() => this.authService.currentUser()?.rol === 'ADMINISTRADOR');
+
   // Estadísticas dinámicas
   totalBienes = signal<number>(0);
   totalInsumos = signal<number>(0);

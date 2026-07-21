@@ -1,6 +1,6 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, In } from 'typeorm';
+import { Repository, In, IsNull } from 'typeorm';
 import { IncidentReport } from './entities/incident-report.entity';
 import { IncidentReportItem } from './entities/incident-report-item.entity';
 import { AcademicPeriod } from '../periods/entities/academic-period.entity';
@@ -87,11 +87,12 @@ export class IncidentsService {
       jornada: dto.jornada,
       description: dto.description.trim(),
       status: 'PENDIENTE',
+      estadoFisico: dto.estadoFisico || 'REGULAR',
     });
 
     const savedReport = await this.reportRepo.save(report);
 
-    // Asociar artículos y actualizar estado en jornada (shift)
+    // Asociar artículos y actualizar estado en jornada (shift) y entidad principal Item
     const reportItems = dto.itemIds.map((itemId) =>
       this.reportItemRepo.create({
         incidentReportId: savedReport.id,
@@ -101,21 +102,50 @@ export class IncidentsService {
     await this.reportItemRepo.save(reportItems);
 
     for (const itemId of dto.itemIds) {
-      let shiftRecord = await this.shiftRepo.findOne({
-        where: { itemId, spaceId: dto.spaceId, jornada: dto.jornada }
+      // 1. Actualizar el estado físico de la entidad principal Item para el inventario global
+      const itemObj = await this.itemRepo.findOne({
+        where: { id: itemId },
+        relations: { inventoryView: true }
       });
+      if (itemObj) {
+        itemObj.estadoFisico = dto.estadoFisico || 'REGULAR';
+        await this.itemRepo.save(itemObj);
 
-      if (!shiftRecord) {
-        shiftRecord = this.shiftRepo.create({
-          itemId,
-          spaceId: dto.spaceId,
-          jornada: dto.jornada,
-        });
+        // Si es un insumo clonado en un aula, también actualizar el insumo padre en bodega para el inventario general
+        if (itemObj.physicalSpaceId && itemObj.inventoryView?.code === 'INSUMOS') {
+          const parentItem = await this.itemRepo.findOne({
+            where: {
+              name: itemObj.name,
+              codeValue: itemObj.codeValue === null ? IsNull() : itemObj.codeValue,
+              physicalSpaceId: IsNull(),
+              status: 'ACTIVO',
+            }
+          });
+          if (parentItem) {
+            parentItem.estadoFisico = dto.estadoFisico || 'REGULAR';
+            await this.itemRepo.save(parentItem);
+          }
+        }
       }
 
-      shiftRecord.estadoFisico = dto.estadoFisico || 'REGULAR'; // Marcar con el estado físico seleccionado por el docente
-      shiftRecord.novedades = dto.description.trim();
-      await this.shiftRepo.save(shiftRecord);
+      // 2. Actualizar estado en todas las jornadas (shifts) del espacio físico
+      for (const jornada of space.jornadas) {
+        let shiftRecord = await this.shiftRepo.findOne({
+          where: { itemId, spaceId: dto.spaceId, jornada }
+        });
+
+        if (!shiftRecord) {
+          shiftRecord = this.shiftRepo.create({
+            itemId,
+            spaceId: dto.spaceId,
+            jornada,
+          });
+        }
+
+        shiftRecord.estadoFisico = dto.estadoFisico || 'REGULAR';
+        shiftRecord.novedades = dto.description.trim();
+        await this.shiftRepo.save(shiftRecord);
+      }
     }
 
     return this.findOneIncident(savedReport.id, teacherId, UserRole.DOCENTE);
@@ -198,14 +228,39 @@ export class IncidentsService {
     report.status = dto.status;
     await this.reportRepo.save(report);
 
-    // Si se resuelve el incidente, restauramos el estado físico de los bienes a 'BUENO'
+    // Si se resuelve el incidente, restauramos el estado físico de los bienes a 'BUENO' en entidad Item y en todas las jornadas del espacio
     if (dto.status === 'RESUELTO') {
       for (const reportItem of report.items) {
-        const shiftRecord = await this.shiftRepo.findOne({
-          where: { itemId: reportItem.itemId, spaceId: report.spaceId, jornada: report.jornada }
+        const itemObj = await this.itemRepo.findOne({
+          where: { id: reportItem.itemId },
+          relations: { inventoryView: true }
+        });
+        if (itemObj) {
+          itemObj.estadoFisico = 'BUENO';
+          await this.itemRepo.save(itemObj);
+
+          // Si es un insumo clonado en un aula, también restaurar el insumo padre en bodega a BUENO
+          if (itemObj.physicalSpaceId && itemObj.inventoryView?.code === 'INSUMOS') {
+            const parentItem = await this.itemRepo.findOne({
+              where: {
+                name: itemObj.name,
+                codeValue: itemObj.codeValue === null ? IsNull() : itemObj.codeValue,
+                physicalSpaceId: IsNull(),
+                status: 'ACTIVO',
+              }
+            });
+            if (parentItem) {
+              parentItem.estadoFisico = 'BUENO';
+              await this.itemRepo.save(parentItem);
+            }
+          }
+        }
+
+        const shifts = await this.shiftRepo.find({
+          where: { itemId: reportItem.itemId, spaceId: report.spaceId }
         });
 
-        if (shiftRecord) {
+        for (const shiftRecord of shifts) {
           shiftRecord.estadoFisico = 'BUENO';
           shiftRecord.novedades = null;
           await this.shiftRepo.save(shiftRecord);

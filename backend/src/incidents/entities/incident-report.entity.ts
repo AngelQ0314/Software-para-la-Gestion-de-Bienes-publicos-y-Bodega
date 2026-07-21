@@ -51,6 +51,9 @@ export class IncidentReport {
   @Column({ type: 'varchar', length: 50, default: 'PENDIENTE' })
   status: string; // 'PENDIENTE', 'REVISADO', 'RESUELTO'
 
+  @Column({ name: 'estado_fisico', type: 'varchar', length: 50, default: 'REGULAR' })
+  estadoFisico: string; // 'BUENO', 'REGULAR', 'MALO'
+
   @OneToMany(() => IncidentReportItem, (item) => item.incidentReport, { cascade: true })
   items: IncidentReportItem[];
 

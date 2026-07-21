@@ -1,7 +1,7 @@
 <div class="dashboard-container animate-fade">
   <!-- Encabezado de bienvenida -->
   <div class="welcome-header">
-    <h2 class="welcome-title">Panel de Administración</h2>
+    <h2 class="welcome-title">{{ isAdmin() ? 'Panel de Administración' : 'Panel de Responsable de Bienes' }}</h2>
     <p class="welcome-subtitle">Resumen del sistema – {{ activePeriodName() }}</p>
   </div>
 
@@ -50,18 +50,20 @@
     </div>
 
     <!-- Solicitudes Pendientes -->
-    <div class="stat-card glass-card">
-      <div class="stat-header">
-        <div class="stat-icon-wrapper color-amber">
-          <span class="material-icons-round">assignment</span>
+    @if (isAdmin()) {
+      <div class="stat-card glass-card">
+        <div class="stat-header">
+          <div class="stat-icon-wrapper color-amber">
+            <span class="material-icons-round">assignment</span>
+          </div>
+          <span class="badge badge-pending">En espera</span>
         </div>
-        <span class="badge badge-pending">En espera</span>
+        <div class="stat-body">
+          <h3 class="stat-value">{{ pendingRequestsCount() }}</h3>
+          <p class="stat-label">Solicitudes Pendientes</p>
+        </div>
       </div>
-      <div class="stat-body">
-        <h3 class="stat-value">{{ pendingRequestsCount() }}</h3>
-        <p class="stat-label">Solicitudes Pendientes</p>
-      </div>
-    </div>
+    }
   </div>
 
   <!-- PERIODO ACADÉMICO INFO -->
@@ -135,33 +137,35 @@
     </div>
 
     <!-- Últimas solicitudes -->
-    <div class="glass-panel panel-requests">
-      <div class="panel-section-header">
-        <h3 class="panel-section-title">Últimas Solicitudes</h3>
-        <a routerLink="/admin/requests" class="view-all-link">Ver todas</a>
-      </div>
+    @if (isAdmin()) {
+      <div class="glass-panel panel-requests">
+        <div class="panel-section-header">
+          <h3 class="panel-section-title">Últimas Solicitudes</h3>
+          <a routerLink="/admin/requests" class="view-all-link">Ver todas</a>
+        </div>
 
-      <div class="requests-list">
-        @for (req of lastRequests(); track req.id) {
-          <div class="request-item">
-            <div class="request-icon-box" [class.transfer-icon]="req.type === 'TRANSFERENCIA'" [class.new-icon]="req.type !== 'TRANSFERENCIA'">
-              <span class="material-icons-round">{{ req.type === 'TRANSFERENCIA' ? 'swap_horiz' : 'add_circle' }}</span>
+        <div class="requests-list">
+          @for (req of lastRequests(); track req.id) {
+            <div class="request-item">
+              <div class="request-icon-box" [class.transfer-icon]="req.type === 'TRANSFERENCIA'" [class.new-icon]="req.type !== 'TRANSFERENCIA'">
+                <span class="material-icons-round">{{ req.type === 'TRANSFERENCIA' ? 'swap_horiz' : 'add_circle' }}</span>
+              </div>
+              <div class="request-details">
+                <h4 class="request-user">{{ req.teacher?.nombres || 'Docente' }} {{ req.teacher?.apellidos || '' }}</h4>
+                <p class="request-meta">{{ formatRequestType(req.type) }} – {{ formatDate(req.createdAt) }}</p>
+              </div>
+              <span class="badge" [class.badge-pending]="req.status === 'EN_PROCESO'" [class.badge-activo]="req.status === 'APROBADO'" [class.badge-inactivo]="req.status === 'RECHAZADO'">
+                {{ req.status === 'EN_PROCESO' ? 'Pendiente' : (req.status === 'APROBADO' ? 'Aprobado' : 'Rechazado') }}
+              </span>
             </div>
-            <div class="request-details">
-              <h4 class="request-user">{{ req.teacher?.nombres || 'Docente' }} {{ req.teacher?.apellidos || '' }}</h4>
-              <p class="request-meta">{{ formatRequestType(req.type) }} – {{ formatDate(req.createdAt) }}</p>
+          } @empty {
+            <div class="empty-notifications" style="padding: 40px 10px;">
+              <span class="material-icons-round empty-icon">done_all</span>
+              <p>No hay solicitudes de docentes registradas.</p>
             </div>
-            <span class="badge" [class.badge-pending]="req.status === 'EN_PROCESO'" [class.badge-activo]="req.status === 'APROBADO'" [class.badge-inactivo]="req.status === 'RECHAZADO'">
-              {{ req.status === 'EN_PROCESO' ? 'Pendiente' : (req.status === 'APROBADO' ? 'Aprobado' : 'Rechazado') }}
-            </span>
-          </div>
-        } @empty {
-          <div class="empty-notifications" style="padding: 40px 10px;">
-            <span class="material-icons-round empty-icon">done_all</span>
-            <p>No hay solicitudes de docentes registradas.</p>
-          </div>
-        }
+          }
+        </div>
       </div>
-    </div>
+    }
   </div>
 </div>

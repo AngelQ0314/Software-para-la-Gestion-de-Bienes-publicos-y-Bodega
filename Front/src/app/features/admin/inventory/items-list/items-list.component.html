@@ -1,9 +1,19 @@
 <div class="inventory-container">
   <!-- Cabecera de la Vista -->
   <div class="inventory-header glass-panel">
-    <div class="header-info">
-      <h2>Bienes y Existencias</h2>
-      <p class="section-desc">Consulta, gestiona y cataloga los recursos institucionales a través de una navegación jerárquica.</p>
+    <div class="header-info" style="display: flex; align-items: center; gap: 15px;">
+      @if (selectedView()) {
+        <button (click)="handleBack()" 
+                class="btn-back"
+                style="display: flex; align-items: center; justify-content: center; width: 38px; height: 38px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--bg-card); color: var(--text-primary); cursor: pointer; transition: all 0.2s ease; box-shadow: 0 2px 8px rgba(0,0,0,0.05);"
+                title="Volver al nivel anterior">
+          <span class="material-icons-round" style="font-size: 1.3rem;">arrow_back</span>
+        </button>
+      }
+      <div>
+        <h2>Bienes y Existencias</h2>
+        <p class="section-desc">Consulta, gestiona y cataloga los recursos institucionales a través de una navegación jerárquica.</p>
+      </div>
     </div>
     <div class="header-actions" style="display: flex; gap: 10px;">
       @if (selectedView()) {
@@ -19,40 +29,7 @@
     </div>
   </div>
 
-  <!-- Breadcrumbs de Navegación Jerárquica -->
-  @if (selectedView()) {
-    <div class="breadcrumbs-panel glass-panel">
-      <div class="breadcrumbs">
-        <span class="breadcrumb-item link" (click)="goBackToViews()">Inventario General</span>
-        <span class="breadcrumb-separator">/</span>
-        
-        @if (viewingOrphans()) {
-          <span class="breadcrumb-item link" (click)="goBackToCategories()">
-            {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
-          </span>
-          <span class="breadcrumb-separator">/</span>
-          <span class="breadcrumb-item active">Artículos Eliminados</span>
-        } @else if (!selectedCategory()) {
-          <span class="breadcrumb-item active">
-            {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
-          </span>
-        } @else {
-          <span class="breadcrumb-item link" (click)="goBackToCategories()">
-            {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}
-          </span>
-          <span class="breadcrumb-separator">/</span>
-          
-          @if (!selectedSubcategory()) {
-            <span class="breadcrumb-item active">{{ selectedCategory()?.nombre }}</span>
-          } @else {
-            <span class="breadcrumb-item link" (click)="goBackToSubcategories()">{{ selectedCategory()?.nombre }}</span>
-            <span class="breadcrumb-separator">/</span>
-            <span class="breadcrumb-item active">{{ selectedSubcategory()?.nombre }}</span>
-          }
-        }
-      </div>
-    </div>
-  }
+
 
   <!-- ==========================================================
        NIVEL 1: LAS 3 CARDS DE VISTAS PRINCIPALES
@@ -114,7 +91,7 @@
       <div class="section-title-bar">
         <h3>Categorías en {{ selectedView() === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : selectedView() === 'INSUMOS' ? 'Insumos y Bodega' : 'Biblioteca' }}</h3>
         <div style="display: flex; gap: 10px; align-items: center;">
-          <button class="btn btn-secondary btn-sm" (click)="selectOrphans()" style="border-color: #ef4444; color: #ef4444; display: flex; align-items: center; gap: 6px;">
+          <button class="btn btn-secondary btn-sm" (click)="selectOrphans()" style="border-color: #ef4444; color: #ef4444 !important; background: rgba(239, 68, 68, 0.05); display: flex; align-items: center; gap: 6px;">
             <span class="material-icons-round" style="font-size: 1.1rem;">delete</span> Artículos Eliminados
           </button>
           <button class="btn btn-secondary btn-sm" (click)="openCategoryModal()" style="display: flex; align-items: center; gap: 6px;">

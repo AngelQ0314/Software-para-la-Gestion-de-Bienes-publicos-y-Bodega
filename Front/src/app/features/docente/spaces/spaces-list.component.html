@@ -108,41 +108,62 @@
               <p>Consultando inventario por jornada...</p>
             </div>
           } @else {
-            <div class="assigned-items-table-container">
-              <table class="assigned-items-table">
-                <thead>
-                  <tr>
-                    <th>Código Yavirac</th>
-                    <th>Nombre del Artículo</th>
-                    <th>Categoría</th>
-                    <th>Cantidad</th>
-                    <th>Estado Físico</th>
-                    <th>Observación (en esta jornada)</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  @for (row of spaceInventory(); track row.id) {
-                    <tr>
-                      <td class="font-mono" style="font-weight: 700;">{{ row.codeValue || '--' }}</td>
-                      <td>{{ row.name || 'Artículo sin nombre' }}</td>
-                      <td>{{ row.category || 'General' }}</td>
-                      <td class="font-mono">{{ row.cantidad }}</td>
-                      <td>
-                        <span class="badge" [ngClass]="'badge-' + (row.estadoFisico || 'BUENO').toLowerCase()">
-                          {{ row.estadoFisico || 'BUENO' }}
-                        </span>
-                      </td>
-                      <td class="italic" style="font-size: 0.85rem; color: var(--text-secondary);">
-                        {{ row.observacion || 'Sin observaciones' }}
-                      </td>
-                    </tr>
-                  } @empty {
-                    <tr>
-                      <td colspan="6" class="empty-table-cell">No se registran artículos asignados a esta jornada académica.</td>
-                    </tr>
-                  }
-                </tbody>
-              </table>
+            <div class="items-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
+              @for (row of spaceInventory(); track row.id) {
+                <div class="item-docente-card glass-card" style="padding: 18px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-card); display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
+                  
+                  <!-- Cabecera de la tarjeta con nombre y badge de estado -->
+                  <div>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
+                      <h4 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--text-primary);">{{ row.name || 'Artículo sin nombre' }}</h4>
+                      <span class="badge" [ngClass]="{
+                        'badge-bueno': (row.estadoFisico || 'BUENO') === 'BUENO',
+                        'badge-regular': (row.estadoFisico || 'BUENO') === 'REGULAR',
+                        'badge-malo': (row.estadoFisico || 'BUENO') === 'MALO' || (row.estadoFisico || 'BUENO') === 'DANADO'
+                      }">
+                        {{ row.estadoFisico || 'BUENO' }}
+                      </span>
+                    </div>
+
+                    <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px;">
+                      <span class="sub-tag" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-family: monospace; font-size: 0.78rem;">
+                        Cod: {{ row.codeValue || '--' }}
+                      </span>
+                      <span class="sub-tag" style="background: rgba(168, 85, 247, 0.12); color: #a855f7; font-size: 0.75rem;">
+                        {{ row.category || 'General' }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- Detalle de cantidad u observación -->
+                  <div style="border-top: 1px dashed var(--border-color); padding-top: 10px; display: flex; flex-direction: column; gap: 6px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-secondary);">
+                      <span>Cantidad en aula:</span>
+                      <strong style="color: var(--text-primary); font-family: monospace;">{{ row.cantidad }} ud</strong>
+                    </div>
+
+                    <!-- Si hay novedades/observaciones reportadas -->
+                    @if (row.observacion || row.novedades) {
+                      <div style="margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; font-size: 0.78rem; color: var(--text-primary);">
+                        <strong style="color: #d97706; display: flex; align-items: center; gap: 4px;">
+                          <span class="material-icons-round" style="font-size: 0.9rem;">report_problem</span> Motivo / Reporte:
+                        </strong>
+                        <p style="margin: 2px 0 0 0; line-height: 1.3;">{{ row.observacion || row.novedades }}</p>
+                      </div>
+                    } @else {
+                      <div style="font-size: 0.78rem; color: var(--text-muted); font-style: italic;">
+                        Sin observaciones o novedades reportadas.
+                      </div>
+                    }
+                  </div>
+
+                </div>
+              } @empty {
+                <div class="empty-state glass-panel" style="grid-column: 1 / -1; padding: 30px; text-align: center; color: var(--text-muted);">
+                  <span class="material-icons-round" style="font-size: 2.2rem; margin-bottom: 8px; color: var(--text-muted);">inventory_2</span>
+                  <p>No se registran artículos asignados a esta jornada académica.</p>
+                </div>
+              }
             </div>
           }
         </div>

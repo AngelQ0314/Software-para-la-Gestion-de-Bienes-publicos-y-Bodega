@@ -37,6 +37,8 @@ export class SpacesController {
     @Query('name') name?: string,
     @Query('type') type?: SpaceType,
     @Query('location') location?: string,
+    @Query('jornada') jornada?: string,
+    @Query('teacherName') teacherName?: string,
     @Query('allSpaces') allSpaces?: string,
   ) {
     const isDocente = req.user.rol === UserRole.DOCENTE;
@@ -47,6 +49,8 @@ export class SpacesController {
       name,
       type,
       location,
+      jornada,
+      teacherName,
       teacherId: shouldFilter ? req.user.id : undefined,
       role: shouldFilter ? req.user.rol : undefined,
     });

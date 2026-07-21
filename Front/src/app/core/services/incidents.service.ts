@@ -11,6 +11,7 @@ export interface IncidentReport {
   jornada: 'MATUTINA' | 'VESPERTINA' | 'NOCTURNA';
   description: string;
   status: 'PENDIENTE' | 'REVISADO' | 'RESUELTO';
+  estadoFisico?: string;
   createdAt: string;
   updatedAt: string;
   teacher?: any;
