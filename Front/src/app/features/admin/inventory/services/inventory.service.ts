@@ -59,6 +59,7 @@ export interface InventoryItem {
   inventoryView?: { id: string; name: string; code: string } | null;
   disponible?: boolean;
   mensajeDisponibilidad?: string;
+  distribucionEspacios?: any[];
 }
 
 @Injectable({
@@ -331,8 +332,14 @@ export class InventoryService {
           roomNumber: i.physicalSpace.roomNumber,
           responsibleTeachers: i.physicalSpace.responsibleTeachers || []
         } : null,
+        inventoryView: i.inventoryView,
+        distribucionEspacios: i.distribucionEspacios || [],
       }))
     );
+  }
+
+  getItemById(id: string): Observable<InventoryItem> {
+    return this.getItem(id);
   }
 
   createItem(item: InventoryItem): Observable<InventoryItem> {

@@ -1,8 +1,11 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Subject } from 'rxjs';
 import { RequestsService } from './requests.service';
 import { IncidentsService } from './incidents.service';
 import { Router } from '@angular/router';
+
+import { InventoryService } from '../../features/admin/inventory/services/inventory.service';
 
 export interface SystemNotification {
   id: string;
@@ -10,8 +13,10 @@ export interface SystemNotification {
   time: Date;
   read: boolean;
   icon: string;
-  type: 'REQUEST' | 'INCIDENT' | 'SUCCESS' | 'INFO';
+  type: 'REQUEST' | 'INCIDENT' | 'SUCCESS' | 'INFO' | 'STOCK_ALERT';
   route: string;
+  itemId?: string;
+  queryParams?: any;
 }
 
 @Injectable({
@@ -20,20 +25,25 @@ export interface SystemNotification {
 export class NotificationsService {
   private readonly notificationsList = signal<SystemNotification[]>([]);
 
+  // Subject para abrir el modal de edición de un artículo directamente al pulsar la notificación
+  readonly openEditModalRequested$ = new Subject<string>();
+
   // Computed properties
   notifications = computed(() => this.notificationsList());
   unreadCount = computed(() => this.notificationsList().filter((n) => !n.read).length);
 
+
   constructor(
     private readonly requestsService: RequestsService,
     private readonly incidentsService: IncidentsService,
+    private readonly inventoryService: InventoryService,
     private readonly router: Router
   ) {
     // Cargar notificaciones del sistema al iniciar
     this.refreshSystemNotifications();
   }
 
-  // Refresca jalando datos reales de solicitudes y novedades del servidor
+  // Refresca jalando datos reales de solicitudes, novedades y alertas de stock del servidor
   refreshSystemNotifications(): void {
     const list: SystemNotification[] = [];
 
@@ -74,7 +84,32 @@ export class NotificationsService {
       },
       error: () => {}
     });
+
+    // 3. Obtener suministros/insumos con stock 0
+    this.inventoryService.getItems(1, 100, { inventoryViewCode: 'INSUMOS' }).subscribe({
+      next: (res) => {
+        const items = res.data || [];
+        items.forEach((item) => {
+          if ((item.cantidad ?? 0) <= 0) {
+            list.push({
+              id: `stock-${item.id}`,
+              message: `El artículo '${item.name || item.codigoYavirac}' se quedó sin stock. Por favor aumente el stock.`,
+              time: new Date(),
+              read: false,
+              icon: '📦',
+              type: 'STOCK_ALERT',
+              route: '/admin/inventory',
+              itemId: item.id,
+              queryParams: { editItemId: item.id }
+            });
+          }
+        });
+        this.updateList(list);
+      },
+      error: () => {}
+    });
   }
+
 
   private updateList(newList: SystemNotification[]): void {
     // Combinar con notificaciones locales existentes para no perder las de éxito local

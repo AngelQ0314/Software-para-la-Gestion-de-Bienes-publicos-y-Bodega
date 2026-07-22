@@ -62,20 +62,19 @@
   border-radius: 20px;
 }
 
-/* Modal */
 .modal-card-lg {
-  max-width: 850px;
+  max-width: 1100px;
   width: 95%;
 }
 
 .modal-grid-2 {
   display: grid;
-  grid-template-columns: 1.1fr 0.9fr;
+  grid-template-columns: 360px 1fr;
   gap: 25px;
   margin-top: 15px;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 900px) {
   .modal-grid-2 {
     grid-template-columns: 1fr;
   }
@@ -92,6 +91,96 @@
 
 .btn-block {
   width: 100%;
+}
+
+/* Pestañas de Vistas (Pill Tabs) */
+.pill-tabs-group {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pill-tab {
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-secondary, #94a3b8);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary, #ffffff);
+}
+
+.pill-tab.active {
+  background: var(--color-primary, #f97316);
+  color: #ffffff;
+  border-color: var(--color-primary, #f97316);
+  box-shadow: 0 2px 10px rgba(249, 115, 22, 0.3);
+}
+
+/* Buscador Pill */
+.search-pill-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.search-pill-wrapper .search-icon {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.1rem;
+  color: var(--text-muted, #64748b);
+  pointer-events: none;
+}
+
+.search-pill-input {
+  width: 100%;
+  padding: 6px 12px 6px 32px;
+  border-radius: 20px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.12));
+  background: rgba(0, 0, 0, 0.2);
+  color: var(--text-primary, #ffffff);
+  font-size: 0.8rem;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.search-pill-input:focus {
+  border-color: var(--color-primary, #f97316);
+  box-shadow: 0 0 0 3px rgba(249, 115, 22, 0.2);
+}
+
+/* Tags de vistas en tarjetas */
+.item-view-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.tag-bienes {
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+}
+
+.tag-insumos {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+}
+
+.tag-biblioteca {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
 }
 
 /* Lista de Tarjetas de Artículos Afectados */

@@ -3,6 +3,8 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormControl, FormsModule } from '@angular/forms';
 import { InventoryService, InventoryItem, Subcategory, SubcategoryFieldAssociation, Category, CustomField } from '../services/inventory.service';
 import Swal from 'sweetalert2';
+import { ActivatedRoute, Router } from '@angular/router';
+import { NotificationsService } from '../../../../core/services/notifications.service';
 
 @Component({
   selector: 'app-items-list',
@@ -129,7 +131,13 @@ export class ItemsListComponent implements OnInit {
 
 
 
-  constructor(private readonly fb: FormBuilder, private readonly inventoryService: InventoryService) {
+  constructor(
+    private readonly fb: FormBuilder, 
+    private readonly inventoryService: InventoryService,
+    private readonly route: ActivatedRoute,
+    private readonly router: Router,
+    private readonly notificationsService: NotificationsService
+  ) {
     this.filterForm = this.fb.group({
       codigoYavirac: [''],
       estadoFisico: [''],
@@ -158,10 +166,11 @@ export class ItemsListComponent implements OnInit {
     this.customFieldForm = this.fb.group({
       nombre: ['', [Validators.required, Validators.minLength(2)]],
       tipo: ['TEXT', [Validators.required]],
-      isMandatory: [false],
+      opcionesText: [''],
     });
 
     this.reactivateForm = this.fb.group({
+      subcategoriaId: ['', [Validators.required]],
       dynamicValues: this.fb.group({}),
     });
   }
@@ -182,6 +191,47 @@ export class ItemsListComponent implements OnInit {
     this.filterForm.get('estadoFisico')?.valueChanges.subscribe(() => {
       this.currentPage.set(1);
       this.loadItems();
+    });
+
+    const handleEditItem = (itemId: string) => {
+      if (!itemId) return;
+      this.inventoryService.getItemById(itemId).subscribe({
+        next: (item: InventoryItem) => {
+          if (item) {
+            const sub = item.subcategoria;
+            const cat = sub?.categoria;
+            const viewCode = cat?.baseView || item.inventoryView?.code || 'INSUMOS';
+            this.selectedView.set(viewCode as any);
+            if (cat) {
+              this.selectedCategory.set(cat as any);
+            }
+            if (sub) {
+              this.selectedSubcategory.set(sub as any);
+            }
+            this.openEditModal(item);
+
+            // Limpiar queryParams de la URL de forma transparente
+            this.router.navigate([], {
+              relativeTo: this.route,
+              queryParams: {},
+              replaceUrl: true,
+            });
+          }
+        }
+      });
+    };
+
+    // 1. Escuchar eventos directos del servicio de notificaciones
+    this.notificationsService.openEditModalRequested$.subscribe((itemId) => {
+      handleEditItem(itemId);
+    });
+
+    // 2. Escuchar parámetros de ruta (por si se recarga la página o accede por URL directa)
+    this.route.queryParams.subscribe((params) => {
+      const editItemId = params['editItemId'];
+      if (editItemId) {
+        handleEditItem(editItemId);
+      }
     });
   }
 
@@ -612,25 +662,29 @@ export class ItemsListComponent implements OnInit {
     this.editingItemId.set(item.id || null);
     this.modalErrorMessage.set(null);
 
+    // Obtener la categoría del ítem a editar
+    const sub = this.subcategories().find(s => s.id === item.subcategoriaId);
+    const cat = sub ? this.categories().find(c => c.id === sub.categoriaId) : null;
+    const viewCode = item.inventoryView?.code || cat?.baseView || this.selectedView();
+    const isInsumo = viewCode === 'INSUMOS' || item.inventoryView?.name === 'Insumos y Suministros';
+
     this.itemForm.patchValue({
       name: item.name || '',
       codigoYavirac: item.codigoYavirac,
       subcategoriaId: item.subcategoriaId,
       estadoFisico: item.estadoFisico,
-      cantidad: item.cantidad ?? 1,
+      cantidad: item.cantidad ?? (isInsumo ? 0 : 1),
       status: item.status || 'ACTIVO',
     });
 
-    if (this.selectedView() === 'INSUMOS') {
+    if (isInsumo) {
       this.itemForm.get('cantidad')?.enable();
+      this.itemForm.get('cantidad')?.setValue(item.cantidad ?? 0);
     } else {
       this.itemForm.get('cantidad')?.disable();
       this.itemForm.get('cantidad')?.setValue(1);
     }
 
-    // Obtener la categoría del ítem a editar
-    const sub = this.subcategories().find(s => s.id === item.subcategoriaId);
-    const cat = sub ? this.categories().find(c => c.id === sub.categoriaId) : null;
 
     if (sub) {
       this.loadSubcategoryDynamicFields(sub.id, () => {
@@ -674,6 +728,9 @@ export class ItemsListComponent implements OnInit {
     this.modalErrorMessage.set(null);
 
     {
+      const viewCode = cat.baseView || (cat as any).inventoryView?.code || this.selectedView();
+      const isInsumo = viewCode === 'INSUMOS' || cat.nombre === 'Insumos y Suministros';
+
       const val = this.itemForm.getRawValue();
       const payload: InventoryItem = {
         name: val.name.trim(),
@@ -681,9 +738,10 @@ export class ItemsListComponent implements OnInit {
         subcategoriaId: sub.id,
         estadoFisico: val.estadoFisico,
         dynamicValues: val.dynamicValues,
-        cantidad: this.selectedView() === 'INSUMOS' ? (val.cantidad ?? 0) : 1,
+        cantidad: isInsumo ? Math.max(0, Number(val.cantidad ?? 0)) : 1,
         status: val.status,
       };
+
 
       const itemId = this.editingItemId();
 

@@ -73,6 +73,54 @@ export class IncidentsService {
       );
     }
 
+    // Mapa de cantidad afectada si viene en dto.itemsPayload
+    const payloadMap = new Map<string, number>();
+    if (dto.itemsPayload && dto.itemsPayload.length > 0) {
+      for (const p of dto.itemsPayload) {
+        payloadMap.set(p.itemId, p.cantidadAfectada || 1);
+      }
+    }
+
+    // Validar reportes activos por tipo de artículo
+    for (const item of items) {
+      const itemObj = await this.itemRepo.findOne({
+        where: { id: item.id },
+        relations: { inventoryView: true, subcategory: { category: { inventoryView: true } } },
+      });
+
+      const viewCode = itemObj?.inventoryView?.code || itemObj?.subcategory?.category?.inventoryView?.code;
+      const isInsumo = viewCode === 'INSUMOS';
+
+      const activeReportItems = await this.reportItemRepo
+        .createQueryBuilder('reportItem')
+        .innerJoin('reportItem.incidentReport', 'report')
+        .where('reportItem.itemId = :itemId', { itemId: item.id })
+        .andWhere('report.spaceId = :spaceId', { spaceId: dto.spaceId })
+        .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+        .select('SUM(reportItem.cantidadAfectada)', 'totalNovedad')
+        .getRawOne();
+
+      const totalNovedadActiva = Number(activeReportItems?.totalNovedad || 0);
+
+      if (!isInsumo) {
+        if (totalNovedadActiva > 0 || (item.estadoFisico && item.estadoFisico !== 'BUENO')) {
+          throw new BadRequestException(
+            `El artículo '${item.name || item.codeValue}' ya se encuentra con un reporte de novedad activo.`
+          );
+        }
+      } else {
+        const cantAfectadaSolicitada = payloadMap.get(item.id) || 1;
+        const cantidadBuenEstado = Math.max(0, Number(item.cantidad || 0) - totalNovedadActiva);
+
+        if (cantAfectadaSolicitada > cantidadBuenEstado) {
+          throw new BadRequestException(
+            `El artículo '${item.name || item.codeValue}' solo tiene ${cantidadBuenEstado} unidades en buen estado disponibles para reportar.`
+          );
+        }
+      }
+    }
+
+
     // Generar código único auto-incremental
     const year = new Date().getFullYear();
     const count = await this.reportRepo.count();
@@ -92,43 +140,36 @@ export class IncidentsService {
 
     const savedReport = await this.reportRepo.save(report);
 
-    // Asociar artículos y actualizar estado en jornada (shift) y entidad principal Item
-    const reportItems = dto.itemIds.map((itemId) =>
-      this.reportItemRepo.create({
+    // Asociar artículos guardando cantidadAfectada
+    const reportItems = dto.itemIds.map((itemId) => {
+
+      const cantAfectada = payloadMap.get(itemId) || 1;
+      return this.reportItemRepo.create({
         incidentReportId: savedReport.id,
         itemId,
-      }),
-    );
+        cantidadAfectada: cantAfectada,
+      });
+    });
     await this.reportItemRepo.save(reportItems);
 
     for (const itemId of dto.itemIds) {
-      // 1. Actualizar el estado físico de la entidad principal Item para el inventario global
+      // 1. Obtener objeto ítem
       const itemObj = await this.itemRepo.findOne({
         where: { id: itemId },
         relations: { inventoryView: true }
       });
-      if (itemObj) {
-        itemObj.estadoFisico = dto.estadoFisico || 'REGULAR';
-        await this.itemRepo.save(itemObj);
 
-        // Si es un insumo clonado en un aula, también actualizar el insumo padre en bodega para el inventario general
-        if (itemObj.physicalSpaceId && itemObj.inventoryView?.code === 'INSUMOS') {
-          const parentItem = await this.itemRepo.findOne({
-            where: {
-              name: itemObj.name,
-              codeValue: itemObj.codeValue === null ? IsNull() : itemObj.codeValue,
-              physicalSpaceId: IsNull(),
-              status: 'ACTIVO',
-            }
-          });
-          if (parentItem) {
-            parentItem.estadoFisico = dto.estadoFisico || 'REGULAR';
-            await this.itemRepo.save(parentItem);
-          }
+      if (itemObj) {
+        const isInsumo = itemObj.inventoryView?.code === 'INSUMOS';
+        // Para bienes únicos (Bienes Públicos / Biblioteca), actualizamos el estado físico global.
+        // Para INSUMOS, NO cambiamos el estadoFisico global del lote.
+        if (!isInsumo) {
+          itemObj.estadoFisico = dto.estadoFisico || 'REGULAR';
+          await this.itemRepo.save(itemObj);
         }
       }
 
-      // 2. Actualizar estado en todas las jornadas (shifts) del espacio físico
+      // 2. Actualizar estado en jornadas (shifts) del espacio físico
       for (const jornada of space.jornadas) {
         let shiftRecord = await this.shiftRepo.findOne({
           where: { itemId, spaceId: dto.spaceId, jornada }
@@ -142,7 +183,9 @@ export class IncidentsService {
           });
         }
 
-        shiftRecord.estadoFisico = dto.estadoFisico || 'REGULAR';
+        if (itemObj?.inventoryView?.code !== 'INSUMOS') {
+          shiftRecord.estadoFisico = dto.estadoFisico || 'REGULAR';
+        }
         shiftRecord.novedades = dto.description.trim();
         await this.shiftRepo.save(shiftRecord);
       }

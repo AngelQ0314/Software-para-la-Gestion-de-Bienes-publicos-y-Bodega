@@ -29,6 +29,9 @@ export class IncidentReportItem {
   @JoinColumn({ name: 'item_id' })
   item: InventoryItem;
 
+  @Column({ name: 'cantidad_afectada', type: 'int', default: 1 })
+  cantidadAfectada: number;
+
   @CreateDateColumn({ name: 'created_at' })
   createdAt: Date;
 

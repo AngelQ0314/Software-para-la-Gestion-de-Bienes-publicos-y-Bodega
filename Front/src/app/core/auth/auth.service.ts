@@ -152,8 +152,9 @@ export class AuthService {
 
   // Limpiar sesión local
   clearSession(): void {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user');
+    localStorage.clear();
+    sessionStorage.clear();
     this.currentUser.set(null);
   }
+
 }

@@ -1,4 +1,16 @@
-import { IsUUID, IsString, IsNotEmpty, IsIn, IsArray, ArrayNotEmpty, MinLength } from 'class-validator';
+import { IsUUID, IsString, IsNotEmpty, IsIn, IsArray, ArrayNotEmpty, MinLength, IsOptional, ValidateNested, IsNumber, Min } from 'class-validator';
+import { Type } from 'class-transformer';
+
+export class IncidentItemPayloadDto {
+  @IsUUID('4', { message: 'El ID del artículo debe ser un UUID válido.' })
+  @IsNotEmpty({ message: 'El ID del artículo es obligatorio.' })
+  itemId: string;
+
+  @IsOptional()
+  @IsNumber({}, { message: 'La cantidad afectada debe ser un número.' })
+  @Min(1, { message: 'La cantidad afectada debe ser al menos 1.' })
+  cantidadAfectada?: number;
+}
 
 export class CreateIncidentReportDto {
   @IsUUID('4', { message: 'El ID del espacio físico debe ser un UUID válido.' })
@@ -19,11 +31,13 @@ export class CreateIncidentReportDto {
 
   @IsArray({ message: 'Debe proporcionar una lista de IDs de artículos.' })
   @ArrayNotEmpty({ message: 'Debe seleccionar al menos un artículo para reportar la novedad.' })
-  @IsUUID('4', {
-    each: true,
-    message: 'Cada ID de artículo debe ser un UUID válido.',
-  })
   itemIds: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => IncidentItemPayloadDto)
+  itemsPayload?: IncidentItemPayloadDto[];
 
   @IsString({ message: 'El estado físico debe ser un texto.' })
   @IsNotEmpty({ message: 'El estado físico es obligatorio.' })

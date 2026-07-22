@@ -921,23 +921,6 @@
                   <strong style="color: var(--text-primary);">{{ selectedItem()?.status }}</strong>
                 </div>
 
-                <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
-                  <span style="color: var(--text-secondary);">Aula / Ubicación</span>
-                  <strong style="color: var(--text-primary);">{{ selectedItem()?.physicalSpace?.name || 'sin asignar' }}</strong>
-                </div>
-
-                <div class="spec-row-item" style="display: flex; justify-content: space-between; font-size: 0.88rem; border-bottom: 1px solid rgba(255,255,255,0.02); padding-bottom: 8px;">
-                  <span style="color: var(--text-secondary);">Responsable(s)</span>
-                  <strong style="color: var(--text-primary);">
-                    @if (selectedItem()?.physicalSpace?.responsibleTeachers && selectedItem()!.physicalSpace!.responsibleTeachers!.length > 0) {
-                      @for (t of selectedItem()!.physicalSpace!.responsibleTeachers; track t.id) {
-                        <div style="display: block; text-align: right;">{{ t.nombres }} {{ t.apellidos }}</div>
-                      }
-                    } @else {
-                      -
-                    }
-                  </strong>
-                </div>
               </div>
             </div>
 
@@ -960,6 +943,96 @@
               </div>
             </div>
           </div>
+
+          <!-- Distribución por Aulas (Solo para Insumos distribuidos) -->
+          @if ((selectedView() || selectedItem()?.subcategoria?.categoria?.baseView) === 'INSUMOS' && selectedItem()?.distribucionEspacios && selectedItem()!.distribucionEspacios!.length > 0) {
+            <div class="detail-distribution-section" style="margin-top: 25px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+              <h4 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span class="material-icons-round" style="font-size: 1.2rem;">meeting_room</span>
+                Distribución en Espacios Físicos (Aulas)
+              </h4>
+              
+              <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; background: rgba(255,255,255,0.01);">
+                <table class="custom-table" style="font-size: 0.82rem; margin: 0; width: 100%;">
+                  <thead>
+                    <tr style="background: rgba(255,255,255,0.02);">
+                      <th style="padding: 8px 10px; text-align: left;">Aula / Espacio</th>
+                      <th style="padding: 8px 10px; text-align: left;">Número</th>
+                      <th style="padding: 8px 10px; text-align: left;">Responsable(s)</th>
+                      <th style="padding: 8px 10px; text-align: center; width: 100px;">Cantidad</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (dist of selectedItem()!.distribucionEspacios; track dist.id) {
+                      <tr style="border-bottom: 1px solid rgba(255,255,255,0.02); background: transparent;">
+                        <td style="padding: 8px 10px; font-weight: 600; color: var(--text-primary);">{{ dist.name }}</td>
+                        <td style="padding: 8px 10px; font-family: monospace; color: var(--text-primary);">{{ dist.roomNumber }}</td>
+                        <td style="padding: 8px 10px; color: var(--text-secondary);">{{ dist.responsables }}</td>
+                        <td style="padding: 8px 10px; text-align: center;">
+                          @if (dist.cantidadNovedad && dist.cantidadNovedad > 0) {
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 3px;">
+                              <span style="font-size: 0.8rem; font-weight: 700; color: var(--text-primary);">{{ dist.cantidad }} ud</span>
+                              <div style="display: flex; gap: 4px; font-size: 0.68rem;">
+                                <span style="color: #10b981; background: rgba(16,185,129,0.12); padding: 1px 6px; border-radius: 4px; font-weight: 700;">{{ dist.cantidadBuenEstado }} Buen Estado</span>
+                                <span style="color: #ef4444; background: rgba(239,68,68,0.12); padding: 1px 6px; border-radius: 4px; font-weight: 700;">{{ dist.cantidadNovedad }} Con Novedad</span>
+                              </div>
+                            </div>
+                          } @else {
+                            <span style="font-size: 0.8rem; font-weight: 700; color: #10b981;">{{ dist.cantidad }} ud (Buen Estado)</span>
+                          }
+                        </td>
+                      </tr>
+
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          }
+
+          <!-- Ubicación / Asignación en Espacios Físicos (Para Bienes Públicos y Biblioteca) -->
+          @if ((selectedView() || selectedItem()?.subcategoria?.categoria?.baseView) !== 'INSUMOS') {
+            <div class="detail-distribution-section" style="margin-top: 25px; border-top: 1px solid var(--border-color); padding-top: 20px;">
+              <h4 style="font-size: 0.95rem; font-weight: 700; text-transform: uppercase; margin-bottom: 12px; color: var(--color-primary); display: flex; align-items: center; gap: 8px;">
+                <span class="material-icons-round" style="font-size: 1.2rem;">meeting_room</span>
+                Ubicación y Responsable del Artículo
+              </h4>
+              
+              @if (selectedItem()?.physicalSpace) {
+                <div style="border: 1px solid var(--border-color); border-radius: 8px; background: rgba(255,255,255,0.01);">
+                  <table class="custom-table" style="font-size: 0.82rem; margin: 0; width: 100%;">
+                    <thead>
+                      <tr style="background: rgba(255,255,255,0.02);">
+                        <th style="padding: 8px 10px; text-align: left;">Aula / Espacio</th>
+                        <th style="padding: 8px 10px; text-align: left;">Número</th>
+                        <th style="padding: 8px 10px; text-align: left;">Responsable(s)</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr style="border-bottom: none; background: transparent;">
+                        <td style="padding: 8px 10px; font-weight: 600; color: var(--text-primary);">{{ selectedItem()?.physicalSpace?.name }}</td>
+                        <td style="padding: 8px 10px; font-family: monospace; color: var(--text-primary);">{{ selectedItem()?.physicalSpace?.roomNumber || '-' }}</td>
+                        <td style="padding: 8px 10px; color: var(--text-secondary);">
+                          @if (selectedItem()?.physicalSpace?.responsibleTeachers && selectedItem()!.physicalSpace!.responsibleTeachers!.length > 0) {
+                            @for (t of selectedItem()!.physicalSpace!.responsibleTeachers; track t.id; let last = $last) {
+                              {{ t.nombres }} {{ t.apellidos }}{{ !last ? ', ' : '' }}
+                            }
+                          } @else {
+                            Sin responsable
+                          }
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              } @else {
+                <div style="text-align: center; padding: 20px 10px; color: #10b981; font-size: 0.85rem; border: 1px dashed rgba(16, 185, 129, 0.3); border-radius: 8px; background: rgba(16, 185, 129, 0.02); font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                  <span class="material-icons-round" style="font-size: 1.2rem;">check_circle</span>
+                  Disponible en Bodega Principal (Sin Asignar)
+                </div>
+              }
+            </div>
+          }
         }
       </div>
 

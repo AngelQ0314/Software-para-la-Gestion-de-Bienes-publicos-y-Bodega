@@ -34,6 +34,7 @@ export class IncidentsService {
     jornada: string;
     description: string;
     itemIds: string[];
+    itemsPayload?: Array<{ itemId: string; cantidadAfectada?: number }>;
   }): Observable<any> {
     return this.http.post(this.apiUrl, data);
   }

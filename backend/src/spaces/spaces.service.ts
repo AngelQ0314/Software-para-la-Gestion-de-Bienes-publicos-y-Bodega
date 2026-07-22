@@ -110,7 +110,8 @@ export class SpacesService {
       query.innerJoin('space.responsibleTeachers', 'assignedTeacher', 'assignedTeacher.id = :teacherId', { teacherId: filters.teacherId });
     }
 
-    return query.getMany();
+    const spaces = await query.getMany();
+    return this.attachItemIncidentCounts(spaces);
   }
 
   // OBTENER UN ESPACIO POR ID
@@ -140,7 +141,33 @@ export class SpacesService {
       }
     }
 
-    return space;
+    const [enriched] = await this.attachItemIncidentCounts([space]);
+    return enriched;
+  }
+
+  private async attachItemIncidentCounts(spaces: PhysicalSpace[]): Promise<PhysicalSpace[]> {
+    for (const space of spaces) {
+      if (space.items && space.items.length > 0) {
+        for (const item of space.items) {
+          if (item.inventoryView?.code === 'INSUMOS') {
+            const activeIncidents = await this.reportItemRepo
+              .createQueryBuilder('reportItem')
+              .innerJoin('reportItem.incidentReport', 'report')
+              .where('reportItem.itemId = :itemId', { itemId: item.id })
+              .andWhere('report.spaceId = :spaceId', { spaceId: space.id })
+              .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+              .select('SUM(reportItem.cantidadAfectada)', 'totalNovedad')
+              .getRawOne();
+
+            const cantidadNovedad = Number(activeIncidents?.totalNovedad || 0);
+            const cantidadBuenEstado = Math.max(0, Number(item.cantidad || 0) - cantidadNovedad);
+            (item as any).cantidadNovedad = cantidadNovedad;
+            (item as any).cantidadBuenEstado = cantidadBuenEstado;
+          }
+        }
+      }
+    }
+    return spaces;
   }
 
   // ACTUALIZAR ESPACIO FÍSICO (CAMPOS OPCIONALES)
@@ -268,6 +295,13 @@ export class SpacesService {
       throw new NotFoundException(`El espacio físico no existe.`);
     }
 
+    // Si la lista está vacía, desvincular todos los docentes
+    if (!dto.teacherIds || dto.teacherIds.length === 0) {
+      space.responsibleTeachers = [];
+      await this.spaceRepo.save(space);
+      return;
+    }
+
     const teachers = await this.userRepo.find({
       where: {
         id: In(dto.teacherIds),
@@ -297,14 +331,8 @@ export class SpacesService {
       }
     }
 
-    // Vincular al espacio (evitar duplicados)
-    const currentTeacherIds = space.responsibleTeachers.map((t) => t.id);
-    for (const teacher of teachers) {
-      if (!currentTeacherIds.includes(teacher.id)) {
-        space.responsibleTeachers.push(teacher);
-      }
-    }
-
+    // Sincronizar docentes responsables del espacio
+    space.responsibleTeachers = teachers;
     await this.spaceRepo.save(space);
   }
 
@@ -560,8 +588,25 @@ export class SpacesService {
         name: item.name,
         codeValue: item.codeValue,
         category: item.subcategory?.category?.name || '',
+        categoryId: item.subcategory?.category?.id || '',
         subcategory: item.subcategory?.name || '',
+        subcategoryId: item.subcategory?.id || '',
         view: item.subcategory?.category?.inventoryView?.name || '',
+        viewCode: item.subcategory?.category?.inventoryView?.code || '',
+        inventoryView: item.subcategory?.category?.inventoryView ? {
+          id: item.subcategory.category.inventoryView.id,
+          code: item.subcategory.category.inventoryView.code,
+          name: item.subcategory.category.inventoryView.name,
+        } : null,
+        subcategoria: item.subcategory ? {
+          id: item.subcategory.id,
+          nombre: item.subcategory.name,
+          categoria: item.subcategory.category ? {
+            id: item.subcategory.category.id,
+            nombre: item.subcategory.category.name,
+            baseView: item.subcategory.category.inventoryView?.code,
+          } : null,
+        } : null,
         cantidad: item.cantidad,
       }));
     }
@@ -577,25 +622,101 @@ export class SpacesService {
       where: { spaceId, jornada: normalizedJornada },
     });
 
-    return items.map((item) => {
-      const shiftInfo = shifts.find((s) => s.itemId === item.id);
-      return {
-        id: item.id,
-        name: item.name,
-        codeValue: item.codeValue,
-        category: item.subcategory?.category?.name || '',
-        subcategory: item.subcategory?.name || '',
-        view: item.subcategory?.category?.inventoryView?.name || '',
-        cantidad: item.cantidad,
-        jornada: normalizedJornada,
-        estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
-          ? item.estadoFisico 
-          : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
-        observacion: shiftInfo ? shiftInfo.observacion : null,
-        novedades: shiftInfo ? shiftInfo.novedades : null,
-      };
-    });
+    return Promise.all(
+      items.map(async (item) => {
+        const shiftInfo = shifts.find((s) => s.itemId === item.id);
+        const isInsumo = item.subcategory?.category?.inventoryView?.code === 'INSUMOS';
+        
+        let cantidadNovedad = 0;
+        let cantidadBuenEstado = item.cantidad || 0;
+        let activeReportsList: any[] = [];
+
+        if (isInsumo) {
+          const activeReportItems = await this.reportItemRepo
+            .createQueryBuilder('reportItem')
+            .innerJoinAndSelect('reportItem.incidentReport', 'report')
+            .leftJoinAndSelect('report.teacher', 'teacher')
+            .where('reportItem.itemId = :itemId', { itemId: item.id })
+            .andWhere('report.spaceId = :spaceId', { spaceId })
+            .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+            .orderBy('report.createdAt', 'DESC')
+            .getMany();
+
+          cantidadNovedad = activeReportItems.reduce((acc, ri) => acc + (ri.cantidadAfectada || 1), 0);
+          cantidadBuenEstado = Math.max(0, Number(item.cantidad || 0) - cantidadNovedad);
+
+          activeReportsList = activeReportItems.map((ri) => ({
+            id: ri.incidentReport.id,
+            code: ri.incidentReport.code,
+            cantidadAfectada: ri.cantidadAfectada || 1,
+            description: ri.incidentReport.description,
+            status: ri.incidentReport.status,
+            createdAt: ri.incidentReport.createdAt,
+            teacherName: ri.incidentReport.teacher ? `${ri.incidentReport.teacher.nombres} ${ri.incidentReport.teacher.apellidos || ''}`.trim() : 'Docente',
+          }));
+        } else {
+          const activeReportItems = await this.reportItemRepo
+            .createQueryBuilder('reportItem')
+            .innerJoinAndSelect('reportItem.incidentReport', 'report')
+            .leftJoinAndSelect('report.teacher', 'teacher')
+            .where('reportItem.itemId = :itemId', { itemId: item.id })
+            .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+            .orderBy('report.createdAt', 'DESC')
+            .getMany();
+
+          if (activeReportItems.length > 0) {
+            activeReportsList = activeReportItems.map((ri) => ({
+              id: ri.incidentReport.id,
+              code: ri.incidentReport.code,
+              cantidadAfectada: 1,
+              description: ri.incidentReport.description,
+              status: ri.incidentReport.status,
+              createdAt: ri.incidentReport.createdAt,
+              teacherName: ri.incidentReport.teacher ? `${ri.incidentReport.teacher.nombres} ${ri.incidentReport.teacher.apellidos || ''}`.trim() : 'Docente',
+            }));
+          }
+        }
+
+        return {
+          id: item.id,
+          name: item.name,
+          codeValue: item.codeValue,
+          category: item.subcategory?.category?.name || '',
+          categoryId: item.subcategory?.category?.id || '',
+          subcategory: item.subcategory?.name || '',
+          subcategoryId: item.subcategory?.id || '',
+          view: item.subcategory?.category?.inventoryView?.name || '',
+          viewCode: item.subcategory?.category?.inventoryView?.code || '',
+          inventoryView: item.subcategory?.category?.inventoryView ? {
+            id: item.subcategory.category.inventoryView.id,
+            code: item.subcategory.category.inventoryView.code,
+            name: item.subcategory.category.inventoryView.name,
+          } : null,
+          subcategoria: item.subcategory ? {
+            id: item.subcategory.id,
+            nombre: item.subcategory.name,
+            categoria: item.subcategory.category ? {
+              id: item.subcategory.category.id,
+              nombre: item.subcategory.category.name,
+              baseView: item.subcategory.category.inventoryView?.code,
+            } : null,
+          } : null,
+          cantidad: item.cantidad,
+          cantidadBuenEstado,
+          cantidadNovedad,
+          reportesActivos: activeReportsList,
+          jornada: normalizedJornada,
+          estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
+            ? item.estadoFisico 
+            : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
+          observacion: shiftInfo ? shiftInfo.observacion : null,
+          novedades: shiftInfo ? shiftInfo.novedades : null,
+        };
+
+      })
+    );
   }
+
 
   // OBTENER INVENTARIO ASIGNADO GLOBAL CON FILTROS
   async getAssignedInventory(

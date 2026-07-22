@@ -96,9 +96,27 @@
         </div>
 
         <div class="detail-body">
-          <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin-bottom: 15px;">
-            Artículos Registrados en Jornada: <span style="color: #fb7185;">{{ selectedJornada() }}</span>
-          </h4>
+          <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; margin-bottom: 18px;">
+            <h4 style="font-size: 1.05rem; font-weight: 700; color: var(--text-primary); margin: 0;">
+              Artículos Registrados en Jornada: <span style="color: #fb7185;">{{ selectedJornada() }}</span>
+            </h4>
+
+            <!-- Pestañas de Filtrado por Vistas (Bienes, Insumos, Biblioteca) -->
+            <div class="pill-tabs-group" style="display: flex; gap: 6px; margin: 0;">
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === ''" (click)="updateSelectedView('')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                Todos
+              </button>
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIENES_PUBLICOS'" (click)="updateSelectedView('BIENES_PUBLICOS')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                Bienes Públicos
+              </button>
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'INSUMOS'" (click)="updateSelectedView('INSUMOS')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                Insumos y Suministros
+              </button>
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIBLIOTECA'" (click)="updateSelectedView('BIBLIOTECA')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                Biblioteca
+              </button>
+            </div>
+          </div>
 
           @if (inventoryLoading()) {
             <div class="loading-state">
@@ -108,24 +126,46 @@
               <p>Consultando inventario por jornada...</p>
             </div>
           } @else {
-            <div class="items-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 16px;">
-              @for (row of spaceInventory(); track row.id) {
+            <div class="items-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 16px;">
+              @for (row of filteredSpaceInventory(); track row.id) {
                 <div class="item-docente-card glass-card" style="padding: 18px; border-radius: 14px; border: 1px solid var(--border-color); background: var(--bg-card); display: flex; flex-direction: column; justify-content: space-between; gap: 12px; position: relative;">
                   
                   <!-- Cabecera de la tarjeta con nombre y badge de estado -->
                   <div>
                     <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 8px;">
                       <h4 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--text-primary);">{{ row.name || 'Artículo sin nombre' }}</h4>
-                      <span class="badge" [ngClass]="{
-                        'badge-bueno': (row.estadoFisico || 'BUENO') === 'BUENO',
-                        'badge-regular': (row.estadoFisico || 'BUENO') === 'REGULAR',
-                        'badge-malo': (row.estadoFisico || 'BUENO') === 'MALO' || (row.estadoFisico || 'BUENO') === 'DANADO'
-                      }">
-                        {{ row.estadoFisico || 'BUENO' }}
-                      </span>
+                      
+                      <!-- Badge de Estado o Desglose de Insumos -->
+                      @if (isItemInsumo(row)) {
+                        @if (row.cantidadNovedad && row.cantidadNovedad > 0) {
+                          <span class="badge" style="font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; font-weight: 700; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3);">
+                            {{ row.cantidadBuenEstado }} OK / {{ row.cantidadNovedad }} NOV
+                          </span>
+                        } @else {
+                          <span class="badge badge-bueno" style="font-size: 0.7rem; padding: 3px 8px; border-radius: 12px; font-weight: 700;">
+                            {{ row.cantidad }} OK
+                          </span>
+                        }
+                      } @else {
+                        <span class="badge" [ngClass]="{
+                          'badge-bueno': (row.estadoFisico || 'BUENO') === 'BUENO',
+                          'badge-regular': (row.estadoFisico || 'BUENO') === 'REGULAR',
+                          'badge-malo': (row.estadoFisico || 'BUENO') === 'MALO' || (row.estadoFisico || 'BUENO') === 'DANADO'
+                        }">
+                          {{ row.estadoFisico || 'BUENO' }}
+                        </span>
+                      }
                     </div>
 
                     <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 10px;">
+                      <span class="item-view-tag" [ngClass]="{
+                        'tag-bienes': (row.inventoryView?.code === 'BIENES_PUBLICOS' || row.viewCode === 'BIENES_PUBLICOS' || row.view === 'Bienes Públicos'),
+                        'tag-insumos': isItemInsumo(row),
+                        'tag-biblioteca': (row.inventoryView?.code === 'BIBLIOTECA' || row.viewCode === 'BIBLIOTECA' || row.view === 'Biblioteca')
+                      }" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;">
+                        {{ getItemViewName(row) }}
+                      </span>
+                      
                       <span class="sub-tag" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-family: monospace; font-size: 0.78rem;">
                         Cod: {{ row.codeValue || '--' }}
                       </span>
@@ -142,8 +182,26 @@
                       <strong style="color: var(--text-primary); font-family: monospace;">{{ row.cantidad }} ud</strong>
                     </div>
 
+                    <!-- Desglose de cantidades para Insumos -->
+                    @if (isItemInsumo(row) && row.cantidadNovedad && row.cantidadNovedad > 0) {
+                      <div style="display: flex; gap: 8px; font-size: 0.75rem; font-weight: 700; margin-top: 2px;">
+                        <span style="color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 2px 7px; border-radius: 6px;">{{ row.cantidadBuenEstado }} Buen Estado</span>
+                        <span style="color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 2px 7px; border-radius: 6px;">{{ row.cantidadNovedad }} Con Novedad</span>
+                      </div>
+                    }
+
                     <!-- Si hay novedades/observaciones reportadas -->
-                    @if (row.observacion || row.novedades) {
+                    @if (row.reportesActivos && row.reportesActivos.length > 0) {
+                      <div style="margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; font-size: 0.78rem; color: var(--text-primary); display: flex; flex-direction: column; gap: 6px;">
+                        <strong style="color: #d97706; display: flex; align-items: center; gap: 4px;">
+                          <span class="material-icons-round" style="font-size: 0.9rem;">report_problem</span> Novedades Registradas ({{ row.reportesActivos.length }}):
+                        </strong>
+                        
+                        <button type="button" (click)="openReportsModal(row)" style="display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.78rem; font-weight: 700; padding: 6px 12px; border-radius: 8px; background: rgba(249, 115, 22, 0.12); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.3); cursor: pointer; transition: all 0.2s ease;">
+                          <span class="material-icons-round" style="font-size: 0.95rem;">visibility</span> Ver Detalle
+                        </button>
+                      </div>
+                    } @else if (row.observacion || row.novedades) {
                       <div style="margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; font-size: 0.78rem; color: var(--text-primary);">
                         <strong style="color: #d97706; display: flex; align-items: center; gap: 4px;">
                           <span class="material-icons-round" style="font-size: 0.9rem;">report_problem</span> Motivo / Reporte:
@@ -161,7 +219,7 @@
               } @empty {
                 <div class="empty-state glass-panel" style="grid-column: 1 / -1; padding: 30px; text-align: center; color: var(--text-muted);">
                   <span class="material-icons-round" style="font-size: 2.2rem; margin-bottom: 8px; color: var(--text-muted);">inventory_2</span>
-                  <p>No se registran artículos asignados a esta jornada académica.</p>
+                  <p>No se registran artículos asignados a esta vista en esta jornada académica.</p>
                 </div>
               }
             </div>
@@ -170,4 +228,71 @@
       </div>
     }
   }
+
+  <!-- Modal Detalle de Novedades del Artículo -->
+  @if (showReportsModal()) {
+    <div class="modal-overlay animate-fade" (click)="closeReportsModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1100;">
+      <div class="glass-panel modal-card animate-slide" (click)="$event.stopPropagation()" style="max-width: 560px; width: 92%; padding: 22px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg);">
+        
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="material-icons-round" style="color: #f59e0b; font-size: 1.3rem;">report_problem</span>
+            <h3 style="margin: 0; font-size: 1.05rem; font-weight: 700; color: var(--text-primary);">Detalle de Novedades</h3>
+          </div>
+          <button type="button" class="close-btn" (click)="closeReportsModal()" style="background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer;">×</button>
+        </div>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; max-height: 420px; overflow-y: auto; padding-right: 4px;">
+          <div style="padding: 10px 14px; border-radius: 10px; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.2); font-size: 0.83rem; color: var(--text-primary); display: flex; flex-direction: column; gap: 4px;">
+            <div><strong style="color: var(--text-primary);">Artículo:</strong> {{ selectedItemForReports()?.name }}</div>
+            <div><strong style="color: var(--text-primary);">Código Yavirac:</strong> <span style="font-family: monospace; color: #38bdf8;">{{ selectedItemForReports()?.codeValue || '--' }}</span></div>
+            
+            @if (isItemInsumo(selectedItemForReports())) {
+              <div style="display: flex; gap: 10px; font-weight: 700; margin-top: 4px; font-size: 0.8rem;">
+                <span style="color: #10b981;">{{ selectedItemForReports()?.cantidadBuenEstado }} ud Buen Estado</span>
+                <span style="color: #ef4444;">{{ selectedItemForReports()?.cantidadNovedad }} ud Con Novedad</span>
+              </div>
+            }
+          </div>
+
+          <h4 style="font-size: 0.88rem; font-weight: 700; color: var(--text-secondary); margin: 6px 0 0 0; text-transform: uppercase; letter-spacing: 0.04em;">
+            Reportes Activos ({{ selectedItemForReports()?.reportesActivos?.length || 0 }})
+          </h4>
+
+          @for (rep of selectedItemForReports()?.reportesActivos; track rep.id) {
+            <div style="padding: 12px 14px; border-radius: 10px; background: rgba(245, 158, 11, 0.08); border-left: 4px solid #f59e0b; border: 1px solid var(--border-color); border-left-width: 4px; display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem;">
+                <span style="font-weight: 700; font-family: monospace; color: #fb7185;">{{ rep.code }}</span>
+                <span class="badge" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 12px; background: rgba(245, 158, 11, 0.15); color: #d97706; font-weight: 700;">
+                  {{ rep.status }}
+                </span>
+              </div>
+
+              <div style="display: flex; justify-content: space-between; align-items: center; font-size: 0.8rem; font-weight: 700;">
+                <span style="color: #ef4444;">{{ rep.cantidadAfectada }} ud afectadas con novedad</span>
+                <span style="color: var(--text-muted); font-size: 0.75rem; font-weight: normal;">{{ rep.createdAt | date:'mediumDate' }}</span>
+              </div>
+
+              <div style="font-size: 0.82rem; color: var(--text-primary); margin-top: 2px;">
+                <strong style="color: #d97706;">Motivo:</strong> {{ rep.description }}
+              </div>
+
+              <div style="font-size: 0.75rem; color: var(--text-secondary); font-style: italic;">
+                Reportado por: {{ rep.teacherName }}
+              </div>
+            </div>
+          } @empty {
+            <div style="text-align: center; color: var(--text-muted); padding: 20px; font-style: italic; font-size: 0.85rem;">
+              No se registran reportes de novedad activos para este artículo.
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer" style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary btn-sm" (click)="closeReportsModal()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  }
 </div>
+

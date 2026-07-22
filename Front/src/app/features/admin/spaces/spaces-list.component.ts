@@ -21,7 +21,8 @@ export class SpacesListComponent implements OnInit {
   selectedFilterView = signal<string>('');
   showUnavailableItems = signal<boolean>(false);
   hideAssignedItems = signal<boolean>(false);
-  
+  // Vista del modal de asignar artículos (independiente del tab de inventario asignado)
+  assignModalFilterView = signal<string>('');
   isLoading = signal(false);
   modalLoading = signal(false);
   errorMessage = signal<string | null>(null);
@@ -33,6 +34,8 @@ export class SpacesListComponent implements OnInit {
   showTeachersModal = signal(false);
   showInventoryModal = signal(false);
   showDetailModal = signal(false);
+  showAddTeachersModal = signal(false);
+  showRemoveTeachersModal = signal(false);
   activeTab = signal<'info' | 'docentes' | 'inventario'>('info');
   selectedSpace = signal<PhysicalSpace | null>(null);
 
@@ -46,6 +49,23 @@ export class SpacesListComponent implements OnInit {
   assignedItemsTemp = signal<Array<{ itemId: string; name: string; codeValue: string; cantidad: number }>>([]);
   itemSearchQuery = signal('');
   teacherSearchQuery = signal('');
+  showAssignItemsModal = signal(false);
+  categories = signal<any[]>([]);
+  subcategories = signal<any[]>([]);
+  selectedFilterCategory = signal<string>('');
+  selectedFilterSubcategory = signal<string>('');
+
+  // Filtros específicos para el tab de Inventario Asignado en Ficha del Espacio
+  assignedTabCategory = signal<string>('');
+  assignedTabSubcategory = signal<string>('');
+  assignedTabSearchQuery = signal<string>('');
+  
+  // Gestión de Docentes Responsables
+  responsibleTeachersSearchQuery = signal('');
+  addTeachersSearchQuery = signal('');
+  removeTeachersSearchQuery = signal('');
+  selectedTeachersToAdd = signal<string[]>([]);
+  selectedTeachersToRemove = signal<string[]>([]);
 
 
   constructor(
@@ -167,13 +187,24 @@ export class SpacesListComponent implements OnInit {
   }
 
   // Cargar items de inventario general con soporte de búsqueda en servidor
-  loadInventoryItems(search: string = '', viewId: string = ''): void {
+  loadInventoryItems(
+    search: string = '', 
+    viewId: string = '', 
+    categoryId: string = '', 
+    subcategoryId: string = ''
+  ): void {
     const filters: any = {};
     if (search.trim()) {
       filters.search = search.trim();
     }
     if (viewId) {
       filters.inventoryViewId = viewId;
+    }
+    if (categoryId) {
+      filters.categoryId = categoryId;
+    }
+    if (subcategoryId) {
+      filters.subcategoryId = subcategoryId;
     }
     // Limitamos a 100 resultados de búsqueda en tiempo real
     this.inventoryService.getItems(1, 100, filters).subscribe({
@@ -191,6 +222,83 @@ export class SpacesListComponent implements OnInit {
     });
   }
 
+  // Categorías filtradas según la vista del modal de asignación
+  filteredCategories = computed(() => {
+    const view = this.inventoryViews().find(v => v.id === this.assignModalFilterView());
+    const viewCode = view?.code || '';
+    const cats = this.categories();
+    if (!viewCode) return cats;
+    return cats.filter((c: any) => c.baseView === viewCode);
+  });
+
+  filteredSubcategories = computed(() => {
+    const catId = this.selectedFilterCategory();
+    const subs = this.subcategories();
+    if (!catId) return subs;
+    // El servicio mapea el campo como 'categoriaId'
+    return subs.filter((s: any) => s.categoriaId === catId);
+  });
+
+  loadCategories(): void {
+    this.inventoryService.getCategories().subscribe({
+      next: (res) => {
+        this.categories.set(res || []);
+      }
+    });
+  }
+
+  loadSubcategories(): void {
+    this.inventoryService.getSubcategories().subscribe({
+      next: (res) => {
+        this.subcategories.set(res || []);
+      }
+    });
+  }
+
+  openAssignItemsModal(): void {
+    // Sincronizar la vista del modal con la vista activa del tab
+    this.assignModalFilterView.set(this.selectedFilterView());
+    this.itemSearchQuery.set('');
+    this.selectedFilterCategory.set('');
+    this.selectedFilterSubcategory.set('');
+    this.showUnavailableItems.set(false);
+    
+    this.loadCategories();
+    this.loadSubcategories();
+    
+    // Cargar ítems con la vista actual del tab de inventario
+    this.loadInventoryItems('', this.assignModalFilterView(), '', '');
+    this.showAssignItemsModal.set(true);
+  }
+
+  closeAssignItemsModal(): void {
+    this.showAssignItemsModal.set(false);
+  }
+
+  updateAssignItemsFilter(search?: string, catId?: string, subId?: string): void {
+    if (search !== undefined) this.itemSearchQuery.set(search);
+    if (catId !== undefined) {
+      this.selectedFilterCategory.set(catId);
+      this.selectedFilterSubcategory.set('');
+    }
+    if (subId !== undefined) this.selectedFilterSubcategory.set(subId);
+
+    this.loadInventoryItems(
+      this.itemSearchQuery(),
+      this.assignModalFilterView(),
+      this.selectedFilterCategory(),
+      this.selectedFilterSubcategory()
+    );
+  }
+
+  // Cambiar vista en el modal de asignación SIN afectar el inventario asignado del tab
+  switchAssignModalView(viewId: string): void {
+    this.assignModalFilterView.set(viewId);
+    this.itemSearchQuery.set('');
+    this.selectedFilterCategory.set('');
+    this.selectedFilterSubcategory.set('');
+    this.loadInventoryItems('', viewId, '', '');
+  }
 
 
   // Modales
@@ -263,6 +371,11 @@ export class SpacesListComponent implements OnInit {
     })) || [];
     this.assignedItemsTemp.set(items);
     this.itemSearchQuery.set('');
+    this.assignedTabSearchQuery.set('');
+    this.assignedTabCategory.set('');
+    this.assignedTabSubcategory.set('');
+    this.loadCategories();
+    this.loadSubcategories();
     const firstViewId = this.inventoryViews().length > 0 ? this.inventoryViews()[0].id : '';
     this.selectedFilterView.set(firstViewId);
     this.showUnavailableItems.set(false);
@@ -505,6 +618,166 @@ export class SpacesListComponent implements OnInit {
     });
   }
 
+  // ==========================================================
+  // GESTIÓN DE DOCENTES (AGREGAR Y DESVINCULAR EN SUB-MODALES)
+  // ==========================================================
+  openAddTeachersModal(): void {
+    this.selectedTeachersToAdd.set([]);
+    this.addTeachersSearchQuery.set('');
+    this.showAddTeachersModal.set(true);
+  }
+
+  closeAddTeachersModal(): void {
+    this.showAddTeachersModal.set(false);
+  }
+
+  toggleTeacherToAdd(teacherId: string): void {
+    const current = [...this.selectedTeachersToAdd()];
+    const index = current.indexOf(teacherId);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(teacherId);
+    }
+    this.selectedTeachersToAdd.set(current);
+  }
+
+  isTeacherSelectedToAdd(teacherId: string): boolean {
+    return this.selectedTeachersToAdd().includes(teacherId);
+  }
+
+  submitAddTeachers(): void {
+    const spaceId = this.selectedSpace()?.id;
+    if (!spaceId) return;
+
+    const toAdd = this.selectedTeachersToAdd();
+    if (toAdd.length === 0) return;
+
+    this.modalLoading.set(true);
+    this.errorMessage.set(null);
+
+    // Obtener responsables actuales
+    const currentResponsibleIds = this.selectedSpace()?.responsibleTeachers?.map((t: any) => t.id) || [];
+    // Unir los actuales con los nuevos
+    const newResponsibleIds = Array.from(new Set([...currentResponsibleIds, ...toAdd]));
+
+    this.spacesService.linkTeachers(spaceId, newResponsibleIds).subscribe({
+      next: () => {
+        this.modalLoading.set(false);
+        this.successMessage.set('Docente(s) agregado(s) con éxito.');
+        this.closeAddTeachersModal();
+
+        // Recargar los espacios y actualizar el espacio seleccionado para el modal de detalles
+        this.spacesService.getAllSpaces().subscribe((res) => {
+          this.spaces.set(res);
+          const updated = res.find((s) => s.id === spaceId);
+          if (updated) {
+            this.selectedSpace.set(updated);
+            
+            // Sincronizar el formulario base de Angular
+            const group: any = {};
+            this.teachers().forEach((t: any) => {
+              const isLinked = updated.responsibleTeachers?.some((rt: any) => rt.id === t.id) || false;
+              group[t.id] = [isLinked];
+            });
+            this.teachersForm = this.fb.group(group);
+          }
+        });
+
+        setTimeout(() => this.successMessage.set(null), 2500);
+      },
+      error: (err: any) => {
+        this.modalLoading.set(false);
+        this.errorMessage.set(err.error?.message || 'Error al agregar docente(s).');
+      }
+    });
+  }
+
+  openRemoveTeachersModal(): void {
+    this.selectedTeachersToRemove.set([]);
+    this.removeTeachersSearchQuery.set('');
+    this.showRemoveTeachersModal.set(true);
+  }
+
+  closeRemoveTeachersModal(): void {
+    this.showRemoveTeachersModal.set(false);
+  }
+
+  toggleTeacherToRemove(teacherId: string): void {
+    const current = [...this.selectedTeachersToRemove()];
+    const index = current.indexOf(teacherId);
+    if (index > -1) {
+      current.splice(index, 1);
+    } else {
+      current.push(teacherId);
+    }
+    this.selectedTeachersToRemove.set(current);
+  }
+
+  isTeacherSelectedToRemove(teacherId: string): boolean {
+    return this.selectedTeachersToRemove().includes(teacherId);
+  }
+
+  submitRemoveTeachers(): void {
+    const spaceId = this.selectedSpace()?.id;
+    if (!spaceId) return;
+
+    const toRemove = this.selectedTeachersToRemove();
+    if (toRemove.length === 0) return;
+
+    Swal.fire({
+      title: '¿Desvincular Docentes?',
+      text: `¿Estás seguro de que deseas desvincular a los ${toRemove.length} docente(s) seleccionado(s) del espacio físico actual?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, desvincular',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ef4444',
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        this.modalLoading.set(true);
+        this.errorMessage.set(null);
+
+        // Obtener responsables actuales
+        const currentResponsibleIds = this.selectedSpace()?.responsibleTeachers?.map((t: any) => t.id) || [];
+        // Filtrar quitando los seleccionados para remover
+        const removeSet = new Set(toRemove);
+        const newResponsibleIds = currentResponsibleIds.filter(id => !removeSet.has(id));
+
+        this.spacesService.linkTeachers(spaceId, newResponsibleIds).subscribe({
+          next: () => {
+            this.modalLoading.set(false);
+            this.successMessage.set('Docente(s) desvinculado(s) correctamente.');
+            this.closeRemoveTeachersModal();
+
+            // Recargar los espacios y actualizar el espacio seleccionado para el modal de detalles
+            this.spacesService.getAllSpaces().subscribe((res) => {
+              this.spaces.set(res);
+              const updated = res.find((s) => s.id === spaceId);
+              if (updated) {
+                this.selectedSpace.set(updated);
+
+                // Sincronizar el formulario base de Angular
+                const group: any = {};
+                this.teachers().forEach((t: any) => {
+                  const isLinked = updated.responsibleTeachers?.some((rt: any) => rt.id === t.id) || false;
+                  group[t.id] = [isLinked];
+                });
+                this.teachersForm = this.fb.group(group);
+              }
+            });
+
+            setTimeout(() => this.successMessage.set(null), 2500);
+          },
+          error: (err: any) => {
+            this.modalLoading.set(false);
+            this.errorMessage.set(err.error?.message || 'Error al desvincular docente(s).');
+          }
+        });
+      }
+    });
+  }
+
 
   // Gestión de inventario temporal
   addTempItem(): void {
@@ -682,15 +955,66 @@ export class SpacesListComponent implements OnInit {
     return this.inventoryItems();
   });
 
-  // Ítems que YA pertenecen al espacio actual y a la pestaña/vista activa
+  // Categorías filtradas para el tab de Inventario Asignado (según vista activa)
+  assignedTabFilteredCategories = computed(() => {
+    const viewId = this.selectedFilterView();
+    const view = this.inventoryViews().find(v => v.id === viewId);
+    const viewCode = view?.code || '';
+    const cats = this.categories();
+    if (!viewCode) return cats;
+    return cats.filter((c: any) => c.baseView === viewCode);
+  });
+
+  // Subcategorías filtradas para el tab de Inventario Asignado (según categoría activa)
+  assignedTabFilteredSubcategories = computed(() => {
+    const catId = this.assignedTabCategory();
+    const subs = this.subcategories();
+    if (!catId) return subs;
+    return subs.filter((s: any) => (s.categoriaId === catId || s.categoryId === catId));
+  });
+
+  // Ítems que YA pertenecen al espacio actual con todos los filtros aplicados (Vista, Categoría, Subcategoría, Búsqueda)
   assignedSpaceItems = computed(() => {
     const currentItems = this.selectedSpace()?.items || [];
     const filterViewId = this.selectedFilterView();
-    if (!filterViewId) return currentItems;
+    const catId = this.assignedTabCategory();
+    const subId = this.assignedTabSubcategory();
+    const searchQuery = this.assignedTabSearchQuery().toLowerCase().trim();
 
     return currentItems.filter((item) => {
-      const itemViewId = item.inventoryViewId || item.inventoryView?.id;
-      return itemViewId === filterViewId;
+      // 1. Filtrar por Vista Físico/Virtual/Insumos/Biblioteca
+      if (filterViewId) {
+        const itemViewId = item.inventoryViewId || item.inventoryView?.id;
+        if (itemViewId !== filterViewId) return false;
+      }
+
+      // 2. Filtrar por Categoría
+      if (catId) {
+        const itemCatId = item.subcategory?.categoryId || item.subcategory?.categoriaId || item.subcategory?.category?.id || item.subcategoria?.categoriaId || item.subcategoria?.categoria?.id;
+        if (itemCatId !== catId) return false;
+      }
+
+      // 3. Filtrar por Subcategoría
+      if (subId) {
+        const itemSubId = item.subcategoryId || item.subcategoriaId || item.subcategory?.id || item.subcategoria?.id;
+        if (itemSubId !== subId) return false;
+      }
+
+      // 4. Filtrar por Búsqueda (Código, Nombre, Categoría, Subcategoría)
+      if (searchQuery) {
+        const name = (item.name || item.dynamicValues?.['nombre'] || '').toLowerCase();
+        const code = (item.codigoYavirac || item.codeValue || '').toLowerCase();
+        const subName = (item.subcategoria?.nombre || item.subcategory?.name || '').toLowerCase();
+        const catName = (item.subcategoria?.categoria?.nombre || item.subcategory?.category?.name || '').toLowerCase();
+
+        const matches = name.includes(searchQuery) ||
+                        code.includes(searchQuery) ||
+                        subName.includes(searchQuery) ||
+                        catName.includes(searchQuery);
+        if (!matches) return false;
+      }
+
+      return true;
     });
   });
 
@@ -723,13 +1047,22 @@ export class SpacesListComponent implements OnInit {
   });
 
   updateItemSearch(val: string): void {
-    this.itemSearchQuery.set(val);
-    this.loadInventoryItems(val, this.selectedFilterView());
+    this.assignedTabSearchQuery.set(val);
   }
 
   updateItemFilterView(viewId: string): void {
     this.selectedFilterView.set(viewId);
-    this.loadInventoryItems(this.itemSearchQuery(), viewId);
+    this.assignedTabCategory.set('');
+    this.assignedTabSubcategory.set('');
+  }
+
+  updateAssignedTabCategory(catId: string): void {
+    this.assignedTabCategory.set(catId);
+    this.assignedTabSubcategory.set('');
+  }
+
+  updateAssignedTabSubcategory(subId: string): void {
+    this.assignedTabSubcategory.set(subId);
   }
 
   // Filtrar docentes activos por nombre, cédula o correo
@@ -739,6 +1072,48 @@ export class SpacesListComponent implements OnInit {
     if (!query) return list;
 
     return list.filter((t) => {
+      const fullname = `${t.nombres || ''} ${t.apellidos || ''}`.toLowerCase();
+      const cedula = (t.cedula || '').toLowerCase();
+      const email = (t.correoInstitucional || '').toLowerCase();
+      return fullname.includes(query) || cedula.includes(query) || email.includes(query);
+    });
+  });
+
+  filteredSpaceResponsibleTeachers = computed(() => {
+    const space = this.selectedSpace();
+    if (!space || !space.responsibleTeachers) return [];
+    const query = this.responsibleTeachersSearchQuery().toLowerCase().trim();
+    if (!query) return space.responsibleTeachers;
+    return space.responsibleTeachers.filter((t: any) => {
+      const fullname = `${t.nombres || ''} ${t.apellidos || ''}`.toLowerCase();
+      const cedula = (t.cedula || '').toLowerCase();
+      const email = (t.correoInstitucional || '').toLowerCase();
+      return fullname.includes(query) || cedula.includes(query) || email.includes(query);
+    });
+  });
+
+  availableTeachersToAdd = computed(() => {
+    const space = this.selectedSpace();
+    const allTeachers = this.teachers();
+    if (!space) return allTeachers;
+    const assignedIds = new Set(space.responsibleTeachers?.map((t: any) => t.id) || []);
+    const filtered = allTeachers.filter((t: any) => !assignedIds.has(t.id));
+    const query = this.addTeachersSearchQuery().toLowerCase().trim();
+    if (!query) return filtered;
+    return filtered.filter((t: any) => {
+      const fullname = `${t.nombres || ''} ${t.apellidos || ''}`.toLowerCase();
+      const cedula = (t.cedula || '').toLowerCase();
+      const email = (t.correoInstitucional || '').toLowerCase();
+      return fullname.includes(query) || cedula.includes(query) || email.includes(query);
+    });
+  });
+
+  teachersToRemove = computed(() => {
+    const space = this.selectedSpace();
+    if (!space || !space.responsibleTeachers) return [];
+    const query = this.removeTeachersSearchQuery().toLowerCase().trim();
+    if (!query) return space.responsibleTeachers;
+    return space.responsibleTeachers.filter((t: any) => {
       const fullname = `${t.nombres || ''} ${t.apellidos || ''}`.toLowerCase();
       const cedula = (t.cedula || '').toLowerCase();
       const email = (t.correoInstitucional || '').toLowerCase();
@@ -784,6 +1159,32 @@ export class SpacesListComponent implements OnInit {
     }
 
     this.assignedItemsTemp.set(current);
+  }
+
+  newlySelectedItemsCount = computed(() => {
+    const preExistingIds = new Set(this.selectedSpace()?.items?.map((i: any) => i.id) || []);
+    return this.assignedItemsTemp().filter(i => !preExistingIds.has(i.itemId)).length;
+  });
+
+  preventInvalidQuantityKeys(event: KeyboardEvent): void {
+    if (['-', '+', 'e', 'E', '.', ','].includes(event.key)) {
+      event.preventDefault();
+    }
+  }
+
+  onQuantityInputChange(item: any, event: Event): void {
+    const inputEl = event.target as HTMLInputElement;
+    let parsed = parseInt(inputEl.value, 10);
+    const maxStock = Number(item.cantidad || 9999);
+    
+    if (isNaN(parsed) || parsed < 1) {
+      parsed = 1;
+    } else if (parsed > maxStock) {
+      parsed = maxStock;
+    }
+
+    inputEl.value = parsed.toString();
+    this.setItemQuantity(item, parsed);
   }
 
   setItemQuantity(item: any, qty: number): void {
@@ -836,6 +1237,69 @@ export class SpacesListComponent implements OnInit {
 
   isTeacherSelected(teacherId: string): boolean {
     return !!this.teachersForm.get(teacherId)?.value;
+  }
+
+  teachersToUnlink = computed(() => {
+    const space = this.selectedSpace();
+    if (!space || !space.responsibleTeachers) return [];
+    return space.responsibleTeachers.filter(t => !this.isTeacherSelected(t.id));
+  });
+
+  unlinkSelectedTeachers(): void {
+    const spaceId = this.selectedSpace()?.id;
+    if (!spaceId) return;
+
+    const toUnlink = this.teachersToUnlink();
+    if (toUnlink.length === 0) return;
+
+    Swal.fire({
+      title: '¿Desvincular Docentes?',
+      text: `¿Estás seguro de que deseas desvincular a los ${toUnlink.length} docentes desmarcados del espacio físico actual?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Sí, desvincular',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#ef4444',
+    }).then((result: any) => {
+      if (result.isConfirmed) {
+        this.modalLoading.set(true);
+        this.errorMessage.set(null);
+
+        // Los docentes que quedan vinculados son los que tienen value = true en teachersForm
+        const formVal = this.teachersForm.getRawValue();
+        const activeTeacherIds = Object.keys(formVal).filter((id) => formVal[id]);
+
+        this.spacesService.linkTeachers(spaceId, activeTeacherIds).subscribe({
+          next: () => {
+            this.modalLoading.set(false);
+            this.successMessage.set('Docentes desvinculados correctamente.');
+
+            // Recargar los espacios y actualizar el espacio seleccionado para el modal de detalles
+            this.spacesService.getAllSpaces().subscribe((res) => {
+              this.spaces.set(res);
+              const updated = res.find((s) => s.id === spaceId);
+              if (updated) {
+                this.selectedSpace.set(updated);
+                
+                // Reinicializar el formulario reactivo
+                const group: any = {};
+                this.teachers().forEach((t: any) => {
+                  const isLinked = updated.responsibleTeachers?.some((rt: any) => rt.id === t.id) || false;
+                  group[t.id] = [isLinked];
+                });
+                this.teachersForm = this.fb.group(group);
+              }
+            });
+
+            setTimeout(() => this.successMessage.set(null), 2500);
+          },
+          error: (err: any) => {
+            this.modalLoading.set(false);
+            this.errorMessage.set(err.error?.message || 'Error al desvincular docentes.');
+          }
+        });
+      }
+    });
   }
 
   toggleTeacherSelection(teacherId: string): void {

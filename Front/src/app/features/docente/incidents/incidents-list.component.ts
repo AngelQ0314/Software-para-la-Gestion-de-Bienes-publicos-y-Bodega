@@ -21,7 +21,13 @@ export class DocenteIncidentsComponent implements OnInit {
   // Bienes del espacio en jornada seleccionada
   availableItems = signal<any[]>([]);
   selectedItemIds = signal<string[]>([]);
+  selectedItemQuantities = signal<Record<string, number>>({});
 
+  // Filtros interactivos en modal de reporte
+  filterViewCode = signal<string>('');
+  searchQuery = signal<string>('');
+  filterCategory = signal<string>('');
+  filterSubcategory = signal<string>('');
   isLoading = signal(false);
   modalLoading = signal(false);
   itemsLoading = signal(false);
@@ -97,6 +103,12 @@ export class DocenteIncidentsComponent implements OnInit {
   loadSpaceItems(spaceId: string, jornada: string): void {
     this.itemsLoading.set(true);
     this.selectedItemIds.set([]);
+    this.selectedItemQuantities.set({});
+    this.filterViewCode.set('');
+    this.searchQuery.set('');
+    this.filterCategory.set('');
+    this.filterSubcategory.set('');
+
     this.spacesService.getInventoryByShift(spaceId, jornada).subscribe({
       next: (res: any[]) => {
         this.availableItems.set(res || []);
@@ -117,15 +129,215 @@ export class DocenteIncidentsComponent implements OnInit {
     return space?.jornadas || [];
   });
 
+  // Helper para saber si un ítem es Insumo
+  isItemInsumo(item: any): boolean {
+    if (!item) return false;
+    const code = item.inventoryView?.code || item.viewCode || item.subcategoria?.categoria?.baseView;
+    const viewName = item.view || item.inventoryView?.name || '';
+    return code === 'INSUMOS' || viewName === 'Insumos y Suministros';
+  }
+
+  // Helper para obtener nombre de la vista
+  getItemViewName(item: any): string {
+    if (!item) return 'General';
+    return item.inventoryView?.name || item.view || 'General';
+  }
+
+  // Categorías filtradas basadas en los ítems asignados al espacio
+  filteredCategories = computed(() => {
+    const items = this.availableItems();
+    const viewCode = this.filterViewCode();
+    const map = new Map<string, { id: string; nombre: string }>();
+
+    for (const item of items) {
+      const catId = item.categoryId || item.subcategory?.categoryId || item.subcategory?.category?.id || item.subcategoria?.categoria?.id || (typeof item.category === 'string' ? item.category : null);
+      const catName = typeof item.category === 'string' ? item.category : item.subcategory?.category?.name || item.subcategoria?.categoria?.nombre || 'Categoría';
+      const code = item.inventoryView?.code || item.viewCode || item.subcategoria?.categoria?.baseView;
+      const viewName = item.view || item.inventoryView?.name || '';
+
+      if (catId && catName) {
+        let matchesView = !viewCode;
+        if (viewCode === 'BIENES_PUBLICOS' && (code === 'BIENES_PUBLICOS' || viewName === 'Bienes Públicos')) matchesView = true;
+        else if (viewCode === 'INSUMOS' && (code === 'INSUMOS' || viewName === 'Insumos y Suministros')) matchesView = true;
+        else if (viewCode === 'BIBLIOTECA' && (code === 'BIBLIOTECA' || viewName === 'Biblioteca')) matchesView = true;
+
+        if (matchesView) {
+          map.set(catId, { id: catId, nombre: catName });
+        }
+      }
+    }
+    return Array.from(map.values());
+  });
+
+  // Subcategorías filtradas basadas en los ítems asignados
+  filteredSubcategories = computed(() => {
+    const items = this.availableItems();
+    const catId = this.filterCategory();
+    const map = new Map<string, { id: string; nombre: string }>();
+
+    for (const item of items) {
+      const subId = item.subcategoryId || item.subcategory?.id || item.subcategoria?.id || (typeof item.subcategory === 'string' ? item.subcategory : null);
+      const subName = typeof item.subcategory === 'string' ? item.subcategory : item.subcategory?.name || item.subcategoria?.nombre || 'Subcategoría';
+      const itemCatId = item.categoryId || item.subcategory?.categoryId || item.subcategory?.category?.id || item.subcategoria?.categoria?.id || (typeof item.category === 'string' ? item.category : null);
+
+      if (subId && subName) {
+        if (!catId || itemCatId === catId) {
+          map.set(subId, { id: subId, nombre: subName });
+        }
+      }
+    }
+    return Array.from(map.values());
+  });
+
+  // Ítems elegibles filtrados por Vista y Búsqueda por texto
+  filteredAvailableItems = computed(() => {
+    const list = this.availableItems();
+    const viewCode = this.filterViewCode();
+    const q = this.searchQuery().toLowerCase().trim();
+
+    return list.filter((item) => {
+      // 1. Vista
+      if (viewCode) {
+        const code = item.inventoryView?.code || item.viewCode || item.subcategoria?.categoria?.baseView;
+        const viewName = item.view || item.inventoryView?.name || '';
+
+        let matchesView = false;
+        if (viewCode === 'BIENES_PUBLICOS' && (code === 'BIENES_PUBLICOS' || viewName === 'Bienes Públicos')) matchesView = true;
+        else if (viewCode === 'INSUMOS' && (code === 'INSUMOS' || viewName === 'Insumos y Suministros')) matchesView = true;
+        else if (viewCode === 'BIBLIOTECA' && (code === 'BIBLIOTECA' || viewName === 'Biblioteca')) matchesView = true;
+        else if (code === viewCode) matchesView = true;
+
+        if (!matchesView) return false;
+      }
+
+      // 2. Búsqueda por texto (código, nombre, subcategoría, categoría)
+      if (q) {
+        const code = (item.codeValue || item.codigoYavirac || '').toLowerCase();
+        const name = (item.name || item.nombre || '').toLowerCase();
+        const subName = (typeof item.subcategory === 'string' ? item.subcategory : item.subcategory?.name || item.subcategoria?.nombre || '').toLowerCase();
+        const catName = (typeof item.category === 'string' ? item.category : item.subcategory?.category?.name || item.subcategoria?.categoria?.nombre || '').toLowerCase();
+        const matches = code.includes(q) || name.includes(q) || subName.includes(q) || catName.includes(q);
+        if (!matches) return false;
+      }
+
+      return true;
+    });
+  });
+
+
+  // Estado de selección masiva en visibles
+  areAllVisibleSelected = computed(() => {
+    const visible = this.filteredAvailableItems();
+    if (visible.length === 0) return false;
+    const selected = new Set(this.selectedItemIds());
+    return visible.every((item) => selected.has(item.id));
+  });
+
+  toggleSelectAllVisible(): void {
+    const visible = this.filteredAvailableItems();
+    if (visible.length === 0) return;
+
+    const allSelected = this.areAllVisibleSelected();
+    const currentSelected = new Set(this.selectedItemIds());
+    const qtyMap = { ...this.selectedItemQuantities() };
+
+    if (allSelected) {
+      visible.forEach((item) => {
+        currentSelected.delete(item.id);
+        delete qtyMap[item.id];
+      });
+    } else {
+      visible.forEach((item) => {
+        currentSelected.add(item.id);
+        if (!qtyMap[item.id]) {
+          qtyMap[item.id] = 1;
+        }
+      });
+    }
+
+    this.selectedItemIds.set(Array.from(currentSelected));
+    this.selectedItemQuantities.set(qtyMap);
+  }
+
+  updateFilterView(viewCode: string): void {
+    this.filterViewCode.set(viewCode);
+    this.filterCategory.set('');
+    this.filterSubcategory.set('');
+  }
+
+  updateFilterCategory(catId: string): void {
+    this.filterCategory.set(catId);
+    this.filterSubcategory.set('');
+  }
+
+  updateFilterSubcategory(subId: string): void {
+    this.filterSubcategory.set(subId);
+  }
+
+  updateSearchQuery(q: string): void {
+    this.searchQuery.set(q);
+  }
+
+  hasActiveReport(item: any): boolean {
+    if (!item) return false;
+    const isInsumo = this.isItemInsumo(item);
+    if (!isInsumo) {
+      return (item.estadoFisico && item.estadoFisico !== 'BUENO') || (item.reportesActivos && item.reportesActivos.length > 0);
+    }
+    const maxReportable = item.cantidadBuenEstado !== undefined ? item.cantidadBuenEstado : item.cantidad;
+    return maxReportable <= 0;
+  }
+
+  getMaxReportableQuantity(item: any): number {
+    if (!item) return 1;
+    if (!this.isItemInsumo(item)) return 1;
+    return item.cantidadBuenEstado !== undefined ? item.cantidadBuenEstado : item.cantidad || 1;
+  }
+
   toggleItemSelection(itemId: string): void {
+    const item = this.availableItems().find(i => i.id === itemId);
+    if (item && this.hasActiveReport(item)) {
+      const isInsumo = this.isItemInsumo(item);
+      if (!isInsumo) {
+        this.errorMessage.set(`El artículo '${item.name || item.codeValue}' ya cuenta con un reporte de novedad activo.`);
+      } else {
+        this.errorMessage.set(`El artículo '${item.name || item.codeValue}' no tiene unidades en buen estado disponibles para reportar.`);
+      }
+      return;
+    }
+
     const current = [...this.selectedItemIds()];
     const index = current.indexOf(itemId);
+    const qtyMap = { ...this.selectedItemQuantities() };
+
     if (index > -1) {
       current.splice(index, 1);
+      delete qtyMap[itemId];
     } else {
       current.push(itemId);
+      qtyMap[itemId] = 1;
     }
     this.selectedItemIds.set(current);
+    this.selectedItemQuantities.set(qtyMap);
+    this.errorMessage.set(null);
+  }
+
+  getItemQuantity(itemId: string): number {
+    return this.selectedItemQuantities()[itemId] || 1;
+  }
+
+  setItemQuantity(itemId: string, qty: number, maxQty: number): void {
+    let validQty = isNaN(qty) || qty < 1 ? 1 : qty;
+    if (validQty > maxQty) validQty = maxQty;
+    const qtyMap = { ...this.selectedItemQuantities(), [itemId]: validQty };
+    this.selectedItemQuantities.set(qtyMap);
+  }
+
+
+  preventInvalidQuantityKeys(event: KeyboardEvent): void {
+    if (['-', '+', 'e', 'E', '.', ','].includes(event.key)) {
+      event.preventDefault();
+    }
   }
 
   openCreateModal(): void {
@@ -166,11 +378,17 @@ export class DocenteIncidentsComponent implements OnInit {
     this.errorMessage.set(null);
 
     const val = this.incidentForm.value;
+    const itemsPayload = this.selectedItemIds().map((id) => ({
+      itemId: id,
+      cantidadAfectada: this.getItemQuantity(id)
+    }));
+
     const payload = {
       spaceId: val.spaceId,
       jornada: val.jornada,
       description: val.description.trim(),
       itemIds: this.selectedItemIds(),
+      itemsPayload,
       estadoFisico: val.estadoFisico
     };
 

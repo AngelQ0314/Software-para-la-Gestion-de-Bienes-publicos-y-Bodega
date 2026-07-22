@@ -15,6 +15,7 @@ import { CustomField, CustomFieldType } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
 import { AcademicPeriod } from '../periods/entities/academic-period.entity';
+import { IncidentReportItem } from '../incidents/entities/incident-report-item.entity';
 import * as ExcelJS from 'exceljs';
 
 
@@ -43,6 +44,8 @@ export class InventoryService {
     private readonly itemRepo: Repository<InventoryItem>,
     @InjectRepository(AcademicPeriod)
     private readonly periodRepo: Repository<AcademicPeriod>,
+    @InjectRepository(IncidentReportItem)
+    private readonly reportItemRepo: Repository<IncidentReportItem>,
   ) {}
 
   // VISTAS DE INVENTARIO
@@ -815,16 +818,44 @@ export class InventoryService {
           physicalSpaceId: Not(IsNull()),
           status: 'ACTIVO',
         },
-        relations: { physicalSpace: true },
+        relations: {
+          physicalSpace: {
+            responsibleTeachers: true,
+          },
+        },
       });
 
-      distribucionEspacios = distributions.map((d) => ({
-        id: d.id,
-        cantidad: d.cantidad,
-        spaceId: d.physicalSpaceId,
-        roomNumber: d.physicalSpace?.roomNumber || '',
-        name: d.physicalSpace?.name || '',
-      }));
+      distribucionEspacios = await Promise.all(
+        distributions.map(async (d) => {
+          const responsables = d.physicalSpace?.responsibleTeachers
+            ? d.physicalSpace.responsibleTeachers.map((u) => `${u.nombres} ${u.apellidos || ''}`.trim()).join(', ')
+            : '';
+
+          // Consultar reporte de novedades activo para esta asignación de insumo
+          const activeIncidents = await this.reportItemRepo
+            .createQueryBuilder('reportItem')
+            .innerJoin('reportItem.incidentReport', 'report')
+            .where('reportItem.itemId = :itemId', { itemId: d.id })
+            .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+
+            .select('SUM(reportItem.cantidadAfectada)', 'totalNovedad')
+            .getRawOne();
+
+          const cantidadNovedad = Number(activeIncidents?.totalNovedad || 0);
+          const cantidadBuenEstado = Math.max(0, Number(d.cantidad || 0) - cantidadNovedad);
+
+          return {
+            id: d.id,
+            cantidad: d.cantidad,
+            cantidadBuenEstado,
+            cantidadNovedad,
+            spaceId: d.physicalSpaceId,
+            roomNumber: d.physicalSpace?.roomNumber || '',
+            name: d.physicalSpace?.name || '',
+            responsables: responsables || 'Sin responsable',
+          };
+        }),
+      );
     }
 
     const disponible = item.physicalSpaceId === null ? (isInsumo ? item.cantidad > 0 : true) : false;
@@ -932,16 +963,26 @@ export class InventoryService {
             physicalSpaceId: Not(IsNull()),
             status: 'ACTIVO',
           },
-          relations: { physicalSpace: true },
+          relations: {
+            physicalSpace: {
+              responsibleTeachers: true,
+            },
+          },
         });
 
-        distribucionEspacios = distributions.map((d) => ({
-          id: d.id,
-          cantidad: d.cantidad,
-          spaceId: d.physicalSpaceId,
-          roomNumber: d.physicalSpace?.roomNumber || '',
-          name: d.physicalSpace?.name || '',
-        }));
+        distribucionEspacios = distributions.map((d) => {
+          const responsables = d.physicalSpace?.responsibleTeachers
+            ? d.physicalSpace.responsibleTeachers.map((u) => `${u.nombres} ${u.apellidos || ''}`.trim()).join(', ')
+            : '';
+          return {
+            id: d.id,
+            cantidad: d.cantidad,
+            spaceId: d.physicalSpaceId,
+            roomNumber: d.physicalSpace?.roomNumber || '',
+            name: d.physicalSpace?.name || '',
+            responsables: responsables || 'Sin responsable',
+          };
+        });
       }
 
       const disponible = item.physicalSpaceId === null ? (isInsumo ? item.cantidad > 0 : true) : false;
@@ -949,7 +990,7 @@ export class InventoryService {
       let mensajeDisponibilidad = 'Disponible';
       if (item.physicalSpaceId !== null) {
         const responsables = item.physicalSpace?.responsibleTeachers
-          ? item.physicalSpace.responsibleTeachers.map((u) => `${u.name} ${u.lastName || ''}`.trim()).join(', ')
+          ? item.physicalSpace.responsibleTeachers.map((u) => `${u.nombres} ${u.apellidos || ''}`.trim()).join(', ')
           : '';
         mensajeDisponibilidad = `Asignado al espacio '${item.physicalSpace?.name || ''}' (Número ${item.physicalSpace?.roomNumber || ''}).` +
           (responsables ? ` Responsable(s): ${responsables}.` : ' Sin responsable.');

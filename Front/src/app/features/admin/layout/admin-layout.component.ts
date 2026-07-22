@@ -192,8 +192,19 @@ export class AdminLayoutComponent {
   onNotificationClick(notif: SystemNotification): void {
     this.notificationsService.markAsRead(notif.id);
     this.showNotifications.set(false);
+
+    if (notif.itemId) {
+      this.notificationsService.openEditModalRequested$.next(notif.itemId);
+    }
+
     if (notif.route) {
-      this.router.navigate([notif.route]);
+      if (notif.queryParams) {
+        this.router.navigate([notif.route], { queryParams: notif.queryParams });
+      } else {
+        this.router.navigate([notif.route]);
+      }
     }
   }
+
+
 }

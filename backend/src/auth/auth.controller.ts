@@ -65,11 +65,11 @@ export class AuthController {
 
   //Cerrar sesión
   @Post('logout')
-  @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   logout() {
-    return this.authService.logout();
+    return { message: 'Sesión cerrada correctamente' };
   }
+
 
   //Cambio voluntario de contraseña desde la sesión del usuario
   @Post('update-password')

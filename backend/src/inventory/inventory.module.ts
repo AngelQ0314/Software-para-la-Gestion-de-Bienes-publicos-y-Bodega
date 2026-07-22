@@ -10,6 +10,8 @@ import { CustomField } from './entities/custom-field.entity';
 import { CustomFieldConfig } from './entities/custom-field-config.entity';
 import { InventoryItem } from './entities/inventory-item.entity';
 import { AcademicPeriod } from '../periods/entities/academic-period.entity';
+import { IncidentReportItem } from '../incidents/entities/incident-report-item.entity';
+
 
 import { InventoryService } from './inventory.service';
 import { InventoryController } from './inventory.controller';
@@ -24,6 +26,7 @@ import { InventoryController } from './inventory.controller';
       CustomFieldConfig,
       InventoryItem,
       AcademicPeriod,
+      IncidentReportItem,
     ]),
   ],
   providers: [InventoryService],
