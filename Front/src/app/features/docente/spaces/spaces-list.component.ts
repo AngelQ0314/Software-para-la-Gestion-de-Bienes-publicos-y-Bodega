@@ -1,15 +1,17 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { Subscription } from 'rxjs';
 import { SpacesService, PhysicalSpace } from '../../../core/services/spaces.service';
+import { InventorySyncService } from '../../../core/services/inventory-sync.service';
 
 @Component({
-  selector: 'app-docente-spaces-list',
+  selector: 'app-docente-spaces',
   standalone: true,
   imports: [CommonModule],
   templateUrl: './spaces-list.component.html',
   styleUrl: './spaces-list.component.css'
 })
-export class DocenteSpacesListComponent implements OnInit {
+export class DocenteSpacesListComponent implements OnInit, OnDestroy {
   spaces = signal<PhysicalSpace[]>([]);
   isLoading = signal(false);
   
@@ -24,21 +26,53 @@ export class DocenteSpacesListComponent implements OnInit {
   showReportsModal = signal(false);
   selectedItemForReports = signal<any | null>(null);
 
-  constructor(private readonly spacesService: SpacesService) {}
+  private syncSub?: Subscription;
+  private pollTimer?: any;
+
+  constructor(
+    private readonly spacesService: SpacesService,
+    private readonly syncService: InventorySyncService
+  ) {}
 
   ngOnInit(): void {
     this.loadMySpaces();
+
+    // 1. Escuchar sincronización en tiempo real
+    this.syncSub = this.syncService.events$.subscribe((type) => {
+      if (type === 'INVENTORY_CHANGED' || type === 'SPACES_CHANGED' || type === 'INCIDENTS_CHANGED') {
+        this.loadMySpaces(true);
+        const space = this.selectedSpace();
+        const jornada = this.selectedJornada();
+        if (space && jornada) {
+          this.loadSpaceInventory(space.id, jornada, true);
+        }
+      }
+    });
+
+    // 2. Polling silencioso cada 8 segundos
+    this.pollTimer = setInterval(() => {
+      const space = this.selectedSpace();
+      const jornada = this.selectedJornada();
+      if (space && jornada) {
+        this.loadSpaceInventory(space.id, jornada, true);
+      }
+    }, 8000);
   }
 
-  loadMySpaces(): void {
-    this.isLoading.set(true);
+  ngOnDestroy(): void {
+    if (this.syncSub) this.syncSub.unsubscribe();
+    if (this.pollTimer) clearInterval(this.pollTimer);
+  }
+
+  loadMySpaces(silent: boolean = false): void {
+    if (!silent) this.isLoading.set(true);
     this.spacesService.getAllSpaces().subscribe({
       next: (res: PhysicalSpace[]) => {
         this.spaces.set(res);
-        this.isLoading.set(false);
+        if (!silent) this.isLoading.set(false);
       },
       error: (err: any) => {
-        this.isLoading.set(false);
+        if (!silent) this.isLoading.set(false);
       }
     });
   }
@@ -67,16 +101,15 @@ export class DocenteSpacesListComponent implements OnInit {
     this.selectedViewCode.set(code);
   }
 
-  loadSpaceInventory(spaceId: string, jornada: string): void {
-    this.inventoryLoading.set(true);
+  loadSpaceInventory(spaceId: string, jornada: string, silent: boolean = false): void {
+    if (!silent) this.inventoryLoading.set(true);
     this.spacesService.getInventoryByShift(spaceId, jornada).subscribe({
       next: (res: any[]) => {
         this.spaceInventory.set(res || []);
-        this.inventoryLoading.set(false);
+        if (!silent) this.inventoryLoading.set(false);
       },
       error: (err: any) => {
-        this.spaceInventory.set([]);
-        this.inventoryLoading.set(false);
+        if (!silent) this.inventoryLoading.set(false);
       }
     });
   }
@@ -97,6 +130,28 @@ export class DocenteSpacesListComponent implements OnInit {
       return code === viewCode;
     });
   });
+
+  // Detección dinámica de vistas con artículos asociados en el aula seleccionada
+  availableViews = computed(() => {
+    const list = this.spaceInventory();
+    const hasBienes = list.some((row) => {
+      const code = row.inventoryView?.code || row.viewCode || row.subcategoria?.categoria?.baseView;
+      const viewName = row.view || row.inventoryView?.name || '';
+      return code === 'BIENES_PUBLICOS' || viewName === 'Bienes Públicos';
+    });
+    const hasInsumos = list.some((row) => {
+      const code = row.inventoryView?.code || row.viewCode || row.subcategoria?.categoria?.baseView;
+      const viewName = row.view || row.inventoryView?.name || '';
+      return code === 'INSUMOS' || viewName === 'Insumos y Suministros';
+    });
+    const hasBiblioteca = list.some((row) => {
+      const code = row.inventoryView?.code || row.viewCode || row.subcategoria?.categoria?.baseView;
+      const viewName = row.view || row.inventoryView?.name || '';
+      return code === 'BIBLIOTECA' || viewName === 'Biblioteca';
+    });
+    return { hasBienes, hasInsumos, hasBiblioteca };
+  });
+
 
   isItemInsumo(row: any): boolean {
     if (!row) return false;

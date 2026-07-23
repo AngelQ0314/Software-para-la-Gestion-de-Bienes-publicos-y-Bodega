@@ -185,21 +185,27 @@
                 }
               </div>
 
-              <!-- Pestañas de Vistas (Bienes, Insumos, Biblioteca) -->
+              <!-- Pestañas de Vistas Inteligentes (Solo muestra vistas con artículos asociados) -->
               @if (availableItems().length > 0) {
                 <div class="pill-tabs-group" style="margin: 0; display: flex; gap: 4px; flex-wrap: wrap;">
                   <button type="button" class="pill-tab" [class.active]="filterViewCode() === ''" (click)="updateFilterView('')" style="font-size: 0.72rem; padding: 4px 10px;">
                     Todos
                   </button>
-                  <button type="button" class="pill-tab" [class.active]="filterViewCode() === 'BIENES_PUBLICOS'" (click)="updateFilterView('BIENES_PUBLICOS')" style="font-size: 0.72rem; padding: 4px 10px;">
-                    Bienes Públicos
-                  </button>
-                  <button type="button" class="pill-tab" [class.active]="filterViewCode() === 'INSUMOS'" (click)="updateFilterView('INSUMOS')" style="font-size: 0.72rem; padding: 4px 10px;">
-                    Insumos
-                  </button>
-                  <button type="button" class="pill-tab" [class.active]="filterViewCode() === 'BIBLIOTECA'" (click)="updateFilterView('BIBLIOTECA')" style="font-size: 0.72rem; padding: 4px 10px;">
-                    Biblioteca
-                  </button>
+                  @if (availableViews().hasBienes) {
+                    <button type="button" class="pill-tab" [class.active]="filterViewCode() === 'BIENES_PUBLICOS'" (click)="updateFilterView('BIENES_PUBLICOS')" style="font-size: 0.72rem; padding: 4px 10px;">
+                      Bienes Públicos
+                    </button>
+                  }
+                  @if (availableViews().hasInsumos) {
+                    <button type="button" class="pill-tab" [class.active]="filterViewCode() === 'INSUMOS'" (click)="updateFilterView('INSUMOS')" style="font-size: 0.72rem; padding: 4px 10px;">
+                      Insumos
+                    </button>
+                  }
+                  @if (availableViews().hasBiblioteca) {
+                    <button type="button" class="pill-tab" [class.active]="filterViewCode() === 'BIBLIOTECA'" (click)="updateFilterView('BIBLIOTECA')" style="font-size: 0.72rem; padding: 4px 10px;">
+                      Biblioteca
+                    </button>
+                  }
                 </div>
 
                 <!-- Buscador de Artículos -->
@@ -209,6 +215,7 @@
                          #qInput [value]="searchQuery()" (input)="updateSearchQuery(qInput.value)" style="padding-left: 34px; font-size: 0.8rem;" />
                 </div>
               }
+
 
               <!-- Estado de Carga -->
               @if (itemsLoading()) {
@@ -355,26 +362,39 @@
           </div>
 
           <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 15px; margin-bottom: 8px;">Artículos Afectados</h4>
-          <div class="affected-items-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 220px; overflow-y: auto; padding: 4px; margin-bottom: 15px; width: 100%;">
+          <div class="affected-items-list" style="display: flex; flex-direction: column; gap: 10px; max-height: 240px; overflow-y: auto; padding: 4px; margin-bottom: 15px; width: 100%;">
             @for (item of selectedIncident()!.items; track item.id) {
               <div style="padding: 14px 16px; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-card); display: flex; align-items: center; justify-content: space-between; gap: 16px; box-shadow: 0 2px 5px rgba(0,0,0,0.04); width: 100%;">
                 <div style="display: flex; flex-direction: column; gap: 6px; flex-grow: 1;">
-                  <div style="display: flex; align-items: center; gap: 8px;">
+                  <div style="display: flex; align-items: center; gap: 8px; flex-wrap: wrap;">
+                    <span class="item-view-tag" [ngClass]="{
+                      'tag-bienes': getItemViewCode(item) === 'BIENES_PUBLICOS',
+                      'tag-insumos': getItemViewCode(item) === 'INSUMOS',
+                      'tag-biblioteca': getItemViewCode(item) === 'BIBLIOTECA'
+                    }" style="font-size: 0.68rem; padding: 3px 8px; border-radius: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.03em;">
+                      {{ getItemViewName(item) }}
+                    </span>
+
                     <h5 style="margin: 0; font-size: 0.98rem; font-weight: 700; color: var(--text-primary);">
                       {{ item.item?.name || 'Artículo sin nombre' }}
                     </h5>
+
                     <span style="font-size: 0.76rem; font-family: monospace; padding: 2px 8px; border-radius: 6px; background: rgba(0,0,0,0.04); color: var(--text-secondary); border: 1px solid var(--border-color);">
                       Cod: {{ item.item?.codeValue || 'S/C' }}
                     </span>
                   </div>
-                  @if (item.item?.subcategory?.name) {
-                    <span style="font-size: 0.78rem; color: var(--text-secondary); display: flex; align-items: center; gap: 4px;">
-                      <span class="material-icons-round" style="font-size: 0.9rem; color: #a855f7;">category</span>
-                      Categoría: <strong style="color: var(--text-primary);">{{ item.item.subcategory.name }}</strong>
-                    </span>
-                  }
+
+                  <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin-top: 2px;">
+                    @if (getItemViewCode(item) === 'INSUMOS' || item.cantidadAfectada > 1 || item.item?.cantidad > 1) {
+                      <span style="font-size: 0.78rem; color: #f97316; font-weight: 700; display: flex; align-items: center; gap: 4px; background: rgba(249, 115, 22, 0.1); padding: 2px 8px; border-radius: 6px; border: 1px solid rgba(249, 115, 22, 0.25);">
+                        <span class="material-icons-round" style="font-size: 0.9rem;">inventory_2</span>
+                        Cantidad Afectada: {{ item.cantidadAfectada || 1 }} / {{ item.item?.cantidad || 1 }} ud
+                      </span>
+                    }
+                  </div>
                 </div>
-                <div style="display: flex; align-items: center; gap: 8px; shrink: 0;">
+
+                <div style="display: flex; align-items: center; gap: 8px; flex-shrink: 0;">
                   <span class="badge" [ngClass]="{
                     'badge-bueno': selectedIncident()!.estadoFisico === 'BUENO',
                     'badge-regular': selectedIncident()!.estadoFisico === 'REGULAR',

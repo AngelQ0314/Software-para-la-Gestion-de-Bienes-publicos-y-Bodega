@@ -499,15 +499,52 @@
 
 .spec-bubble {
   font-size: 0.72rem;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.05);
-  color: var(--text-secondary);
-  padding: 3px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-secondary, #94a3b8);
+  padding: 4px 9px;
   border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
 
 .spec-bubble strong {
-  color: rgba(255, 255, 255, 0.75);
+  color: var(--text-primary, #f8fafc);
+  font-weight: 700;
+}
+
+/* Modo Claro (Light Theme Overrides) */
+body.light-theme .spec-bubble {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .spec-bubble strong {
+  color: #0f172a !important;
+}
+
+body.light-theme .specs-title {
+  color: #475569 !important;
+}
+
+body.light-theme .bienes-tag {
+  background: #eff6ff !important;
+  color: #1d4ed8 !important;
+  border-color: #bfdbfe !important;
+}
+
+body.light-theme .insumos-tag {
+  background: #ecfdf5 !important;
+  color: #047857 !important;
+  border-color: #a7f3d0 !important;
+}
+
+body.light-theme .biblioteca-tag {
+  background: #fffbe6 !important;
+  color: #b45309 !important;
+  border-color: #fde68a !important;
 }
 
 /* Footer de la Card */
@@ -517,6 +554,10 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+}
+
+body.light-theme .item-card-footer {
+  border-top-color: #e2e8f0 !important;
 }
 
 .footer-actions-right {

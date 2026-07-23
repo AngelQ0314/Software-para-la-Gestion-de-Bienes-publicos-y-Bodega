@@ -79,88 +79,94 @@
 
   <!-- MODAL EDITAR MI PERFIL -->
   @if (showProfileModal()) {
-    <div class="modal-overlay animate-fade">
-      <div class="glass-panel modal-card animate-slide">
+    <div class="modal-overlay animate-fade" (click)="closeProfileModal()">
+      <div class="glass-panel modal-card modal-card-profile animate-slide" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Mi Perfil Docente</h3>
-          <button class="close-btn" (click)="closeProfileModal()">×</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="material-icons-round" style="color: var(--color-primary); font-size: 1.4rem;">manage_accounts</span>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Mi Perfil Docente</h3>
+          </div>
+          <button class="close-btn" (click)="closeProfileModal()">&times;</button>
         </div>
+
         <form [formGroup]="profileForm" (ngSubmit)="onProfileSubmit()" class="modal-form">
-          <div class="form-group">
-            <label class="form-label">Cédula (No editable)</label>
-            <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
-          </div>
+          <div class="profile-form-grid">
+            <div class="form-group">
+              <label class="form-label">Cédula (No editable)</label>
+              <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
+            </div>
 
-          <div class="form-group">
-            <label class="form-label">Correo Institucional (No editable)</label>
-            <input type="text" class="form-input readonly-input" [value]="currentUser()?.correoInstitucional" readonly />
-          </div>
+            <div class="form-group">
+              <label class="form-label">Correo Institucional (No editable)</label>
+              <input type="text" class="form-input readonly-input" [value]="currentUser()?.correoInstitucional" readonly />
+            </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profNombres">Nombres</label>
-            <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
-            @if (isProfileFieldInvalid('nombres')) {
-              <span class="error-text">Los nombres son obligatorios</span>
-            }
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="profApellidos">Apellidos</label>
-            <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
-            @if (isProfileFieldInvalid('apellidos')) {
-              <span class="error-text">Los apellidos son obligatorios</span>
-            }
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
-            <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
-            @if (isProfileFieldInvalid('correoSecundario')) {
-              <span class="error-text">Ingresa un correo secundario válido</span>
-            }
-          </div>
-
-          <div class="form-group">
-            <label class="form-label" for="profTel">Teléfono (Opcional)</label>
-            <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
-          </div>
-
-          <!-- Áreas y Jornadas (Lectura) -->
-          <div class="form-group">
-            <label class="form-label">Mis Áreas Asignadas</label>
-            <div class="tag-container" style="display: flex; flex-wrap: wrap; gap: 8px;">
-              @for (area of currentUser()?.areas; track area) {
-                <span class="sub-tag" style="background: rgba(244, 63, 94, 0.12); color: #f43f5e;">{{ area }}</span>
-              } @empty {
-                <span style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">Ninguna área asignada</span>
+            <div class="form-group">
+              <label class="form-label" for="profNombres">Nombres</label>
+              <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
+              @if (isProfileFieldInvalid('nombres')) {
+                <span class="error-text">Los nombres son obligatorios</span>
               }
             </div>
-          </div>
 
-          <div class="form-group">
-            <label class="form-label">Mis Jornadas</label>
-            <div class="tag-container" style="display: flex; flex-wrap: wrap; gap: 8px;">
-              @for (jornada of currentUser()?.jornadas; track jornada) {
-                <span class="sub-tag" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8;">{{ jornada }}</span>
-              } @empty {
-                <span style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">Ninguna jornada asignada</span>
+            <div class="form-group">
+              <label class="form-label" for="profApellidos">Apellidos</label>
+              <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
+              @if (isProfileFieldInvalid('apellidos')) {
+                <span class="error-text">Los apellidos son obligatorios</span>
               }
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
+              <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
+              @if (isProfileFieldInvalid('correoSecundario')) {
+                <span class="error-text">Ingresa un correo secundario válido</span>
+              }
+            </div>
+
+            <div class="form-group">
+              <label class="form-label" for="profTel">Teléfono (Opcional)</label>
+              <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
+            </div>
+
+            <!-- Áreas y Jornadas (Full Width) -->
+            <div class="form-group profile-form-full">
+              <label class="form-label">Mis Áreas Asignadas</label>
+              <div class="tag-container" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                @for (area of currentUser()?.areas; track area) {
+                  <span class="sub-tag" style="background: rgba(244, 63, 94, 0.12); color: #f43f5e; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">{{ area }}</span>
+                } @empty {
+                  <span style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">Ninguna área asignada</span>
+                }
+              </div>
+            </div>
+
+            <div class="form-group profile-form-full">
+              <label class="form-label">Mis Jornadas</label>
+              <div class="tag-container" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                @for (jornada of currentUser()?.jornadas; track jornada) {
+                  <span class="sub-tag" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.8rem;">{{ jornada }}</span>
+                } @empty {
+                  <span style="font-size: 0.85rem; color: var(--text-muted); font-style: italic;">Ninguna jornada asignada</span>
+                }
+              </div>
             </div>
           </div>
 
           <!-- Alertas -->
           @if (profileErrorMessage()) {
-            <div class="alert-box error-alert">
+            <div class="alert-box error-alert" style="margin-top: 12px;">
               <span>⚠️</span> {{ profileErrorMessage() }}
             </div>
           }
           @if (profileSuccessMessage()) {
-            <div class="alert-box success-alert">
+            <div class="alert-box success-alert" style="margin-top: 12px;">
               <span>✅</span> {{ profileSuccessMessage() }}
             </div>
           }
 
-          <div class="modal-actions">
+          <div class="modal-actions" style="margin-top: 18px;">
             <button type="button" class="btn btn-secondary" (click)="closeProfileModal()">Cancelar</button>
             <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || profileLoading()">
               Guardar Cambios

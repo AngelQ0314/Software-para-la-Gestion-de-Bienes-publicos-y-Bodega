@@ -1,10 +1,12 @@
-import { Component, OnInit, signal, computed } from '@angular/core';
+import { Component, OnInit, OnDestroy, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators, FormControl, FormsModule } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { InventoryService, InventoryItem, Subcategory, SubcategoryFieldAssociation, Category, CustomField } from '../services/inventory.service';
 import Swal from 'sweetalert2';
 import { ActivatedRoute, Router } from '@angular/router';
 import { NotificationsService } from '../../../../core/services/notifications.service';
+import { InventorySyncService } from '../../../../core/services/inventory-sync.service';
 
 @Component({
   selector: 'app-items-list',
@@ -13,7 +15,7 @@ import { NotificationsService } from '../../../../core/services/notifications.se
   templateUrl: './items-list.component.html',
   styleUrl: './items-list.component.css'
 })
-export class ItemsListComponent implements OnInit {
+export class ItemsListComponent implements OnInit, OnDestroy {
   items = signal<InventoryItem[]>([]);
   loading = signal(false);
   currentPage = signal(1);
@@ -135,12 +137,16 @@ export class ItemsListComponent implements OnInit {
 
 
 
+  private syncSub?: Subscription;
+  private pollTimer?: any;
+
   constructor(
     private readonly fb: FormBuilder, 
     private readonly inventoryService: InventoryService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly syncService: InventorySyncService
   ) {
     this.filterForm = this.fb.group({
       codigoYavirac: [''],
@@ -187,6 +193,23 @@ export class ItemsListComponent implements OnInit {
 
   ngOnInit(): void {
     this.loadMetadata();
+
+    // Sincronización en tiempo real entre pestañas y roles
+    this.syncSub = this.syncService.events$.subscribe((type) => {
+      if (type === 'INVENTORY_CHANGED' || type === 'SPACES_CHANGED') {
+        this.loadMetadata();
+        if (this.selectedView()) {
+          this.loadItems(true);
+        }
+      }
+    });
+
+    // Polling silencioso cada 8 segundos
+    this.pollTimer = setInterval(() => {
+      if (this.selectedView()) {
+        this.loadItems(true);
+      }
+    }, 8000);
 
     // Listeners para refresco automático de filtros en eliminados
     this.filterForm.get('categoryId')?.valueChanges.subscribe(() => {
@@ -243,6 +266,11 @@ export class ItemsListComponent implements OnInit {
         handleEditItem(editItemId);
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    if (this.syncSub) this.syncSub.unsubscribe();
+    if (this.pollTimer) clearInterval(this.pollTimer);
   }
 
   loadMetadata(): void {
@@ -332,11 +360,11 @@ export class ItemsListComponent implements OnInit {
     }
   }
 
-  loadItems(): void {
+  loadItems(silent: boolean = false): void {
     const viewCode = this.selectedView();
     if (!viewCode) return;
 
-    this.loading.set(true);
+    if (!silent) this.loading.set(true);
     const filters = { ...this.filterForm.value };
 
     const currentView = this.viewsList().find(v => v.code === viewCode);
@@ -352,7 +380,7 @@ export class ItemsListComponent implements OnInit {
       filters.inventoryViewId = resolvedViewId;
       filters.status = 'INACTIVO';
     } else {
-      this.loading.set(false);
+      if (!silent) this.loading.set(false);
       return;
     }
 
@@ -360,10 +388,10 @@ export class ItemsListComponent implements OnInit {
       next: (res: any) => {
         this.items.set(res.data || []);
         this.totalPages.set(res.lastPage || 1);
-        this.loading.set(false);
+        if (!silent) this.loading.set(false);
       },
       error: () => {
-        this.loading.set(false);
+        if (!silent) this.loading.set(false);
       },
     });
   }

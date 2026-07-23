@@ -195,12 +195,25 @@
   border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   border-radius: 10px;
   background: var(--card-bg, #1e1f2b);
+  color: var(--text-primary, #ffffff);
   cursor: pointer;
   transition: all 0.2s ease;
   min-height: 110px;
   height: auto;
   position: relative;
   box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+:host-context(.light-theme) .checkbox-card,
+body.light-theme .checkbox-card {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+:host-context(.light-theme) .checkbox-card h5,
+body.light-theme .checkbox-card h5 {
+  color: #0f172a !important;
 }
 
 .checkbox-card:hover {

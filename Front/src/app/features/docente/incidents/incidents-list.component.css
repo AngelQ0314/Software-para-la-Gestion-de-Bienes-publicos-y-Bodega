@@ -203,9 +203,10 @@
   justify-content: space-between;
   gap: 8px;
   padding: 12px;
-  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
   border-radius: 10px;
-  background: var(--bg-primary, #ffffff);
+  background: var(--card-bg, #1e1f2b);
+  color: var(--text-primary, #ffffff);
   cursor: pointer;
   transition: all var(--transition-fast, 0.2s);
   min-height: 110px;
@@ -214,13 +215,25 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
+:host-context(.light-theme) .checkbox-card,
+body.light-theme .checkbox-card {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  color: #0f172a !important;
+}
+
+:host-context(.light-theme) .checkbox-card h5,
+body.light-theme .checkbox-card h5 {
+  color: #0f172a !important;
+}
+
 .checkbox-card:hover {
-  background: rgba(249, 115, 22, 0.04);
-  border-color: rgba(249, 115, 22, 0.15);
+  background: rgba(249, 115, 22, 0.08);
+  border-color: rgba(249, 115, 22, 0.3);
 }
 
 .checkbox-card.selected {
-  background: rgba(249, 115, 22, 0.08);
+  background: rgba(249, 115, 22, 0.14);
   border-color: var(--color-primary, #f97316);
   min-height: 155px; /* Más espacio para que quepa el selector de cantidad sin cortes */
 }

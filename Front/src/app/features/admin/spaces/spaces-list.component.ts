@@ -1,9 +1,11 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { SpacesService, PhysicalSpace } from '../../../core/services/spaces.service';
 import { UsersService } from '../users/services/users.service';
 import { InventoryService } from '../inventory/services/inventory.service';
+import { InventorySyncService } from '../../../core/services/inventory-sync.service';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -13,7 +15,7 @@ import Swal from 'sweetalert2';
   templateUrl: './spaces-list.component.html',
   styleUrl: './spaces-list.component.css'
 })
-export class SpacesListComponent implements OnInit {
+export class SpacesListComponent implements OnInit, OnDestroy {
   spaces = signal<PhysicalSpace[]>([]);
   teachers = signal<any[]>([]);
   inventoryItems = signal<any[]>([]);
@@ -67,12 +69,15 @@ export class SpacesListComponent implements OnInit {
   selectedTeachersToAdd = signal<string[]>([]);
   selectedTeachersToRemove = signal<string[]>([]);
 
+  private syncSub?: Subscription;
+  private pollTimer?: any;
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly spacesService: SpacesService,
     private readonly usersService: UsersService,
-    private readonly inventoryService: InventoryService
+    private readonly inventoryService: InventoryService,
+    private readonly syncService: InventorySyncService
   ) {
     this.filterForm = this.fb.group({
       search: [''],
@@ -113,6 +118,18 @@ export class SpacesListComponent implements OnInit {
     this.loadInventoryViews();
     this.loadInventoryItems();
 
+    // 1. Escuchar sincronización en tiempo real
+    this.syncSub = this.syncService.events$.subscribe((type) => {
+      if (type === 'SPACES_CHANGED' || type === 'INVENTORY_CHANGED') {
+        this.loadSpaces(true);
+      }
+    });
+
+    // 2. Polling silencioso cada 8 segundos
+    this.pollTimer = setInterval(() => {
+      this.loadSpaces(true);
+    }, 8000);
+
     this.inventoryForm.get('selectedItemId')?.valueChanges.subscribe((itemId) => {
       if (!itemId) return;
       const itemObj = this.inventoryItems().find((i) => i.id === itemId);
@@ -125,9 +142,14 @@ export class SpacesListComponent implements OnInit {
     });
   }
 
+  ngOnDestroy(): void {
+    if (this.syncSub) this.syncSub.unsubscribe();
+    if (this.pollTimer) clearInterval(this.pollTimer);
+  }
+
   // Cargar Espacios
-  loadSpaces(): void {
-    this.isLoading.set(true);
+  loadSpaces(silent: boolean = false): void {
+    if (!silent) this.isLoading.set(true);
     const formVal = this.filterForm.value;
 
     const filters: any = {
@@ -144,11 +166,10 @@ export class SpacesListComponent implements OnInit {
 
     this.spacesService.getAllSpaces(filters).subscribe({
       next: (res: PhysicalSpace[]) => {
-        this.spaces.set(res);
-        this.isLoading.set(false);
+        this.spaces.set(res || []);
+        if (!silent) this.isLoading.set(false);
       },
       error: (err: any) => {
-        this.errorMessage.set('Error al cargar espacios físicos.');
         this.isLoading.set(false);
       }
     });

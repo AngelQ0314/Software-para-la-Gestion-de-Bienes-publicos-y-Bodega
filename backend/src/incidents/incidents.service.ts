@@ -201,7 +201,10 @@ export class IncidentsService {
       .leftJoinAndSelect('report.space', 'space')
       .leftJoinAndSelect('report.academicPeriod', 'academicPeriod')
       .leftJoinAndSelect('report.items', 'reportItems')
-      .leftJoinAndSelect('reportItems.item', 'item');
+      .leftJoinAndSelect('reportItems.item', 'item')
+      .leftJoinAndSelect('item.subcategory', 'subcategory')
+      .leftJoinAndSelect('subcategory.category', 'category')
+      .leftJoinAndSelect('category.inventoryView', 'inventoryView');
 
     if (userRol === UserRole.DOCENTE) {
       query.andWhere('report.teacherId = :userId', { userId });

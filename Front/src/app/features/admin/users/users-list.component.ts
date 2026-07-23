@@ -382,4 +382,73 @@ export class UsersListComponent implements OnInit {
       }
     });
   }
+
+  // ── Formateadores de Bitácora ──────────────────────────────────────────────
+  getLogTitle(log: UserLog): string {
+    const type = log.tipoCambio || log.accion;
+    if (type === 'CAMBIO_ROL') return 'CAMBIO DE ROL';
+    if (type === 'CAMBIO_ESTADO') return 'CAMBIO DE ESTADO';
+    if (type === 'RESET_PASSWORD') return 'RESTABLECIMIENTO DE CONTRASEÑA';
+    return type || 'MOVIMIENTO REGISTRADO';
+  }
+
+  getLogDescription(log: UserLog): string {
+    const type = log.tipoCambio || log.accion;
+    
+    if (type === 'CAMBIO_ROL') {
+      const prev = log.valorAnterior ? this.formatRoleName(log.valorAnterior) : '';
+      const next = log.valorNuevo ? this.formatRoleName(log.valorNuevo) : '';
+      if (prev && next) {
+        return `Se modificó el rol del usuario de ${prev} a ${next}.`;
+      }
+      return log.observacion || log.detalle || `Rol actualizado a ${this.formatRoleName(log.valorNuevo || '')}.`;
+    }
+
+    if (type === 'CAMBIO_ESTADO') {
+      const prev = log.valorAnterior ? this.formatStatusName(log.valorAnterior) : '';
+      const next = log.valorNuevo ? this.formatStatusName(log.valorNuevo) : '';
+      if (prev && next) {
+        return `El estado de la cuenta cambió de ${prev} a ${next}.`;
+      }
+      return log.observacion || log.detalle || `Estado de la cuenta actualizado.`;
+    }
+
+    if (type === 'RESET_PASSWORD') {
+      return 'Se generó y envió un enlace de restablecimiento de contraseña.';
+    }
+
+    return log.observacion || log.detalle || 'Acción de auditoría registrada en el sistema.';
+  }
+
+  getLogIcon(log: UserLog): string {
+    const type = log.tipoCambio || log.accion;
+    if (type === 'CAMBIO_ROL') return 'admin_panel_settings';
+    if (type === 'CAMBIO_ESTADO') return 'swap_horiz';
+    if (type === 'RESET_PASSWORD') return 'lock_reset';
+    return 'history';
+  }
+
+  getLogBadgeClass(log: UserLog): string {
+    const type = log.tipoCambio || log.accion;
+    if (type === 'CAMBIO_ROL') return 'badge-log-role';
+    if (type === 'CAMBIO_ESTADO') return 'badge-log-status';
+    if (type === 'RESET_PASSWORD') return 'badge-log-reset';
+    return 'badge-log-default';
+  }
+
+  formatRoleName(role: string): string {
+    if (!role) return '';
+    if (role === 'ADMINISTRADOR') return 'ADMINISTRADOR';
+    if (role === 'RESPONSABLE_DE_BIENES') return 'RESP. DE BIENES';
+    if (role === 'DOCENTE') return 'DOCENTE';
+    return role;
+  }
+
+  formatStatusName(status: string): string {
+    if (!status) return '';
+    if (status === 'ACTIVO') return 'ACTIVO';
+    if (status === 'INACTIVO') return 'INACTIVO';
+    if (status === 'DADO_DE_BAJA') return 'DADO DE BAJA';
+    return status;
+  }
 }

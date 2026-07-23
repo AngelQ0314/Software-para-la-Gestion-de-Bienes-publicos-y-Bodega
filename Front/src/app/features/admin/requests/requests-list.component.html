@@ -115,14 +115,14 @@
                 </div>
               </div>
 
-              <div class="user-card-actions">
+              <div class="user-card-actions" style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
                 <button class="btn btn-secondary btn-block" (click)="openDetailModal(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
                   <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
                   Ver Detalle
                 </button>
                 @if (req.status === 'APROBADA') {
                   <button class="btn btn-primary btn-block" (click)="downloadActa(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                     <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
+                    <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
                     Descargar Acta
                   </button>
                 }

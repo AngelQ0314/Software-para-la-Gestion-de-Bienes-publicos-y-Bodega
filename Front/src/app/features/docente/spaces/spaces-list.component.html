@@ -101,21 +101,30 @@
               Artículos Registrados en Jornada: <span style="color: #fb7185;">{{ selectedJornada() }}</span>
             </h4>
 
-            <!-- Pestañas de Filtrado por Vistas (Bienes, Insumos, Biblioteca) -->
-            <div class="pill-tabs-group" style="display: flex; gap: 6px; margin: 0;">
-              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === ''" (click)="updateSelectedView('')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
-                Todos
-              </button>
-              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIENES_PUBLICOS'" (click)="updateSelectedView('BIENES_PUBLICOS')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
-                Bienes Públicos
-              </button>
-              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'INSUMOS'" (click)="updateSelectedView('INSUMOS')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
-                Insumos y Suministros
-              </button>
-              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIBLIOTECA'" (click)="updateSelectedView('BIBLIOTECA')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
-                Biblioteca
-              </button>
-            </div>
+            <!-- Pestañas de Filtrado por Vistas (Solo muestra vistas con artículos asociados) -->
+            @if (spaceInventory().length > 0) {
+              <div class="pill-tabs-group" style="display: flex; gap: 6px; margin: 0;">
+                <button type="button" class="pill-tab" [class.active]="selectedViewCode() === ''" (click)="updateSelectedView('')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                  Todos
+                </button>
+                @if (availableViews().hasBienes) {
+                  <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIENES_PUBLICOS'" (click)="updateSelectedView('BIENES_PUBLICOS')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                    Bienes Públicos
+                  </button>
+                }
+                @if (availableViews().hasInsumos) {
+                  <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'INSUMOS'" (click)="updateSelectedView('INSUMOS')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                    Insumos y Suministros
+                  </button>
+                }
+                @if (availableViews().hasBiblioteca) {
+                  <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIBLIOTECA'" (click)="updateSelectedView('BIBLIOTECA')" style="font-size: 0.78rem; padding: 5px 12px; border-radius: 20px;">
+                    Biblioteca
+                  </button>
+                }
+              </div>
+            }
+
           </div>
 
           @if (inventoryLoading()) {

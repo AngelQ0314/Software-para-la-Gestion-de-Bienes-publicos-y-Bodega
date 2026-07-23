@@ -125,7 +125,7 @@
                 }
               </div>
 
-              <div class="user-card-actions">
+              <div class="user-card-actions" style="display: flex; flex-direction: column; gap: 12px; margin-top: 16px;">
                 <button class="btn btn-secondary btn-block" (click)="openDetailModal(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
                   <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
                   Ver Detalle
@@ -257,23 +257,28 @@
                            style="width: 100%; padding: 10px 12px 10px 38px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem;" />
                   </div>
 
-                  <!-- Pestañas de Vistas -->
+                  <!-- Pestañas de Vistas Inteligentes (Solo muestra vistas con artículos asociados) -->
                   <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
                     <button type="button" class="btn" [ngClass]="activeTab() === 'TODOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('TODOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
                       Todos
                     </button>
-                    <button type="button" class="btn" [ngClass]="activeTab() === 'BIENES_PUBLICOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('BIENES_PUBLICOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
-                      Bienes Públicos
-                    </button>
-                    @if (requestForm.value.type !== 'MANTENIMIENTO' && requestForm.value.type !== 'BAJA_DEFINITIVA') {
+                    @if (availableViews().hasBienes) {
+                      <button type="button" class="btn" [ngClass]="activeTab() === 'BIENES_PUBLICOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('BIENES_PUBLICOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
+                        Bienes Públicos
+                      </button>
+                    }
+                    @if (availableViews().hasInsumos && requestForm.value.type !== 'MANTENIMIENTO' && requestForm.value.type !== 'BAJA_DEFINITIVA') {
                       <button type="button" class="btn" [ngClass]="activeTab() === 'INSUMOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('INSUMOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
                         Insumos
                       </button>
                     }
-                    <button type="button" class="btn" [ngClass]="activeTab() === 'BIBLIOTECA' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('BIBLIOTECA')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
-                      Biblioteca
-                    </button>
+                    @if (availableViews().hasBiblioteca) {
+                      <button type="button" class="btn" [ngClass]="activeTab() === 'BIBLIOTECA' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('BIBLIOTECA')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
+                        Biblioteca
+                      </button>
+                    }
                   </div>
+
                 </div>
 
                 <!-- Lista de Tarjetas (Scrollable) -->

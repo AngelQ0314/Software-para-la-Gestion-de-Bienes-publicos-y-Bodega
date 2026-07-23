@@ -310,6 +310,7 @@ export class UsersService {
       tipoCambio: LogType.CAMBIO_ROL,
       valorAnterior,
       valorNuevo: newRol,
+      observacion: `Se cambió el rol del usuario de ${valorAnterior} a ${newRol}`,
     });
 
     return { message: `Rol actualizado a ${newRol}` };

@@ -104,10 +104,10 @@ export class ReportsService {
   async generateClosureAndShiftReports(period: AcademicPeriod, adminId?: string): Promise<void> {
     const admin = adminId ? await this.userRepo.findOne({ where: { id: adminId } }) : null;
 
-    // Recopilar datos de Bodega (items sin espacio asignado en este período)
-    const itemsBodega = await this.itemRepo.find({
-      where: { physicalSpaceId: IsNull(), status: 'ACTIVO' },
-      relations: { subcategory: { category: { inventoryView: true } } },
+    // Recopilar datos de Inventario General (todos los items activos de la institución)
+    const itemsInventario = await this.itemRepo.find({
+      where: { status: 'ACTIVO' },
+      relations: { inventoryView: true, subcategory: { category: { inventoryView: true } } },
     });
 
     // Recopilar datos de Espacios Físicos
@@ -115,6 +115,7 @@ export class ReportsService {
       relations: {
         responsibleTeachers: true,
         items: {
+          inventoryView: true,
           subcategory: { category: { inventoryView: true } },
         },
       },
@@ -138,12 +139,23 @@ export class ReportsService {
         closedAt: period.closedAt || new Date(),
         typeOfClosure: adminId ? 'MANUAL' : 'AUTOMATICO',
       },
-      bodega: itemsBodega.map((i) => ({
+      inventario: itemsInventario.map((i) => ({
         id: i.id,
         name: i.name,
         codeValue: i.codeValue,
         codePrefix: '',
-        view: i.inventoryView?.name || '',
+        view: i.inventoryView?.name || i.subcategory?.category?.inventoryView?.name || '',
+        subcategory: i.subcategory?.name || '',
+        category: i.subcategory?.category?.name || '',
+        cantidad: i.cantidad,
+        dynamicValues: i.dynamicValues,
+      })),
+      bodega: itemsInventario.map((i) => ({
+        id: i.id,
+        name: i.name,
+        codeValue: i.codeValue,
+        codePrefix: '',
+        view: i.inventoryView?.name || i.subcategory?.category?.inventoryView?.name || '',
         subcategory: i.subcategory?.name || '',
         category: i.subcategory?.category?.name || '',
         cantidad: i.cantidad,
@@ -167,7 +179,7 @@ export class ReportsService {
           id: i.id,
           name: i.name,
           codeValue: i.codeValue,
-          view: i.inventoryView?.name || '',
+          view: i.inventoryView?.name || i.subcategory?.category?.inventoryView?.name || '',
           subcategory: i.subcategory?.name || '',
           category: i.subcategory?.category?.name || '',
           cantidad: i.cantidad,
@@ -444,70 +456,250 @@ export class ReportsService {
     switch (report.type) {
       case ReportType.PERIODO_ACADEMICO: {
         const data = report.reportData;
-        doc.fillColor('#2c3e50')
-           .fontSize(13)
+
+        // Título Principal
+        doc.fillColor('#1e293b')
+           .fontSize(14)
            .font('Helvetica-Bold')
-           .text('REPORTE CONSOLIDADO DE FIN DE PERÍODO ACADÉMICO', { align: 'center' })
+           .text('REPORTE CONSOLIDADO DE FIN DE PERÍODO ACADÉMICO', 50, doc.y, { align: 'center', width: 500 })
            .moveDown(0.2);
         
-        doc.fontSize(11)
+        doc.fontSize(10)
            .font('Helvetica')
-           .text(`Código: ${report.code}`, { align: 'center' })
-           .moveDown(1);
+           .fillColor('#64748b')
+           .text(`Código: ${report.code}`, 50, doc.y, { align: 'center', width: 500 })
+           .moveDown(1.2);
 
-        doc.fillColor('#1a3a5c').fontSize(11).text('Resumen del Período', { underline: true }).moveDown(0.3);
-        doc.fillColor('#333333').fontSize(9)
-           .text(`Nombre del Período: ${data.periodInfo.name}`)
-           .text(`Fecha de Inicio: ${new Date(data.periodInfo.startDate).toLocaleDateString('es-EC')}`)
-           .text(`Fecha de Fin: ${new Date(data.periodInfo.endDate).toLocaleDateString('es-EC')}`)
-           .text(`Cierre Ejecutado el: ${new Date(data.periodInfo.closedAt).toLocaleString('es-EC')} (${data.periodInfo.typeOfClosure})`)
-           .text(`Generado por: ${generatedByStr}`)
-           .moveDown(1.5);
+        // Helper para resolver la vista (Bienes Públicos, Insumos y Suministros, Biblioteca)
+        const resolveItemView = (item: any): string => {
+          const v = String(item.view || item.inventoryView?.name || item.subcategory?.category?.inventoryView?.name || item.category || '').toLowerCase();
+          if (v.includes('bienes') || v.includes('públicos') || v.includes('publicos')) return 'Bienes Públicos';
+          if (v.includes('insumo') || v.includes('suministro')) return 'Insumos y Suministros';
+          if (v.includes('bibliotec') || v.includes('libro')) return 'Biblioteca';
+          
+          const code = String(item.codeValue || item.code || '').toUpperCase();
+          if (code.startsWith('INS-')) return 'Insumos y Suministros';
+          if (code.startsWith('BIB-')) return 'Biblioteca';
+          if (code.startsWith('YAV-')) return 'Bienes Públicos';
+          return 'Bienes Públicos';
+        };
 
-        // Sección Bodega
-        doc.fillColor('#1a3a5c').fontSize(11).text('1. Inventario en Bodega', { underline: true }).moveDown(0.4);
-        doc.fillColor('#333333').fontSize(9);
-        if (!data.bodega || data.bodega.length === 0) {
-          doc.text('No hay artículos registrados en bodega al momento del cierre.').moveDown(1);
+        // 1. Resumen del Período
+        doc.fillColor('#1e3a8a').fontSize(11).font('Helvetica-Bold').text('Resumen del Período', 50, doc.y, { width: 500, underline: true });
+        doc.moveDown(0.4);
+
+        doc.fillColor('#334155').fontSize(9).font('Helvetica');
+        let rY = doc.y;
+        doc.text(`Nombre del Período: ${data.periodInfo.name}`, 50, rY, { width: 500 }); rY += 14;
+        doc.text(`Fecha de Inicio: ${new Date(data.periodInfo.startDate).toLocaleDateString('es-EC')}`, 50, rY, { width: 500 }); rY += 14;
+        doc.text(`Fecha de Fin: ${new Date(data.periodInfo.endDate).toLocaleDateString('es-EC')}`, 50, rY, { width: 500 }); rY += 14;
+        doc.text(`Cierre Ejecutado el: ${new Date(data.periodInfo.closedAt).toLocaleString('es-EC')}`, 50, rY, { width: 500 }); rY += 22;
+        doc.y = rY;
+
+        // 1. Inventario General (Todos los artículos activos de la institución)
+        doc.fillColor('#1e3a8a').fontSize(11).font('Helvetica-Bold').text('1. Inventario General', 50, doc.y, { width: 500, underline: true });
+        doc.moveDown(0.5);
+
+        let inventarioItems: any[] = [];
+
+        if (data.inventario && Array.isArray(data.inventario) && data.inventario.length > 0) {
+          inventarioItems = data.inventario;
         } else {
-          let bY = doc.y;
-          doc.font('Helvetica-Bold').text('Código', 50, bY).text('Nombre', 180, bY).text('Cantidad', 450, bY, { align: 'right' }).font('Helvetica');
-          doc.moveTo(50, bY + 12).lineTo(550, bY + 12).stroke('#1a3a5c');
-          bY += 16;
-          for (const item of data.bodega) {
-            doc.text(`${item.codeValue}`, 50, bY)
-               .text(`${item.name}`, 180, bY, { width: 250 })
-               .text(`${item.cantidad}`, 450, bY, { align: 'right' });
-            bY += 16;
-            if (bY > 700) { doc.addPage(); bY = 50; }
+          // Combinar ítems en Bodega + todos los ítems asignados a Espacios Físicos del reporte guardado
+          const itemsBodega = data.bodega || [];
+          const itemsEspacios: any[] = [];
+          if (data.spaces && Array.isArray(data.spaces)) {
+            for (const sp of data.spaces) {
+              if (sp.items && Array.isArray(sp.items)) {
+                itemsEspacios.push(...sp.items);
+              }
+            }
           }
-          doc.y = bY + 10;
+          // Eliminar duplicados si los hay por ID
+          const mapItems = new Map<string, any>();
+          [...itemsBodega, ...itemsEspacios].forEach((item) => {
+            if (item && item.id) {
+              mapItems.set(item.id, item);
+            } else if (item) {
+              mapItems.set(`${item.codeValue || item.name}`, item);
+            }
+          });
+          inventarioItems = Array.from(mapItems.values());
         }
 
-        // Sección Espacios
-        doc.moveDown(1.5);
-        doc.fillColor('#1a3a5c').fontSize(11).text('2. Distribución en Espacios Físicos', { underline: true }).moveDown(0.4);
-        doc.fillColor('#333333').fontSize(9);
-        for (const sp of data.spaces) {
-          doc.font('Helvetica-Bold').text(`Espacio: ${sp.name} (${sp.roomNumber}) - Tipo: ${sp.type}`).font('Helvetica');
-          const teachers = sp.teachers.map(t => `${t.nombres} ${t.apellidos}`).join(', ');
-          doc.text(`Docentes Responsables: ${teachers || 'Ninguno'}`);
-          doc.text(`Artículos Asignados:`);
-          if (!sp.items || sp.items.length === 0) {
-            doc.text('Sin artículos asignados.').moveDown(0.5);
-          } else {
-            let itemY = doc.y + 4;
-            for (const item of sp.items) {
-              doc.text(`- [${item.codeValue}] ${item.name} (Cant: ${item.cantidad})`, 70, itemY);
-              itemY += 12;
-              if (itemY > 700) { doc.addPage(); itemY = 50; }
-            }
-            doc.y = itemY;
-            doc.moveDown(0.5);
+        // Si el reporte no tiene recopilado el inventario completo, consultar dinámicamente todos los items activos
+        if (!inventarioItems || inventarioItems.length === 0) {
+          const currentActive = await this.itemRepo.find({
+            where: { status: 'ACTIVO' },
+            relations: { inventoryView: true, subcategory: { category: { inventoryView: true } } },
+          });
+          inventarioItems = currentActive.map((i) => ({
+            id: i.id,
+            name: i.name,
+            codeValue: i.codeValue,
+            codePrefix: '',
+            view: i.inventoryView?.name || i.subcategory?.category?.inventoryView?.name || '',
+            subcategory: i.subcategory?.name || '',
+            category: i.subcategory?.category?.name || '',
+            cantidad: i.cantidad,
+            dynamicValues: i.dynamicValues,
+          }));
+        }
+
+        const viewsOrder = ['Bienes Públicos', 'Insumos y Suministros', 'Biblioteca'];
+        
+        for (const viewTitle of viewsOrder) {
+          const itemsInView = inventarioItems.filter(i => resolveItemView(i) === viewTitle);
+
+          if (doc.y > 680) { doc.addPage(); doc.y = 50; }
+
+          // Subtítulo de Vista
+          doc.fillColor('#0f172a').fontSize(10).font('Helvetica-Bold').text(`${viewTitle}`, 50, doc.y, { width: 500 });
+          doc.moveDown(0.3);
+
+          if (itemsInView.length === 0) {
+            doc.fillColor('#64748b').fontSize(8.5).font('Helvetica-Oblique').text('Sin artículos registrados en esta sección.', 50, doc.y).moveDown(0.8);
+            continue;
           }
+
+          // Tabla de artículos de esta vista
+          let tableY = doc.y;
+          doc.fillColor('#1e293b').fontSize(8.5).font('Helvetica-Bold');
+          doc.text('Código', 50, tableY, { width: 105 });
+          doc.text('Nombre del Artículo', 160, tableY, { width: 215 });
+          doc.text('Categoría', 380, tableY, { width: 95 });
+          doc.text('Cantidad', 480, tableY, { width: 70, align: 'right' });
+
+          doc.moveTo(50, tableY + 12).lineTo(550, tableY + 12).strokeColor('#cbd5e1').stroke();
+          tableY += 16;
+
+          doc.font('Helvetica').fontSize(8.5).fillColor('#334155');
+          for (const item of itemsInView) {
+            const codeStr = `${item.codeValue || item.code || ''}`;
+            const nameStr = `${item.name}`;
+            const catStr = `${item.category || item.subcategory || 'General'}`;
+
+            const hCode = doc.heightOfString(codeStr, { width: 105, lineGap: 2 });
+            const hName = doc.heightOfString(nameStr, { width: 215, lineGap: 2 });
+            const hCat = doc.heightOfString(catStr, { width: 95, lineGap: 2 });
+            const rowHeight = Math.max(hCode, hName, hCat, 14) + 6;
+
+            if (tableY + rowHeight > 730) {
+              doc.addPage();
+              tableY = 50;
+              doc.fillColor('#1e293b').fontSize(8.5).font('Helvetica-Bold');
+              doc.text('Código', 50, tableY, { width: 105 });
+              doc.text('Nombre del Artículo', 160, tableY, { width: 215 });
+              doc.text('Categoría', 380, tableY, { width: 95 });
+              doc.text('Cantidad', 480, tableY, { width: 70, align: 'right' });
+              doc.moveTo(50, tableY + 12).lineTo(550, tableY + 12).strokeColor('#cbd5e1').stroke();
+              tableY += 16;
+              doc.font('Helvetica').fontSize(8.5).fillColor('#334155');
+            }
+
+            doc.text(codeStr, 50, tableY, { width: 105, lineGap: 2 });
+            doc.text(nameStr, 160, tableY, { width: 215, lineGap: 2 });
+            doc.text(catStr, 380, tableY, { width: 95, lineGap: 2 });
+            doc.text(`${item.cantidad}`, 480, tableY, { width: 70, align: 'right', lineGap: 2 });
+
+            tableY += rowHeight;
+          }
+
+          doc.y = tableY + 10;
+        }
+
+        // 2. Distribución en Espacios Físicos
+        if (doc.y > 660) { doc.addPage(); doc.y = 50; }
+        doc.fillColor('#1e3a8a').fontSize(11).font('Helvetica-Bold').text('2. Distribución en Espacios Físicos', 50, doc.y, { width: 500, underline: true });
+        doc.moveDown(0.6);
+
+        const spacesList = data.spaces || [];
+
+        if (spacesList.length === 0) {
+          doc.fillColor('#64748b').fontSize(9).font('Helvetica-Oblique').text('No hay espacios físicos registrados.', 50, doc.y).moveDown(1);
+        } else {
+          for (const sp of spacesList) {
+            if (doc.y > 640) { doc.addPage(); doc.y = 50; }
+
+            let sY = doc.y;
+
+            // Franja de encabezado del Espacio Físico
+            doc.rect(50, sY, 500, 20).fill('#f1f5f9');
+            doc.fillColor('#0f172a').fontSize(9.5).font('Helvetica-Bold');
+            doc.text(`Espacio: ${sp.name} (${sp.roomNumber})`, 55, sY + 4, { width: 330 });
+            doc.text(`Tipo: ${sp.type || 'AULA'}`, 390, sY + 4, { width: 155, align: 'right' });
+            sY += 26;
+
+            const teachers = (sp.teachers || []).map((t: any) => `${t.nombres} ${t.apellidos}`).join(', ');
+            doc.fillColor('#475569').fontSize(8.5).font('Helvetica');
+            doc.text(`Docentes Responsables: ${teachers || 'Ninguno'}`, 55, sY, { width: 490 });
+            sY += 14;
+
+            const spaceItems = sp.items || [];
+            if (spaceItems.length === 0) {
+              doc.fillColor('#94a3b8').fontSize(8.5).font('Helvetica-Oblique').text('Sin artículos asignados a este espacio.', 55, sY, { width: 490 });
+              sY += 18;
+              doc.y = sY;
+            } else {
+              // Agrupar los artículos asignados al espacio por Vista
+              for (const viewTitle of viewsOrder) {
+                const itemsInView = spaceItems.filter((i: any) => resolveItemView(i) === viewTitle);
+                if (itemsInView.length === 0) continue;
+
+                if (sY > 700) { doc.addPage(); sY = 50; }
+
+                doc.fillColor('#334155').fontSize(8.5).font('Helvetica-Bold');
+                doc.text(`${viewTitle}`, 55, sY, { width: 490 });
+                sY += 12;
+
+                // Cabecera de la tabla de artículos del aula
+                doc.fillColor('#1e293b').fontSize(8).font('Helvetica-Bold');
+                doc.text('Código', 65, sY, { width: 100 });
+                doc.text('Nombre del Artículo', 170, sY, { width: 205 });
+                doc.text('Categoría', 380, sY, { width: 95 });
+                doc.text('Cantidad', 480, sY, { width: 70, align: 'right' });
+                doc.moveTo(65, sY + 10).lineTo(550, sY + 10).strokeColor('#e2e8f0').stroke();
+                sY += 14;
+
+                doc.font('Helvetica').fontSize(8).fillColor('#334155');
+                for (const item of itemsInView) {
+                  const codeStr = `${item.codeValue || item.code || ''}`;
+                  const nameStr = `${item.name}`;
+                  const catStr = `${item.category || item.subcategory || 'General'}`;
+
+                  const hCode = doc.heightOfString(codeStr, { width: 100, lineGap: 2 });
+                  const hName = doc.heightOfString(nameStr, { width: 205, lineGap: 2 });
+                  const hCat = doc.heightOfString(catStr, { width: 95, lineGap: 2 });
+                  const rowHeight = Math.max(hCode, hName, hCat, 13) + 5;
+
+                  if (sY + rowHeight > 730) {
+                    doc.addPage();
+                    sY = 50;
+                    doc.fillColor('#1e293b').fontSize(8).font('Helvetica-Bold');
+                    doc.text('Código', 65, sY, { width: 100 });
+                    doc.text('Nombre del Artículo', 170, sY, { width: 205 });
+                    doc.text('Categoría', 380, sY, { width: 95 });
+                    doc.text('Cantidad', 480, sY, { width: 70, align: 'right' });
+                    doc.moveTo(65, sY + 10).lineTo(550, sY + 10).strokeColor('#e2e8f0').stroke();
+                    sY += 14;
+                    doc.font('Helvetica').fontSize(8).fillColor('#334155');
+                  }
+
+                  doc.text(codeStr, 65, sY, { width: 100, lineGap: 2 });
+                  doc.text(nameStr, 170, sY, { width: 205, lineGap: 2 });
+                  doc.text(catStr, 380, sY, { width: 95, lineGap: 2 });
+                  doc.text(`${item.cantidad}`, 480, sY, { width: 70, align: 'right', lineGap: 2 });
+
+                  sY += rowHeight;
+                }
+                sY += 4;
+              }
+              doc.y = sY + 8;
+            }
+          }
+        }
         }
         break;
-      }
       case ReportType.JORNADA: {
         const data = report.reportData;
         doc.fillColor('#2c3e50')

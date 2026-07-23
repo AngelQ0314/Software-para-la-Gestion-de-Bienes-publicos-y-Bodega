@@ -17,11 +17,20 @@ export interface UsersResponse {
 
 export interface UserLog {
   id: string;
-  accion: string;
-  detalle: string;
-  observacion: string | null;
+  tipoCambio?: string;
+  valorAnterior?: string | null;
+  valorNuevo?: string | null;
+  observacion?: string | null;
   createdAt: string;
-  ejecutor: {
+  admin?: {
+    id: string;
+    nombres: string;
+    apellidos: string;
+    cedula: string;
+  } | null;
+  accion?: string;
+  detalle?: string;
+  ejecutor?: {
     cedula: string;
     nombres: string;
     apellidos: string;

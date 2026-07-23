@@ -129,67 +129,73 @@
 
   <!-- MODAL EDITAR MI PERFIL -->
   @if (showProfileModal()) {
-    <div class="modal-overlay animate-fade">
-      <div class="glass-panel modal-card animate-slide">
+    <div class="modal-overlay animate-fade" (click)="closeProfileModal()">
+      <div class="glass-panel modal-card modal-card-profile animate-slide" (click)="$event.stopPropagation()">
         <div class="modal-header">
-          <h3>Mi Perfil de Usuario</h3>
-          <button class="close-btn" (click)="closeProfileModal()">×</button>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span class="material-icons-round" style="color: var(--color-primary); font-size: 1.4rem;">manage_accounts</span>
+            <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700;">Mi Perfil de Usuario</h3>
+          </div>
+          <button class="close-btn" (click)="closeProfileModal()">&times;</button>
         </div>
+
         <form [formGroup]="profileForm" (ngSubmit)="onProfileSubmit()" class="modal-form">
-          <div class="form-group">
-            <label class="form-label">Cédula (No editable)</label>
-            <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
-          </div>
+          <div class="profile-form-grid">
+            <div class="form-group">
+              <label class="form-label">Cédula (No editable)</label>
+              <input type="text" class="form-input readonly-input" [value]="currentUser()?.cedula" readonly />
+            </div>
 
-          <div class="form-group">
-            <label class="form-label">Correo Institucional (No editable)</label>
-            <input type="text" class="form-input readonly-input"
-              [value]="currentUser()?.correoInstitucional || 'No registrado'"
-              readonly />
-          </div>
+            <div class="form-group">
+              <label class="form-label">Correo Institucional (No editable)</label>
+              <input type="text" class="form-input readonly-input"
+                [value]="currentUser()?.correoInstitucional || 'No registrado'"
+                readonly />
+            </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profNombres">Nombres</label>
-            <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
-            @if (isProfileFieldInvalid('nombres')) {
-              <span class="error-text">Los nombres son obligatorios</span>
-            }
-          </div>
+            <div class="form-group">
+              <label class="form-label" for="profNombres">Nombres</label>
+              <input id="profNombres" type="text" class="form-input" placeholder="Tus nombres..." formControlName="nombres" />
+              @if (isProfileFieldInvalid('nombres')) {
+                <span class="error-text">Los nombres son obligatorios</span>
+              }
+            </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profApellidos">Apellidos</label>
-            <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
-            @if (isProfileFieldInvalid('apellidos')) {
-              <span class="error-text">Los apellidos son obligatorios</span>
-            }
-          </div>
+            <div class="form-group">
+              <label class="form-label" for="profApellidos">Apellidos</label>
+              <input id="profApellidos" type="text" class="form-input" placeholder="Tus apellidos..." formControlName="apellidos" />
+              @if (isProfileFieldInvalid('apellidos')) {
+                <span class="error-text">Los apellidos son obligatorios</span>
+              }
+            </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
-            <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
-            @if (isProfileFieldInvalid('correoSecundario')) {
-              <span class="error-text">Ingresa un correo secundario válido</span>
-            }
-          </div>
+            <div class="form-group">
+              <label class="form-label" for="profCorreoSec">Correo Secundario (Opcional)</label>
+              <input id="profCorreoSec" type="email" class="form-input" placeholder="correo@ejemplo.com" formControlName="correoSecundario" />
+              @if (isProfileFieldInvalid('correoSecundario')) {
+                <span class="error-text">Ingresa un correo secundario válido</span>
+              }
+            </div>
 
-          <div class="form-group">
-            <label class="form-label" for="profTel">Teléfono (Opcional)</label>
-            <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
+            <div class="form-group">
+              <label class="form-label" for="profTel">Teléfono (Opcional)</label>
+              <input id="profTel" type="text" class="form-input" placeholder="Teléfono..." formControlName="telefono" />
+            </div>
           </div>
 
           <!-- Alertas -->
           @if (profileErrorMessage()) {
-            <div class="alert-box error-alert">
+            <div class="alert-box error-alert" style="margin-top: 12px;">
               <span>⚠️</span> {{ profileErrorMessage() }}
             </div>
           }
           @if (profileSuccessMessage()) {
-            <div class="alert-box success-alert">
+            <div class="alert-box success-alert" style="margin-top: 12px;">
               <span>✅</span> {{ profileSuccessMessage() }}
             </div>
           }
 
-          <div class="modal-actions">
+          <div class="modal-actions" style="margin-top: 18px;">
             <button type="button" class="btn btn-secondary" (click)="closeProfileModal()">Cancelar</button>
             <button type="submit" class="btn btn-primary" [disabled]="profileForm.invalid || profileLoading()">
               Guardar Cambios

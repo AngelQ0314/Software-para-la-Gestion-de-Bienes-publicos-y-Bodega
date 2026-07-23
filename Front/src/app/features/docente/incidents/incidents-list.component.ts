@@ -1,9 +1,11 @@
-import { Component, signal, computed, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+import { Subscription } from 'rxjs';
 import { IncidentsService, IncidentReport } from '../../../core/services/incidents.service';
 import { SpacesService, PhysicalSpace } from '../../../core/services/spaces.service';
 import { PeriodsService } from '../../../core/services/periods.service';
+import { InventorySyncService } from '../../../core/services/inventory-sync.service';
 
 @Component({
   selector: 'app-docente-incidents',
@@ -12,7 +14,7 @@ import { PeriodsService } from '../../../core/services/periods.service';
   templateUrl: './incidents-list.component.html',
   styleUrl: './incidents-list.component.css'
 })
-export class DocenteIncidentsComponent implements OnInit {
+export class DocenteIncidentsComponent implements OnInit, OnDestroy {
   incidents = signal<IncidentReport[]>([]);
   mySpaces = signal<PhysicalSpace[]>([]);
   periods = signal<any[]>([]);
@@ -44,12 +46,15 @@ export class DocenteIncidentsComponent implements OnInit {
   // Formularios
   incidentForm: FormGroup;
   filterForm: FormGroup;
+  private syncSub?: Subscription;
+  private pollTimer?: any;
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly incidentsService: IncidentsService,
     private readonly spacesService: SpacesService,
-    private readonly periodsService: PeriodsService
+    private readonly periodsService: PeriodsService,
+    private readonly syncService: InventorySyncService
   ) {
     this.filterForm = this.fb.group({
       status: [''],
@@ -62,18 +67,25 @@ export class DocenteIncidentsComponent implements OnInit {
     });
 
     this.incidentForm = this.fb.group({
-      spaceId: ['', [Validators.required]],
-      jornada: ['', [Validators.required]],
+      spaceId: ['', Validators.required],
+      jornada: ['', Validators.required],
       description: ['', [Validators.required, Validators.minLength(10)]],
-      estadoFisico: ['REGULAR', [Validators.required]]
+      estadoFisico: ['REGULAR', Validators.required]
     });
 
-    // Escuchar cambios de aula origen para limpiar jornada
-    this.incidentForm.get('spaceId')?.valueChanges.subscribe((val) => {
-      this.selectedSpaceId.set(val || '');
-      this.incidentForm.patchValue({ jornada: '' }, { emitEvent: false });
-      this.availableItems.set([]);
-      this.selectedItemIds.set([]);
+    // Escuchar cambios de aula origen para actualizar selectedSpaceId y cargar jornada
+    this.incidentForm.get('spaceId')?.valueChanges.subscribe((spaceId) => {
+      this.selectedSpaceId.set(spaceId || '');
+      const space = this.mySpaces().find((s) => s.id === spaceId);
+      if (space && space.jornadas && space.jornadas.length > 0) {
+        const activeJornada = space.jornadas[0];
+        this.incidentForm.patchValue({ jornada: activeJornada }, { emitEvent: false });
+        this.loadSpaceItems(spaceId, activeJornada);
+      } else {
+        this.incidentForm.patchValue({ jornada: '' }, { emitEvent: false });
+        this.availableItems.set([]);
+        this.selectedItemIds.set([]);
+      }
     });
 
     // Escuchar cambios de jornada para cargar los bienes
@@ -92,6 +104,23 @@ export class DocenteIncidentsComponent implements OnInit {
     this.loadMyIncidents();
     this.loadMySpaces();
     this.loadPeriods();
+
+    // 1. Escuchar sincronización en tiempo real
+    this.syncSub = this.syncService.events$.subscribe((type) => {
+      if (type === 'INCIDENTS_CHANGED' || type === 'INVENTORY_CHANGED' || type === 'SPACES_CHANGED') {
+        this.loadMyIncidents(true);
+      }
+    });
+
+    // 2. Polling silencioso cada 8 segundos
+    this.pollTimer = setInterval(() => {
+      this.loadMyIncidents(true);
+    }, 8000);
+  }
+
+  ngOnDestroy(): void {
+    if (this.syncSub) this.syncSub.unsubscribe();
+    if (this.pollTimer) clearInterval(this.pollTimer);
   }
 
   loadPeriods(): void {
@@ -113,16 +142,16 @@ export class DocenteIncidentsComponent implements OnInit {
     });
   }
 
-  loadMyIncidents(): void {
-    this.isLoading.set(true);
+  loadMyIncidents(silent: boolean = false): void {
+    if (!silent) this.isLoading.set(true);
     const filters = this.filterForm.value;
     this.incidentsService.getAllIncidents(filters).subscribe({
       next: (res: IncidentReport[]) => {
         this.incidents.set(res.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
-        this.isLoading.set(false);
+        if (!silent) this.isLoading.set(false);
       },
       error: (err: any) => {
-        this.isLoading.set(false);
+        if (!silent) this.isLoading.set(false);
       }
     });
   }
@@ -172,14 +201,57 @@ export class DocenteIncidentsComponent implements OnInit {
     return code === 'INSUMOS' || viewName === 'Insumos y Suministros';
   }
 
-  // Helper para obtener nombre de la vista
-  getItemViewName(item: any): string {
-    if (!item) return 'General';
-    return item.inventoryView?.name || item.view || 'General';
+  // Helper para obtener código y nombre de la vista
+  getItemViewCode(itemObj: any): string {
+    const item = itemObj?.item || itemObj;
+    if (!item) return 'BIENES_PUBLICOS';
+    const code = item.inventoryView?.code || item.viewCode || item.subcategory?.category?.inventoryView?.code || item.subcategoria?.categoria?.baseView;
+    const name = item.view || item.inventoryView?.name || item.subcategory?.category?.inventoryView?.name || item.subcategory?.category?.name || '';
+    
+    if (code === 'BIENES_PUBLICOS' || name === 'Bienes Públicos') return 'BIENES_PUBLICOS';
+    if (code === 'INSUMOS' || name === 'Insumos y Suministros' || name.toLowerCase().includes('insumo')) return 'INSUMOS';
+    if (code === 'BIBLIOTECA' || name === 'Biblioteca') return 'BIBLIOTECA';
+    
+    const itemCode = item.codeValue || item.codigoYavirac || '';
+    if (itemCode.startsWith('INS-')) return 'INSUMOS';
+    if (itemCode.startsWith('BIB-')) return 'BIBLIOTECA';
+    if (itemCode.startsWith('YAV-')) return 'BIENES_PUBLICOS';
+    
+    return code || 'BIENES_PUBLICOS';
   }
+
+  getItemViewName(itemObj: any): string {
+    const code = this.getItemViewCode(itemObj);
+    if (code === 'BIENES_PUBLICOS') return 'Bienes Públicos';
+    if (code === 'INSUMOS') return 'Insumos y Suministros';
+    if (code === 'BIBLIOTECA') return 'Biblioteca';
+    return 'Bienes Públicos';
+  }
+
+  // Detección dinámica de vistas con artículos asociados en el espacio para reportar
+  availableViews = computed(() => {
+    const list = this.availableItems();
+    const hasBienes = list.some((item) => {
+      const code = item.inventoryView?.code || item.viewCode || item.subcategoria?.categoria?.baseView;
+      const viewName = item.view || item.inventoryView?.name || '';
+      return code === 'BIENES_PUBLICOS' || viewName === 'Bienes Públicos';
+    });
+    const hasInsumos = list.some((item) => {
+      const code = item.inventoryView?.code || item.viewCode || item.subcategoria?.categoria?.baseView;
+      const viewName = item.view || item.inventoryView?.name || '';
+      return code === 'INSUMOS' || viewName === 'Insumos y Suministros';
+    });
+    const hasBiblioteca = list.some((item) => {
+      const code = item.inventoryView?.code || item.viewCode || item.subcategoria?.categoria?.baseView;
+      const viewName = item.view || item.inventoryView?.name || '';
+      return code === 'BIBLIOTECA' || viewName === 'Biblioteca';
+    });
+    return { hasBienes, hasInsumos, hasBiblioteca };
+  });
 
   // Categorías filtradas basadas en los ítems asignados al espacio
   filteredCategories = computed(() => {
+
     const items = this.availableItems();
     const viewCode = this.filterViewCode();
     const map = new Map<string, { id: string; nombre: string }>();
@@ -376,17 +448,29 @@ export class DocenteIncidentsComponent implements OnInit {
   }
 
   openCreateModal(): void {
+    this.selectedSpaceId.set('');
     this.selectedItemIds.set([]);
     this.availableItems.set([]);
-    this.incidentForm.reset({
-      spaceId: '',
-      jornada: '',
-      description: '',
-      estadoFisico: 'REGULAR'
-    });
     this.errorMessage.set(null);
     this.successMessage.set(null);
     this.showCreateModal.set(true);
+
+    this.spacesService.getAllSpaces().subscribe({
+      next: (res: PhysicalSpace[]) => {
+        this.mySpaces.set(res || []);
+        this.incidentForm.reset({
+          spaceId: '',
+          jornada: '',
+          description: '',
+          estadoFisico: 'REGULAR'
+        });
+
+        // Si solo tiene 1 aula asignada, seleccionar de inmediato para fluidez instantánea
+        if (res && res.length === 1) {
+          this.incidentForm.patchValue({ spaceId: res[0].id });
+        }
+      }
+    });
   }
 
   closeCreateModal(): void {
@@ -424,7 +508,7 @@ export class DocenteIncidentsComponent implements OnInit {
       description: val.description.trim(),
       itemIds: this.selectedItemIds(),
       itemsPayload,
-      estadoFisico: val.estadoFisico
+      estadoFisico: val.estadoFisico || 'REGULAR'
     };
 
     this.incidentsService.createIncident(payload).subscribe({
@@ -438,7 +522,9 @@ export class DocenteIncidentsComponent implements OnInit {
       },
       error: (err: any) => {
         this.modalLoading.set(false);
-        this.errorMessage.set(err.error?.message || 'Error al procesar el reporte de novedad.');
+        const rawMsg = err.error?.message;
+        const msg = Array.isArray(rawMsg) ? rawMsg.join('. ') : (rawMsg || 'Error al procesar el reporte de novedad.');
+        this.errorMessage.set(msg);
       }
     });
   }

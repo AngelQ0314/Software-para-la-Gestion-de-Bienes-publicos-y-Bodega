@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable } from 'rxjs';
+import { Observable, tap } from 'rxjs';
 import { environment } from '../../../environments/environment';
+import { InventorySyncService } from './inventory-sync.service';
 
 export interface PhysicalSpace {
   id: string;
@@ -23,7 +24,10 @@ export interface PhysicalSpace {
 export class SpacesService {
   private readonly apiUrl = `${environment.apiUrl}/spaces`;
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly syncService: InventorySyncService
+  ) {}
 
   // Obtener todos los espacios con filtros
   getAllSpaces(filters: any = {}): Observable<PhysicalSpace[]> {
@@ -54,37 +58,72 @@ export class SpacesService {
     capacity: number;
     jornadas: string[];
   }): Observable<PhysicalSpace> {
-    return this.http.post<PhysicalSpace>(this.apiUrl, data);
+    return this.http.post<PhysicalSpace>(this.apiUrl, data).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Editar espacio físico
   updateSpace(id: string, data: any): Observable<PhysicalSpace> {
-    return this.http.patch<PhysicalSpace>(`${this.apiUrl}/${id}`, data);
+    return this.http.patch<PhysicalSpace>(`${this.apiUrl}/${id}`, data).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Eliminar espacio físico
   deleteSpace(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${id}`);
+    return this.http.delete(`${this.apiUrl}/${id}`).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Vincular docentes
   linkTeachers(spaceId: string, teacherIds: string[]): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${spaceId}/teachers`, { teacherIds });
+    return this.http.post(`${this.apiUrl}/${spaceId}/teachers`, { teacherIds }).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Desvincular un docente
   unlinkTeacher(spaceId: string, teacherId: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${spaceId}/teachers/${teacherId}`);
+    return this.http.delete(`${this.apiUrl}/${spaceId}/teachers/${teacherId}`).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Asignar artículos al espacio
   assignItems(spaceId: string, items: { itemId: string; cantidad: number }[]): Observable<any> {
-    return this.http.post(`${this.apiUrl}/${spaceId}/items`, { items });
+    return this.http.post(`${this.apiUrl}/${spaceId}/items`, { items }).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Desasociar un artículo
   removeItem(spaceId: string, itemId: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/${spaceId}/items/${itemId}`);
+    return this.http.delete(`${this.apiUrl}/${spaceId}/items/${itemId}`).pipe(
+      tap(() => {
+        this.syncService.notifyChange('SPACES_CHANGED');
+        this.syncService.notifyChange('INVENTORY_CHANGED');
+      })
+    );
   }
 
   // Obtener inventario asignado global (Docentes / Admins)

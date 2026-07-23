@@ -450,23 +450,39 @@
 
           <!-- TAB: BITÁCORA -->
           @if (activeDetailTab() === 'logs') {
-            <div class="detail-section">
+            <div class="detail-section animate-fade">
               @if (userLogs().length > 0) {
                 <div class="logs-timeline">
                   @for (log of userLogs(); track log.id) {
                     <div class="timeline-item">
                       <div class="log-meta">
-                        <span class="log-date">{{ log.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-                        <span class="log-action">{{ log.accion }}</span>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                          <span class="material-icons-round log-type-icon" [ngClass]="getLogBadgeClass(log)">
+                            {{ getLogIcon(log) }}
+                          </span>
+                          <span class="log-action" [ngClass]="getLogBadgeClass(log)">
+                            {{ getLogTitle(log) }}
+                          </span>
+                        </div>
+                        <span class="log-date font-mono">
+                          <span class="material-icons-round" style="font-size: 0.85rem; vertical-align: middle; margin-right: 2px;">schedule</span>
+                          {{ log.createdAt | date:'dd/MM/yyyy HH:mm' }}
+                        </span>
                       </div>
+                      
                       <div class="log-details">
-                        <p class="log-desc">{{ log.detalle }}</p>
-                        @if (log.observacion) {
-                          <p class="log-obs"><em>Observación: "{{ log.observacion }}"</em></p>
+                        <p class="log-desc">{{ getLogDescription(log) }}</p>
+                        
+                        @if (log.observacion && log.observacion !== getLogDescription(log)) {
+                          <p class="log-obs">
+                            <strong>Observación / Justificación:</strong> "{{ log.observacion }}"
+                          </p>
                         }
-                        @if (log.ejecutor) {
+                        
+                        @if (log.admin || log.ejecutor) {
                           <p class="log-actor">
-                            Por: {{ log.ejecutor.nombres }} {{ log.ejecutor.apellidos }} (C.I. {{ log.ejecutor.cedula }})
+                            <span class="material-icons-round" style="font-size: 0.85rem; vertical-align: middle; margin-right: 4px;">person</span>
+                            Ejecutado por: <strong>{{ (log.admin || log.ejecutor)?.nombres }} {{ (log.admin || log.ejecutor)?.apellidos }}</strong> (C.I. {{ (log.admin || log.ejecutor)?.cedula }})
                           </p>
                         }
                       </div>
@@ -474,11 +490,11 @@
                   }
                 </div>
               } @else {
-                <div class="empty-state" style="padding: 40px;">
-                  <div class="empty-icon-wrap">
-                    <span class="material-icons-round">history_toggle_off</span>
+                <div class="empty-state" style="padding: 40px; text-align: center;">
+                  <div class="empty-icon-wrap" style="margin: 0 auto 12px auto;">
+                    <span class="material-icons-round" style="font-size: 2.2rem; opacity: 0.5;">history_toggle_off</span>
                   </div>
-                  <p>No hay movimientos registrados para esta cuenta.</p>
+                  <p style="margin: 0; color: var(--text-muted); font-weight: 500;">No hay movimientos registrados para esta cuenta.</p>
                 </div>
               }
             </div>

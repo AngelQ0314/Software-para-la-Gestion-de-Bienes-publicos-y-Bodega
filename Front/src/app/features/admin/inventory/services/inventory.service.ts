@@ -1,7 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Observable, map } from 'rxjs';
+import { Observable, map, tap } from 'rxjs';
 import { environment } from '../../../../../environments/environment';
+import { InventorySyncService } from '../../../../core/services/inventory-sync.service';
 
 export interface Category {
   id: string;
@@ -68,15 +69,15 @@ export interface InventoryItem {
 export class InventoryService {
   private readonly apiUrl = `${environment.apiUrl}/inventory`;
 
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly syncService: InventorySyncService
+  ) {}
 
   getViews(): Observable<any[]> {
     return this.http.get<any[]>(`${this.apiUrl}/views`);
   }
 
-  // ==========================================
-  // CATEGORÍAS
-  // ==========================================
   // ==========================================
   // CATEGORÍAS
   // ==========================================
@@ -94,23 +95,33 @@ export class InventoryService {
 
   createCategory(data: { nombre: string; baseView: string }): Observable<Category> {
     const payload = { name: data.nombre, inventoryViewCode: data.baseView };
-    return this.http.post<Category>(`${this.apiUrl}/categories`, payload);
+    return this.http.post<Category>(`${this.apiUrl}/categories`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   updateCategory(id: string, data: { nombre: string; baseView: string }): Observable<Category> {
     const payload = { name: data.nombre, inventoryViewCode: data.baseView };
-    return this.http.patch<Category>(`${this.apiUrl}/categories/${id}`, payload);
+    return this.http.patch<Category>(`${this.apiUrl}/categories/${id}`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   deleteCategory(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/categories/${id}`);
+    return this.http.delete(`${this.apiUrl}/categories/${id}`).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   // ==========================================
   // SUBCATEGORÍAS
   // ==========================================
-  getSubcategories(): Observable<Subcategory[]> {
-    return this.http.get<any[]>(`${this.apiUrl}/subcategories`).pipe(
+  getSubcategories(categoryId?: string): Observable<Subcategory[]> {
+    let params = new HttpParams();
+    if (categoryId) {
+      params = params.set('categoryId', categoryId);
+    }
+    return this.http.get<any[]>(`${this.apiUrl}/subcategories`, { params }).pipe(
       map((subs) =>
         subs.map((s) => ({
           id: s.id,
@@ -123,20 +134,6 @@ export class InventoryService {
                 baseView: s.category.inventoryView?.code || s.category.inventoryViewCode || 'BIENES_PUBLICOS',
               }
             : undefined,
-          configs: (s.configs || []).map((c: any) => ({
-            id: c.id,
-            customFieldId: c.customFieldId,
-            customField: c.customField
-              ? {
-                  id: c.customField.id,
-                  nombre: c.customField.label || c.customField.name,
-                  tipo: c.customField.type,
-                  opciones: c.customField.options,
-                }
-              : undefined,
-            orden: c.sortOrder || 0,
-            isMandatory: c.isMandatory || false,
-          })),
         }))
       )
     );
@@ -144,16 +141,22 @@ export class InventoryService {
 
   createSubcategory(data: { nombre: string; categoriaId: string }): Observable<Subcategory> {
     const payload = { name: data.nombre, categoryId: data.categoriaId };
-    return this.http.post<Subcategory>(`${this.apiUrl}/subcategories`, payload);
+    return this.http.post<Subcategory>(`${this.apiUrl}/subcategories`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   updateSubcategory(id: string, data: { nombre: string; categoriaId: string }): Observable<Subcategory> {
     const payload = { name: data.nombre, categoryId: data.categoriaId };
-    return this.http.patch<Subcategory>(`${this.apiUrl}/subcategories/${id}`, payload);
+    return this.http.patch<Subcategory>(`${this.apiUrl}/subcategories/${id}`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   deleteSubcategory(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/subcategories/${id}`);
+    return this.http.delete(`${this.apiUrl}/subcategories/${id}`).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   // ==========================================
@@ -180,7 +183,9 @@ export class InventoryService {
       type: data.tipo,
       options: data.opciones || undefined,
     };
-    return this.http.post<CustomField>(`${this.apiUrl}/custom-fields`, payload);
+    return this.http.post<CustomField>(`${this.apiUrl}/custom-fields`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   updateCustomField(id: string, data: { nombre: string; tipo: string; opciones?: string[] | null }): Observable<CustomField> {
@@ -191,11 +196,15 @@ export class InventoryService {
       type: data.tipo,
       options: data.opciones || undefined,
     };
-    return this.http.patch<CustomField>(`${this.apiUrl}/custom-fields/${id}`, payload);
+    return this.http.patch<CustomField>(`${this.apiUrl}/custom-fields/${id}`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   deleteCustomField(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/custom-fields/${id}`);
+    return this.http.delete(`${this.apiUrl}/custom-fields/${id}`).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   // ==========================================
@@ -226,11 +235,15 @@ export class InventoryService {
     subcategoryId: string,
     assoc: { customFieldId: string; sortOrder: number; isMandatory: boolean }
   ): Observable<any> {
-    return this.http.post(`${this.apiUrl}/subcategories/${subcategoryId}/fields`, assoc);
+    return this.http.post(`${this.apiUrl}/subcategories/${subcategoryId}/fields`, assoc).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   removeFieldFromSubcategory(subcategoryId: string, customFieldId: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/subcategories/${subcategoryId}/fields/${customFieldId}`);
+    return this.http.delete(`${this.apiUrl}/subcategories/${subcategoryId}/fields/${customFieldId}`).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   // ==========================================
@@ -353,7 +366,9 @@ export class InventoryService {
       status: item.status || 'ACTIVO',
       isPending: !!item.isPending,
     };
-    return this.http.post<InventoryItem>(`${this.apiUrl}/items`, payload);
+    return this.http.post<InventoryItem>(`${this.apiUrl}/items`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   updateItem(id: string, item: Partial<InventoryItem>): Observable<InventoryItem> {
@@ -372,11 +387,15 @@ export class InventoryService {
     if (item.status !== undefined) payload.status = item.status;
     if (item.isPending !== undefined) payload.isPending = !!item.isPending;
 
-    return this.http.patch<InventoryItem>(`${this.apiUrl}/items/${id}`, payload);
+    return this.http.patch<InventoryItem>(`${this.apiUrl}/items/${id}`, payload).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   deleteItem(id: string): Observable<any> {
-    return this.http.delete(`${this.apiUrl}/items/${id}`);
+    return this.http.delete(`${this.apiUrl}/items/${id}`).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
 
@@ -384,7 +403,9 @@ export class InventoryService {
     const formData = new FormData();
     formData.append('file', file);
     const query = inventoryViewId ? `?inventoryViewId=${inventoryViewId}` : '';
-    return this.http.post(`${this.apiUrl}/items/import${query}`, formData);
+    return this.http.post(`${this.apiUrl}/items/import${query}`, formData).pipe(
+      tap(() => this.syncService.notifyChange('INVENTORY_CHANGED'))
+    );
   }
 
   downloadTemplate(inventoryViewId?: string): Observable<Blob> {
@@ -396,4 +417,3 @@ export class InventoryService {
     return this.http.get(`${this.apiUrl}/items/export?inventoryViewId=${inventoryViewId}`, { responseType: 'blob' });
   }
 }
-

@@ -193,7 +193,33 @@ export class DocenteRequestsComponent implements OnInit {
   });
 
   // Lista filtrada de artículos por pestaña de vista y buscador
+  // Detección dinámica de vistas con artículos asociados para la solicitud
+  availableViews = computed(() => {
+    let list = this.availableItems();
+    if (this.selectedRequestType() === 'MANTENIMIENTO' || this.selectedRequestType() === 'BAJA_DEFINITIVA') {
+      list = list.filter((item) => {
+        const viewCode = item.inventoryView?.code || item.viewCode || '';
+        return viewCode !== 'INSUMOS';
+      });
+    }
+
+    const hasBienes = list.some((item) => {
+      const code = item.inventoryView?.code || item.viewCode || '';
+      return code === 'BIENES_PUBLICOS';
+    });
+    const hasInsumos = list.some((item) => {
+      const code = item.inventoryView?.code || item.viewCode || '';
+      return code === 'INSUMOS';
+    });
+    const hasBiblioteca = list.some((item) => {
+      const code = item.inventoryView?.code || item.viewCode || '';
+      return code === 'BIBLIOTECA';
+    });
+    return { hasBienes, hasInsumos, hasBiblioteca };
+  });
+
   filteredAvailableItems = computed(() => {
+
     const query = this.searchQuery().toLowerCase().trim();
     const tab = this.activeTab();
     let items = this.availableItems();

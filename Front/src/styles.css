@@ -645,21 +645,125 @@ body.light-theme .search-pill-input {
   border-color: #cbd5e1;
 }
 
-body.light-theme .pill-tab {
+/* Segmented Control de Jornadas (Fila Superior Alineada a la Derecha - Screenshot 2) */
+.pill-tabs-segmented {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px;
+  background: rgba(24, 25, 34, 0.6);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.1));
+  border-radius: 9999px;
+  gap: 2px;
+}
+
+.segmented-tab {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #a1a1b5);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 8px 22px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  outline: none;
+}
+
+.segmented-tab:hover {
+  color: #ffffff;
+}
+
+.segmented-tab.active {
+  background: #f97316 !important;
+  color: #ffffff !important;
+  font-weight: 800 !important;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+}
+
+body.light-theme .pill-tabs-segmented {
   background: #f1f5f9;
-  color: #475569;
   border-color: #cbd5e1;
 }
 
-body.light-theme .pill-tab:hover {
-  background: #e2e8f0;
+body.light-theme .segmented-tab {
+  color: #64748b;
+}
+
+body.light-theme .segmented-tab:hover {
   color: #0f172a;
 }
 
-body.light-theme .pill-tab.active {
-  background: var(--color-primary);
+body.light-theme .segmented-tab.active {
+  background: #f97316 !important;
+  color: #ffffff !important;
+}
+
+/* Pestañas de Filtrado / Pill Tabs (Diseño Cápsula Naranja Premium - Screenshot 2) */
+.pill-tabs-group,
+.pill-tabs-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  background: rgba(24, 25, 34, 0.7);
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 9999px;
+}
+
+.pill-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--text-secondary, #a1a1b5);
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 6px 16px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  outline: none;
+}
+
+.pill-tab:hover {
+  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
-  border-color: var(--color-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.pill-tab.active {
+  background: #f97316 !important;
+  color: #ffffff !important;
+  font-weight: 700 !important;
+  border-color: #f97316 !important;
+  box-shadow: 0 4px 14px rgba(249, 115, 22, 0.4) !important;
+}
+
+body.light-theme .pill-tabs-group,
+body.light-theme .pill-tabs-container {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+body.light-theme .pill-tab {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+body.light-theme .pill-tab:hover {
+  background: #f8fafc;
+  color: #0f172a;
+  border-color: #94a3b8;
+}
+
+body.light-theme .pill-tab.active {
+  background: #f97316 !important;
+  color: #ffffff !important;
+  border-color: #f97316 !important;
+  box-shadow: 0 4px 12px rgba(249, 115, 22, 0.35) !important;
 }
 
 /* SweetAlert2 Adaptativo */
@@ -1252,11 +1356,35 @@ body.light-theme .action-btn:hover {
 .modal-card {
   width: 100%;
   max-width: 520px;
-  padding: 30px;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 26px 30px;
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 16px;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.35);
+}
+
+.modal-card-profile {
+  max-width: 640px !important;
+}
+
+.profile-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px 16px;
+}
+
+.profile-form-full {
+  grid-column: 1 / -1;
+}
+
+@media (max-width: 640px) {
+  .profile-form-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .modal-card-lg {
@@ -1405,4 +1533,29 @@ body.light-theme .swal2-cancel.swal2-styled:hover {
 
 .swal2-container {
   z-index: 99999 !important;
+}
+
+/* Contenedor de acciones de tarjetas (Solicitudes, Novedades, Espacios) */
+.user-card-actions {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  margin-top: 16px !important;
+  width: 100% !important;
+}
+
+.user-card-actions .btn {
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+}
+
+/* Modo Claro: Burbujas de Especificaciones de Inventario */
+body.light-theme .spec-bubble {
+  background: #f1f5f9 !important;
+  border: 1px solid #cbd5e1 !important;
+  color: #334155 !important;
+}
+
+body.light-theme .spec-bubble strong {
+  color: #0f172a !important;
 }

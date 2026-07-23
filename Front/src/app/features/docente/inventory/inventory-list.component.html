@@ -10,24 +10,14 @@
     </div>
 
     <!-- Barra de Filtros Integrada -->
-    <div class="unified-filter-bar" style="margin-bottom: 20px; padding: 15px; border-bottom: 1px solid var(--border-color);">
-      <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+    <div class="unified-filter-bar" style="margin-bottom: 15px; padding: 15px; border-bottom: 1px solid var(--border-color);">
+      <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
         <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
           <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Aula / Espacio</label>
           <select class="form-select" formControlName="spaceId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
-            <option value="">Todos</option>
+            <option value="">Todos los Espacios</option>
             @for (s of mySpaces(); track s.id) {
               <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }}</option>
-            }
-          </select>
-        </div>
-
-        <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
-          <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Jornada</label>
-          <select class="form-select" formControlName="jornada" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
-            <option value="">Todas</option>
-            @for (j of availableJornadas(); track j) {
-              <option [value]="j">{{ formatJornada(j) }}</option>
             }
           </select>
         </div>
@@ -46,7 +36,55 @@
       </form>
     </div>
 
-    <!-- Contenedor de Tabla Integrado -->
+    <!-- Pestañas Estilo Cápsula (Jornadas a la Derecha y Vistas Abajo) -->
+    <div style="padding: 0 15px 15px 15px; display: flex; flex-direction: column; gap: 14px;">
+      
+      <!-- Fila 1: Pestañas de Jornadas (Alineadas a la DERECHA, sin botón Todas) -->
+      <div style="display: flex; justify-content: flex-end; width: 100%;">
+        <div class="pill-tabs-segmented">
+          <button type="button" class="segmented-tab" [class.active]="selectedJornadaCode() === 'MATUTINA'" (click)="setJornada('MATUTINA')">
+            MATUTINA
+          </button>
+          <button type="button" class="segmented-tab" [class.active]="selectedJornadaCode() === 'VESPERTINA'" (click)="setJornada('VESPERTINA')">
+            VESPERTINA
+          </button>
+          <button type="button" class="segmented-tab" [class.active]="selectedJornadaCode() === 'NOCTURNA'" (click)="setJornada('NOCTURNA')">
+            NOCTURNA
+          </button>
+        </div>
+      </div>
+
+      <!-- Fila 2: Pestañas de Vistas (Alineadas a la DERECHA) -->
+      @if (assignedItems().length > 0) {
+        <div style="display: flex; justify-content: flex-end; width: 100%;">
+          <div class="pill-tabs-group">
+            <button type="button" class="pill-tab" [class.active]="selectedViewCode() === ''" (click)="selectedViewCode.set('')">
+              Todos
+            </button>
+            
+            @if (availableViews().hasBienes) {
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIENES_PUBLICOS'" (click)="selectedViewCode.set('BIENES_PUBLICOS')">
+                Bienes Públicos
+              </button>
+            }
+
+            @if (availableViews().hasInsumos) {
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'INSUMOS'" (click)="selectedViewCode.set('INSUMOS')">
+                Insumos y Suministros
+              </button>
+            }
+
+            @if (availableViews().hasBiblioteca) {
+              <button type="button" class="pill-tab" [class.active]="selectedViewCode() === 'BIBLIOTECA'" (click)="selectedViewCode.set('BIBLIOTECA')">
+                Biblioteca
+              </button>
+            }
+          </div>
+        </div>
+      }
+    </div>
+
+    <!-- Contenedor de Tabla / Grid Integrado -->
     <div class="unified-content-area">
       @if (isLoading()) {
         <div class="loading-state">
@@ -57,51 +95,104 @@
         </div>
       } @else {
         <div class="inventory-grid">
-          @for (item of assignedItems(); track item.id) {
+          @for (item of filteredAssignedItems(); track item.id) {
             <div class="inventory-card animate-fade">
-              <div class="inventory-card-header">
-                <span class="inventory-card-code">{{ item.codeValue || 'SIN CÓDIGO' }}</span>
-                <span class="badge" [ngClass]="{
-                  'badge-bueno': item.estadoFisico === 'BUENO',
-                  'badge-regular': item.estadoFisico === 'REGULAR',
-                  'badge-malo': item.estadoFisico === 'MALO',
-                  'badge-mantenimiento': item.estadoFisico === 'EN_MANTENIMIENTO'
-                }">
-                  {{ item.estadoFisico?.replace('_', ' ') }}
-                </span>
-              </div>
               
-              <div class="inventory-card-body">
-                <h3 class="inventory-card-title">{{ item.name }}</h3>
-                <span class="inventory-card-category">{{ item.category }}</span>
-                
-                <div class="inventory-card-meta-grid">
-                  <div class="meta-item">
-                    <span class="meta-label">Aula / Espacio</span>
-                    <span class="meta-value font-mono">{{ item.roomNumber ? 'Aula ' + item.roomNumber : 'Sin Asignar' }}</span>
-                  </div>
-                  <div class="meta-item">
-                    <span class="meta-label">Jornada</span>
-                    <span class="meta-value">{{ formatJornada(item.jornada) }}</span>
-                  </div>
-                </div>
+              <!-- Fila 1: Título y Badge de Estado -->
+              <div class="inventory-card-header" style="display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;">
+                <h3 class="inventory-card-title" style="margin: 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); line-height: 1.35;">
+                  {{ item.name }}
+                </h3>
 
-                @if (item.novedades || item.observacion) {
-                  <div class="inventory-card-description" [title]="item.novedades || item.observacion">
-                    <strong>Novedad: </strong>{{ item.novedades || item.observacion }}
-                  </div>
+                <!-- Badge de Estado (OK / NOV para insumos, o Estado para Bienes) -->
+                @if (isItemInsumo(item)) {
+                  @if (item.cantidadNovedad && item.cantidadNovedad > 0) {
+                    <span class="badge" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 12px; font-weight: 800; background: rgba(245, 158, 11, 0.15); color: #f59e0b; border: 1px solid rgba(245, 158, 11, 0.3); flex-shrink: 0; white-space: nowrap;">
+                      {{ item.cantidadBuenEstado }} OK / {{ item.cantidadNovedad }} NOV
+                    </span>
+                  } @else {
+                    <span class="badge badge-bueno" style="font-size: 0.72rem; padding: 4px 10px; border-radius: 12px; font-weight: 800; flex-shrink: 0; white-space: nowrap;">
+                      {{ item.cantidad }} OK
+                    </span>
+                  }
+                } @else {
+                  <span class="badge" [ngClass]="{
+                    'badge-bueno': (item.estadoFisico || 'BUENO') === 'BUENO',
+                    'badge-regular': (item.estadoFisico || 'BUENO') === 'REGULAR',
+                    'badge-malo': (item.estadoFisico || 'BUENO') === 'MALO' || (item.estadoFisico || 'BUENO') === 'DANADO',
+                    'badge-mantenimiento': (item.estadoFisico || 'BUENO') === 'EN_MANTENIMIENTO'
+                  }" style="font-size: 0.75rem; padding: 4px 12px; border-radius: 20px; font-weight: 800; text-transform: uppercase; flex-shrink: 0; white-space: nowrap;">
+                    {{ (item.estadoFisico || 'BUENO').replace('_', ' ') }}
+                  </span>
                 }
               </div>
               
-              <div class="inventory-card-footer">
-                <span style="font-size: 0.72rem; color: var(--text-muted); text-transform: uppercase;">Asignado:</span>
-                <span class="inventory-card-quantity font-mono" style="color: var(--text-primary);">{{ item.cantidad }} ud</span>
+              <!-- Fila 2: Etiquetas (Vista, Código, Categoría) -->
+              <div class="inventory-card-body" style="padding-top: 10px;">
+                <div style="display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 12px;">
+                  <span class="item-view-tag" [ngClass]="{
+                    'tag-bienes': getItemViewCode(item) === 'BIENES_PUBLICOS',
+                    'tag-insumos': isItemInsumo(item),
+                    'tag-biblioteca': getItemViewCode(item) === 'BIBLIOTECA'
+                  }" style="font-size: 0.65rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; text-transform: uppercase;">
+                    {{ getItemViewName(item) }}
+                  </span>
+                  
+                  <span class="sub-tag" style="background: rgba(56, 189, 248, 0.12); color: #38bdf8; font-family: monospace; font-size: 0.78rem;">
+                    Cod: {{ item.codeValue || '--' }}
+                  </span>
+                  
+                  <span class="sub-tag" style="background: rgba(168, 85, 247, 0.12); color: #a855f7; font-size: 0.75rem;">
+                    {{ item.category || 'General' }}
+                  </span>
+                </div>
+
+                <!-- Seccion Inferior punteada (Detalle de Cantidad y Novedades Registradas) -->
+                <div style="border-top: 1px dashed var(--border-color); padding-top: 10px; display: flex; flex-direction: column; gap: 8px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 0.82rem; color: var(--text-secondary);">
+                    <span>Cantidad en aula:</span>
+                    <strong style="color: var(--text-primary); font-family: monospace; font-size: 0.95rem;">{{ item.cantidad }} ud</strong>
+                  </div>
+
+                  <!-- Desglose de cantidades para Insumos -->
+                  @if (isItemInsumo(item) && item.cantidadNovedad && item.cantidadNovedad > 0) {
+                    <div style="display: flex; gap: 8px; font-size: 0.75rem; font-weight: 700; margin-top: 2px;">
+                      <span style="color: #10b981; background: rgba(16, 185, 129, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.25);">{{ item.cantidadBuenEstado }} Buen Estado</span>
+                      <span style="color: #ef4444; background: rgba(239, 68, 68, 0.12); padding: 3px 8px; border-radius: 6px; border: 1px solid rgba(239, 68, 68, 0.25);">{{ item.cantidadNovedad }} Con Novedad</span>
+                    </div>
+                  }
+
+                  <!-- Bloque de Novedades Registradas / Botón Ver Detalle -->
+                  @if (item.reportesActivos && item.reportesActivos.length > 0) {
+                    <div style="margin-top: 4px; padding: 10px 12px; border-radius: 10px; background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b; font-size: 0.8rem; color: var(--text-primary); display: flex; flex-direction: column; gap: 8px;">
+                      <strong style="color: #f59e0b; display: flex; align-items: center; gap: 6px; font-size: 0.85rem;">
+                        <span class="material-icons-round" style="font-size: 1rem;">warning</span> Novedades Registradas ({{ item.reportesActivos.length }}):
+                      </strong>
+                      
+                      <button type="button" (click)="openReportsModal(item)" style="width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; font-weight: 700; padding: 7px 14px; border-radius: 8px; background: rgba(249, 115, 22, 0.15); color: #f97316; border: 1px solid rgba(249, 115, 22, 0.35); cursor: pointer; transition: all 0.2s ease;">
+                        <span class="material-icons-round" style="font-size: 0.95rem;">visibility</span> Ver Detalle
+                      </button>
+                    </div>
+                  } @else if (item.observacion || item.novedades) {
+                    <div style="margin-top: 4px; padding: 8px 10px; border-radius: 8px; background: rgba(245, 158, 11, 0.08); border-left: 3px solid #f59e0b; font-size: 0.78rem; color: var(--text-primary);">
+                      <strong style="color: #d97706; display: flex; align-items: center; gap: 4px;">
+                        <span class="material-icons-round" style="font-size: 0.9rem;">report_problem</span> Motivo / Reporte:
+                      </strong>
+                      <p style="margin: 2px 0 0 0; line-height: 1.3;">{{ item.observacion || item.novedades }}</p>
+                    </div>
+                  } @else {
+                    <div style="font-size: 0.78rem; color: var(--text-muted); font-style: italic; margin-top: 4px;">
+                      Sin observaciones o novedades reportadas.
+                    </div>
+                  }
+                </div>
+
               </div>
             </div>
           } @empty {
             <div class="glass-panel" style="grid-column: 1 / -1; width: 100%; text-align: center; padding: 60px 40px; color: var(--text-muted); border-radius: 16px;">
               <span class="material-icons-round" style="font-size: 3rem; color: var(--text-muted); opacity: 0.5; margin-bottom: 12px;">inventory_2</span>
-              <p style="margin: 0; font-size: 0.95rem; font-weight: 500;">No tienes bienes asignados que coincidan con la búsqueda.</p>
+              <p style="margin: 0; font-size: 0.95rem; font-weight: 500;">No tienes bienes asignados en la jornada o vista seleccionada.</p>
             </div>
           }
         </div>
@@ -109,4 +200,52 @@
     </div>
 
   </div>
+
+  <!-- Modal Detalle de Novedades del Artículo -->
+  @if (showReportsModal()) {
+    <div class="modal-overlay animate-fade" (click)="closeReportsModal()" style="position: fixed; inset: 0; background: rgba(0,0,0,0.6); backdrop-filter: blur(4px); display: flex; align-items: center; justify-content: center; z-index: 1100;">
+      <div class="glass-panel modal-card animate-slide" (click)="$event.stopPropagation()" style="max-width: 560px; width: 92%; padding: 22px; border-radius: 16px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: var(--shadow-lg);">
+        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 12px; margin-bottom: 16px;">
+          <h3 style="margin: 0; font-size: 1.1rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+            <span class="material-icons-round" style="color: #f97316;">report_problem</span>
+            Reportes de Novedad Activos
+          </h3>
+          <button class="close-btn" (click)="closeReportsModal()" style="background: none; border: none; font-size: 1.4rem; color: var(--text-muted); cursor: pointer;">&times;</button>
+        </div>
+
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 12px; max-height: 380px; overflow-y: auto;">
+          <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 4px;">
+            Artículo: <strong style="color: var(--text-primary);">{{ selectedItemForReports()?.name }}</strong> ({{ selectedItemForReports()?.codeValue }})
+          </div>
+
+          @for (rep of selectedItemForReports()?.reportesActivos; track rep.id) {
+            <div style="padding: 12px 14px; border-radius: 10px; background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); display: flex; flex-direction: column; gap: 6px;">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-size: 0.78rem; font-family: monospace; font-weight: 700; color: #f97316;">Código: {{ rep.code }}</span>
+                <span class="badge" [ngClass]="{
+                  'badge-regular': rep.status === 'PENDIENTE',
+                  'badge-bueno': rep.status === 'REVISADO'
+                }" style="font-size: 0.68rem; padding: 2px 8px; border-radius: 10px; text-transform: uppercase;">
+                  {{ rep.status }}
+                </span>
+              </div>
+              
+              <div style="font-size: 0.82rem; color: var(--text-primary); margin: 2px 0;">
+                "{{ rep.description }}"
+              </div>
+              
+              <div style="display: flex; justify-content: space-between; font-size: 0.75rem; color: var(--text-muted); border-top: 1px solid var(--border-color); padding-top: 6px; margin-top: 4px;">
+                <span>Afectado: <strong style="color: #ef4444;">{{ rep.cantidadAfectada }} ud</strong></span>
+                <span>{{ rep.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="modal-footer" style="margin-top: 18px; display: flex; justify-content: flex-end;">
+          <button type="button" class="btn btn-secondary" (click)="closeReportsModal()">Cerrar</button>
+        </div>
+      </div>
+    </div>
+  }
 </div>

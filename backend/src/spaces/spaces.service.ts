@@ -803,26 +803,63 @@ export class SpacesService {
         },
       });
 
-      return items.map((item) => {
-        const shiftInfo = shifts.find((s) => s.itemId === item.id && s.spaceId === item.physicalSpaceId);
-        return {
-          id: item.id,
-          name: item.name,
-          codeValue: item.codeValue,
-          category: item.subcategory?.category?.name || '',
-          subcategory: item.subcategory?.name || '',
-          view: item.subcategory?.category?.inventoryView?.name || '',
-          spaceId: item.physicalSpaceId,
-          roomNumber: item.physicalSpace?.roomNumber || '',
-          spaceName: item.physicalSpace?.name || '',
-          cantidad: item.cantidad,
-          estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
-            ? item.estadoFisico 
-            : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
-          observacion: shiftInfo ? (shiftInfo.observacion || shiftInfo.novedades) : null,
-          novedades: shiftInfo ? shiftInfo.novedades : null,
-        };
-      });
+      return Promise.all(
+        items.map(async (item) => {
+          const shiftInfo = shifts.find((s) => s.itemId === item.id && s.spaceId === item.physicalSpaceId);
+          const isInsumo = item.subcategory?.category?.inventoryView?.code === 'INSUMOS';
+          let cantidadNovedad = 0;
+          let cantidadBuenEstado = item.cantidad || 0;
+          let activeReportsList: any[] = [];
+
+          const activeReportItems = await this.reportItemRepo
+            .createQueryBuilder('reportItem')
+            .innerJoinAndSelect('reportItem.incidentReport', 'report')
+            .leftJoinAndSelect('report.teacher', 'teacher')
+            .where('reportItem.itemId = :itemId', { itemId: item.id })
+            .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+            .orderBy('report.createdAt', 'DESC')
+            .getMany();
+
+          if (activeReportItems.length > 0) {
+            activeReportsList = activeReportItems.map((ri) => ({
+              id: ri.incidentReport.id,
+              code: ri.incidentReport.code,
+              cantidadAfectada: ri.cantidadAfectada || 1,
+              description: ri.incidentReport.description,
+              status: ri.incidentReport.status,
+              createdAt: ri.incidentReport.createdAt,
+              teacherName: ri.incidentReport.teacher ? `${ri.incidentReport.teacher.nombres} ${ri.incidentReport.teacher.apellidos || ''}`.trim() : 'Docente',
+            }));
+          }
+
+          if (isInsumo) {
+            cantidadNovedad = activeReportItems.reduce((acc, ri) => acc + (ri.cantidadAfectada || 1), 0);
+            cantidadBuenEstado = Math.max(0, Number(item.cantidad || 0) - cantidadNovedad);
+          }
+
+          return {
+            id: item.id,
+            name: item.name,
+            codeValue: item.codeValue,
+            category: item.subcategory?.category?.name || '',
+            subcategory: item.subcategory?.name || '',
+            view: item.subcategory?.category?.inventoryView?.name || '',
+            inventoryView: item.subcategory?.category?.inventoryView,
+            spaceId: item.physicalSpaceId,
+            roomNumber: item.physicalSpace?.roomNumber || '',
+            spaceName: item.physicalSpace?.name || '',
+            cantidad: item.cantidad,
+            cantidadBuenEstado,
+            cantidadNovedad,
+            reportesActivos: activeReportsList,
+            estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
+              ? item.estadoFisico 
+              : (shiftInfo ? shiftInfo.estadoFisico : 'BUENO'),
+            observacion: shiftInfo ? (shiftInfo.observacion || shiftInfo.novedades) : null,
+            novedades: shiftInfo ? shiftInfo.novedades : null,
+          };
+        })
+      );
     }
 
     // Si no se filtra por jornada, expandimos por cada jornada que tenga configurada el espacio físico
@@ -837,6 +874,37 @@ export class SpacesService {
         ? spaceObj.jornadas 
         : ['MATUTINA', 'VESPERTINA', 'NOCTURNA'];
 
+      const isInsumo = item.subcategory?.category?.inventoryView?.code === 'INSUMOS';
+      let cantidadNovedad = 0;
+      let cantidadBuenEstado = item.cantidad || 0;
+      let activeReportsList: any[] = [];
+
+      const activeReportItems = await this.reportItemRepo
+        .createQueryBuilder('reportItem')
+        .innerJoinAndSelect('reportItem.incidentReport', 'report')
+        .leftJoinAndSelect('report.teacher', 'teacher')
+        .where('reportItem.itemId = :itemId', { itemId: item.id })
+        .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+        .orderBy('report.createdAt', 'DESC')
+        .getMany();
+
+      if (activeReportItems.length > 0) {
+        activeReportsList = activeReportItems.map((ri) => ({
+          id: ri.incidentReport.id,
+          code: ri.incidentReport.code,
+          cantidadAfectada: ri.cantidadAfectada || 1,
+          description: ri.incidentReport.description,
+          status: ri.incidentReport.status,
+          createdAt: ri.incidentReport.createdAt,
+          teacherName: ri.incidentReport.teacher ? `${ri.incidentReport.teacher.nombres} ${ri.incidentReport.teacher.apellidos || ''}`.trim() : 'Docente',
+        }));
+      }
+
+      if (isInsumo) {
+        cantidadNovedad = activeReportItems.reduce((acc, ri) => acc + (ri.cantidadAfectada || 1), 0);
+        cantidadBuenEstado = Math.max(0, Number(item.cantidad || 0) - cantidadNovedad);
+      }
+
       for (const j of jornadas) {
         const shiftInfo = allShifts.find((s) => s.itemId === item.id && s.spaceId === item.physicalSpaceId && s.jornada === j);
         expandedItems.push({
@@ -847,10 +915,14 @@ export class SpacesService {
           category: item.subcategory?.category?.name || '',
           subcategory: item.subcategory?.name || '',
           view: item.subcategory?.category?.inventoryView?.name || '',
+          inventoryView: item.subcategory?.category?.inventoryView,
           spaceId: item.physicalSpaceId,
           roomNumber: item.physicalSpace?.roomNumber || '',
           spaceName: item.physicalSpace?.name || '',
           cantidad: item.cantidad,
+          cantidadBuenEstado,
+          cantidadNovedad,
+          reportesActivos: activeReportsList,
           jornada: j,
           estadoFisico: (item.estadoFisico && item.estadoFisico !== 'BUENO') 
             ? item.estadoFisico 
@@ -861,7 +933,6 @@ export class SpacesService {
       }
     }
 
-    // Filtrar localmente por búsqueda si se provee (por si acaso el buscador del docente actúa en memoria o backend)
     return expandedItems;
   }
 }
