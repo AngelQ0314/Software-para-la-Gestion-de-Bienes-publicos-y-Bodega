@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { PeriodsService, AcademicPeriod } from '../../../core/services/periods.service';
@@ -19,6 +19,25 @@ export class PeriodsListComponent implements OnInit {
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
+  // Filtros reactivos
+  filterForm: FormGroup;
+  searchName = signal<string>('');
+  selectedStatus = signal<string>('');
+
+  filteredPeriods = computed(() => {
+    let list = this.periods();
+    const search = this.searchName().toLowerCase().trim();
+    const status = this.selectedStatus();
+
+    if (search) {
+      list = list.filter((p) => p.name.toLowerCase().includes(search));
+    }
+    if (status) {
+      list = list.filter((p) => p.status === status);
+    }
+    return list;
+  });
+
   // Modal
   showCreateModal = signal(false);
   periodForm: FormGroup;
@@ -28,6 +47,16 @@ export class PeriodsListComponent implements OnInit {
     private readonly periodsService: PeriodsService,
     private readonly reportsService: ReportsService
   ) {
+    this.filterForm = this.fb.group({
+      name: [''],
+      status: ['']
+    });
+
+    this.filterForm.valueChanges.subscribe((val) => {
+      this.searchName.set(val.name || '');
+      this.selectedStatus.set(val.status || '');
+    });
+
     this.periodForm = this.fb.group({
       name: ['', [Validators.required, Validators.minLength(3)]],
       startDate: ['', [Validators.required]],
@@ -234,6 +263,13 @@ export class PeriodsListComponent implements OnInit {
           confirmButtonText: 'Aceptar'
         });
       }
+    });
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset({
+      name: '',
+      status: ''
     });
   }
 

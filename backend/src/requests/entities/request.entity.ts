@@ -52,6 +52,13 @@ export class Request {
   @JoinColumn({ name: 'destination_space_id' })
   destinationSpace: PhysicalSpace | null;
 
+  @Column({ name: 'destination_teacher_id', nullable: true })
+  destinationTeacherId: string | null;
+
+  @ManyToOne(() => User, { nullable: true })
+  @JoinColumn({ name: 'destination_teacher_id' })
+  destinationTeacher: User | null;
+
   @Column({ type: 'varchar', default: 'EN_PROCESO' })
   status: string; // 'EN_PROCESO', 'APROBADA', 'RECHAZADA'
 

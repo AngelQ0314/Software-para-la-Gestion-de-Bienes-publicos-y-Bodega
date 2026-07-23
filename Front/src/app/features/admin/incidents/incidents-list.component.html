@@ -1,121 +1,233 @@
 <div class="users-container animate-fade">
   <!-- Encabezado -->
-  <div class="glass-panel page-header">
+  <div class="glass-panel page-header" style="margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
     <div class="header-text">
       <h2>Seguimiento de Novedades e Incidencias</h2>
-      <p>Administra los reportes de bienes dañados, robados o perdidos enviados por los docentes, y realiza su seguimiento.</p>
+      <p>Administra los reportes de novedades enviados por docentes y consulta el historial de reportes consolidados.</p>
     </div>
-  </div>
-
-  <!-- Barra de Filtros -->
-  <div class="glass-panel filter-bar">
-    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
-      <div class="filter-group">
-        <label class="form-label">Estado</label>
-        <select class="form-select" formControlName="status">
-          <option value="">Todos los estados</option>
-          <option value="PENDIENTE">Pendiente</option>
-          <option value="REVISADO">Revisado</option>
-          <option value="RESUELTO">Resuelto</option>
-        </select>
-      </div>
-
-      <div class="filter-group">
-        <label class="form-label">Período Académico</label>
-        <select class="form-select" formControlName="academicPeriodId">
-          <option value="">Todos los períodos</option>
-          @for (p of periods(); track p.id) {
-            <option [value]="p.id">{{ p.name }}</option>
-          }
-        </select>
-      </div>
-
-      <div class="filter-actions">
-        <button type="submit" class="btn btn-primary btn-filter">
-          <span class="material-icons-round" style="font-size:1.1rem">search</span>
-          Filtrar
-        </button>
-        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
-          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
-          Limpiar
+    @if (activeTab() === 'reports') {
+      <div class="header-buttons">
+        <button class="btn btn-primary" (click)="openGenerateModal()" style="display: flex; align-items: center; gap: 6px;">
+          <span class="material-icons-round" style="font-size:1.1rem">summarize</span>
+          Consolidar Novedades Histórico
         </button>
       </div>
-    </form>
-  </div>
-
-  <!-- Listado -->
-  <div class="cards-layout-panel">
-    @if (isLoading()) {
-      <div class="loading-state">
-        <div class="spinner-container">
-          <div class="spinner-core"></div>
-        </div>
-        <p>Cargando reportes...</p>
-      </div>
-    } @else {
-      @if (incidents().length > 0) {
-        <div class="users-grid">
-          @for (inc of incidents(); track inc.id) {
-            <div class="glass-card user-profile-card">
-              <div class="user-card-header">
-                <div class="user-card-avatar" 
-                     [style.background]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.15)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(244, 63, 94, 0.15)')"
-                     [style.border-color]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.3)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(244, 63, 94, 0.3)')">
-                  <span class="material-icons-round"
-                    [style.color]="inc.status === 'RESUELTO' ? '#10b981' : (inc.status === 'REVISADO' ? '#f59e0b' : '#f43f5e')">
-                    warning_amber
-                  </span>
-                </div>
-                <div class="user-card-title-group">
-                  <h3 class="user-card-fullname">Aula {{ inc.space?.roomNumber }}</h3>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <span class="badge" [ngClass]="{
-                      'badge-activo': inc.status === 'RESUELTO',
-                      'badge-inactivo': inc.status === 'REVISADO',
-                      'badge-dado-de-baja': inc.status === 'PENDIENTE'
-                    }">
-                      {{ formatStatus(inc.status) }}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div class="user-card-body">
-                <div class="info-row">
-                  <span class="info-label">Docente:</span>
-                  <span class="info-value font-bold">{{ inc.teacher?.nombres }} {{ inc.teacher?.apellidos }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Jornada:</span>
-                  <span class="info-value">{{ formatJornada(inc.jornada) }}</span>
-                </div>
-                <div class="info-row">
-                  <span class="info-label">Fecha:</span>
-                  <span class="info-value font-mono">{{ inc.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
-                </div>
-                <p class="description-preview" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
-                  {{ inc.description | slice:0:70 }}{{ inc.description.length > 70 ? '...' : '' }}
-                </p>
-              </div>
-
-              <div class="user-card-actions">
-                <button class="btn btn-secondary btn-block" (click)="openDetailModal(inc)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                  <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
-                  Ver Detalles
-                </button>
-              </div>
-            </div>
-          }
-        </div>
-      } @else {
-        <div class="empty-state glass-panel">
-          <p>No se encontraron novedades o incidencias.</p>
-        </div>
-      }
     }
   </div>
 
-  <!-- MODAL: DETALLE DE REPORTE -->
+  <!-- Pestañas de Navegación -->
+  <div style="display: flex; gap: 12px; margin-bottom: 20px; border-bottom: 1px solid var(--border-color); padding-bottom: 12px;">
+    <button class="btn" 
+            [ngClass]="activeTab() === 'incidents' ? 'btn-primary' : 'btn-secondary'" 
+            (click)="activeTab.set('incidents')"
+            style="height: 38px; padding: 0 16px; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; border-radius: 8px;">
+      <span class="material-icons-round" style="font-size: 1.1rem;">warning_amber</span>
+      Seguimiento de Novedades
+    </button>
+    <button class="btn" 
+            [ngClass]="activeTab() === 'reports' ? 'btn-primary' : 'btn-secondary'" 
+            (click)="activeTab.set('reports')"
+            style="height: 38px; padding: 0 16px; display: flex; align-items: center; gap: 6px; font-size: 0.85rem; border-radius: 8px;">
+      <span class="material-icons-round" style="font-size: 1.1rem;">folder</span>
+      Historial de Consolidados (PDF)
+    </button>
+  </div>
+
+  <!-- CONTENIDO DE PESTAÑA: SEGUIMIENTO DE NOVEDADES -->
+  @if (activeTab() === 'incidents') {
+    <!-- Barra de Filtros de Incidencias -->
+    <div class="glass-panel filter-bar" style="margin-bottom: 25px;">
+      <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+        <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Estado</label>
+          <select class="form-select" formControlName="status" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+            <option value="">Todos los estados</option>
+            <option value="PENDIENTE">Pendiente</option>
+            <option value="REVISADO">Revisado</option>
+            <option value="RESUELTO">Resuelto</option>
+          </select>
+        </div>
+
+        <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Período Académico</label>
+          <select class="form-select" formControlName="academicPeriodId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+            <option value="">Todos los períodos</option>
+            @for (p of periods(); track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-actions" style="margin-bottom: 2px;">
+          <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+            <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+            Limpiar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Listado de Incidencias -->
+    <div class="cards-layout-panel">
+      @if (isLoading()) {
+        <div class="loading-state">
+          <div class="spinner-container">
+            <div class="spinner-core"></div>
+          </div>
+          <p>Cargando reportes...</p>
+        </div>
+      } @else {
+        @if (incidents().length > 0) {
+          <div class="users-grid">
+            @for (inc of incidents(); track inc.id) {
+              <div class="glass-card user-profile-card">
+                <div class="user-card-header">
+                  <div class="user-card-avatar" 
+                       [style.background]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.15)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(244, 63, 94, 0.15)')"
+                       [style.border-color]="inc.status === 'RESUELTO' ? 'rgba(16, 185, 129, 0.3)' : (inc.status === 'REVISADO' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(244, 63, 94, 0.3)')">
+                    <span class="material-icons-round"
+                      [style.color]="inc.status === 'RESUELTO' ? '#10b981' : (inc.status === 'REVISADO' ? '#f59e0b' : '#f43f5e')">
+                      warning_amber
+                    </span>
+                  </div>
+                  <div class="user-card-title-group">
+                    <h3 class="user-card-fullname">Aula {{ inc.space?.roomNumber }}</h3>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                      <span class="badge" [ngClass]="{
+                        'badge-activo': inc.status === 'RESUELTO',
+                        'badge-inactivo': inc.status === 'REVISADO',
+                        'badge-dado-de-baja': inc.status === 'PENDIENTE'
+                      }">
+                        {{ formatStatus(inc.status) }}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="user-card-body">
+                  <div class="info-row">
+                    <span class="info-label">Docente:</span>
+                    <span class="info-value font-bold">{{ inc.teacher?.nombres }} {{ inc.teacher?.apellidos }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Jornada:</span>
+                    <span class="info-value">{{ formatJornada(inc.jornada) }}</span>
+                  </div>
+                  <div class="info-row">
+                    <span class="info-label">Fecha:</span>
+                    <span class="info-value font-mono">{{ inc.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                  </div>
+                  <p class="description-preview" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted); line-height: 1.4;">
+                    {{ inc.description | slice:0:70 }}{{ inc.description.length > 70 ? '...' : '' }}
+                  </p>
+                </div>
+
+                <div class="user-card-actions">
+                  <button class="btn btn-secondary btn-block" (click)="openDetailModal(inc)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                    Ver Detalles
+                  </button>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="empty-state glass-panel" style="padding: 40px; text-align: center;">
+            <span class="material-icons-round" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 12px;">folder_open</span>
+            <p style="color: var(--text-muted);">No se encontraron novedades o incidencias.</p>
+          </div>
+        }
+      }
+    </div>
+  }
+
+  <!-- CONTENIDO DE PESTAÑA: HISTORIAL DE CONSOLIDADOS (PDF) -->
+  @if (activeTab() === 'reports') {
+    <!-- Barra de Filtros de Reportes -->
+    <div class="glass-panel filter-bar" style="margin-bottom: 0;">
+      <form [formGroup]="reportFilterForm" class="filter-form" style="display: grid; grid-template-columns: 1fr 120px; gap: 15px; width: 100%; align-items: end;">
+        <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+          <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Período Académico</label>
+          <select class="form-select" formControlName="academicPeriodId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+            <option value="">Todos los períodos</option>
+            @for (p of periods(); track p.id) {
+              <option [value]="p.id">{{ p.name }}</option>
+            }
+          </select>
+        </div>
+
+        <div class="filter-actions" style="margin-bottom: 2px;">
+          <button type="button" class="btn btn-secondary btn-filter" (click)="resetReportFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+            <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+            Limpiar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Historial en Tarjetas de Reportes -->
+    <div class="glass-panel" style="padding: 20px; display: flex; flex-direction: column; gap: 15px;">
+      <h3 style="font-size: 1.1rem; font-weight: 700;">Historial de Reportes Generados</h3>
+
+      @if (isLoading()) {
+        <div class="loading-state" style="padding: 40px 0;">
+          <div class="spinner-container">
+            <div class="spinner-core"></div>
+          </div>
+          <p>Cargando historial de reportes...</p>
+        </div>
+      } @else {
+        <div class="reports-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; max-height: 520px; overflow-y: auto; padding-right: 5px;">
+          @for (rep of reports(); track rep.id) {
+            <div class="report-card glass-panel" style="padding: 16px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(255, 255, 255, 0.02); display: flex; flex-direction: column; gap: 12px; transition: transform 0.2s; position: relative;">
+              <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                <div style="display: flex; flex-direction: column; gap: 2px;">
+                  <span style="font-size: 0.72rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em;">Código</span>
+                  <span style="font-size: 0.85rem; font-weight: 600; font-family: monospace; color: var(--text-primary);">{{ rep.code }}</span>
+                </div>
+                <span class="badge badge-activo" style="font-size: 0.7rem; padding: 3px 8px; font-weight: 700;">
+                  {{ formatType(rep.type) }}
+                </span>
+              </div>
+
+              <div style="border-top: 1px solid var(--border-color); border-bottom: 1px solid var(--border-color); padding: 8px 0; display: flex; flex-direction: column; gap: 4px; font-size: 0.8rem; color: var(--text-secondary);">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Período:</span>
+                  <strong style="color: var(--text-primary);">{{ rep.academicPeriod?.name || 'Varios' }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Generado por:</span>
+                  <strong style="color: var(--text-primary);">{{ rep.generatedBy ? (rep.generatedBy.nombres + ' ' + rep.generatedBy.apellidos) : 'Sistema' }}</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                  <span>Fecha:</span>
+                  <span style="font-family: monospace;">{{ rep.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+                </div>
+              </div>
+
+              <div style="display: flex; gap: 10px; margin-top: 4px;">
+                <button class="btn btn-secondary" (click)="openReportDetailModal(rep)" style="flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; border-radius: 8px;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">visibility</span>
+                  Ver Detalle
+                </button>
+                <button class="btn btn-primary" (click)="downloadReport(rep)" style="flex: 1; height: 36px; display: flex; align-items: center; justify-content: center; gap: 6px; font-size: 0.8rem; border-radius: 8px; background: #f57c00; border-color: #f57c00;">
+                  <span class="material-icons-round" style="font-size: 1.1rem;">picture_as_pdf</span>
+                  Descargar PDF
+                </button>
+              </div>
+            </div>
+          } @empty {
+            <div class="empty-state glass-panel" style="grid-column: 1 / -1; padding: 40px; text-align: center; width: 100%;">
+              <span class="material-icons-round" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 12px;">folder_open</span>
+              <p style="color: var(--text-muted);">No se han encontrado reportes de novedades archivados.</p>
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- MODAL: DETALLE DE INCIDENCIA -->
   @if (showDetailModal() && selectedIncident()) {
     <div class="modal-overlay animate-fade">
       <div class="glass-panel modal-card animate-slide">
@@ -203,6 +315,122 @@
             @if (selectedIncident()!.status === 'REVISADO') {
               <button type="button" class="btn btn-primary" (click)="updateStatus(selectedIncident()!, 'RESUELTO')">Marcar como Resuelto</button>
             }
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: CONSOLIDAR NOVEDADES -->
+  @if (showGenerateModal()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide">
+        <div class="modal-header">
+          <h3>Consolidar Novedades Histórico</h3>
+          <button class="close-btn" (click)="closeGenerateModal()">×</button>
+        </div>
+        <form [formGroup]="generateForm" (ngSubmit)="onGenerateSubmit()" class="modal-form">
+          <p class="text-muted" style="font-size: 0.85rem; margin-bottom: 15px;">
+            Esta acción compilará y consolidará todas las novedades/incidencias del período académico seleccionado (o de todos si no seleccionas ninguno) en un reporte oficial descargable.
+          </p>
+
+          <div class="form-group">
+            <label class="form-label" for="genPeriod">Período Académico (Opcional)</label>
+            <select id="genPeriod" class="form-select" formControlName="academicPeriodId">
+              <option value="">Todos los Períodos</option>
+              @for (p of periods(); track p.id) {
+                <option [value]="p.id">{{ p.name }}</option>
+              }
+            </select>
+          </div>
+
+          <!-- Alertas -->
+          @if (errorMessage()) {
+            <div class="alert-box error-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">warning</span> {{ errorMessage() }}
+            </div>
+          }
+          @if (successMessage()) {
+            <div class="alert-box success-alert" style="display: flex; align-items: center; gap: 8px;">
+              <span class="material-icons-round" style="font-size:1.1rem">check_circle</span> {{ successMessage() }}
+            </div>
+          }
+
+          <div class="modal-actions">
+            <button type="button" class="btn btn-secondary" (click)="closeGenerateModal()">Cancelar</button>
+            <button type="submit" class="btn btn-primary" [disabled]="modalLoading()">
+              Generar Consolidado
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  }
+
+  <!-- MODAL: DETALLE DEL REPORTE CONSOLIDADO -->
+  @if (showReportDetailModal() && selectedReport()) {
+    <div class="modal-overlay animate-fade">
+      <div class="glass-panel modal-card animate-slide modal-card-lg">
+        <div class="modal-header">
+          <h3>Detalle del Reporte Generado</h3>
+          <button class="close-btn" (click)="closeReportDetailModal()">×</button>
+        </div>
+        
+        <div class="modal-form">
+          <div class="info-row">
+            <span class="info-label">Tipo:</span>
+            <span class="info-value font-bold" style="color: #fb7185;">{{ formatType(selectedReport()!.type) }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Período Académico:</span>
+            <span class="info-value font-mono">{{ selectedReport()!.academicPeriod?.name || 'Varios' }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Generado Por:</span>
+            <span class="info-value">{{ selectedReport()!.generatedBy?.nombres }} {{ selectedReport()!.generatedBy?.apellidos }}</span>
+          </div>
+          <div class="info-row">
+            <span class="info-label">Fecha de Consolidación:</span>
+            <span class="info-value font-mono">{{ selectedReport()!.createdAt | date:'dd/MM/yyyy HH:mm' }}</span>
+          </div>
+
+          @if (!selectedReportDetail()) {
+            <div class="loading-state" style="padding: 20px 0;">
+              <div class="spinner-container" style="width: 30px; height: 30px;">
+                <div class="spinner-core"></div>
+              </div>
+              <p style="font-size: 0.8rem;">Cargando metadatos consolidados...</p>
+            </div>
+          } @else {
+            <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 15px; margin-bottom: 8px;">Resumen Consolidado</h4>
+            
+            <div style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); padding: 15px; border-radius: 8px; font-size: 0.85rem; color: var(--text-secondary);">
+              <div class="info-row">
+                <span class="info-label">Total Novedades Reportadas:</span>
+                <span class="info-value font-bold" style="color: #fb7185;">
+                  {{ selectedReportDetail().reportData?.resumenNovedades?.total || selectedReportDetail().reportData?.resumen?.totalNovedades || 0 }}
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Novedades Resueltas:</span>
+                <span class="info-value font-bold" style="color: #10b981;">
+                  {{ selectedReportDetail().reportData?.resumenNovedades?.resueltas || selectedReportDetail().reportData?.resumen?.novedadesResueltas || 0 }}
+                </span>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Novedades Pendientes:</span>
+                <span class="info-value font-bold" style="color: #fbbf24;">
+                  {{ selectedReportDetail().reportData?.resumenNovedades?.pendientes || selectedReportDetail().reportData?.resumen?.novedadesPendientes || 0 }}
+                </span>
+              </div>
+            </div>
+          }
+
+          <div class="modal-actions" style="margin-top: 20px; border-top: 1px solid var(--border-color); padding-top: 15px;">
+            <button type="button" class="btn btn-secondary" (click)="closeReportDetailModal()">Cerrar</button>
+            <button type="button" class="btn btn-primary" (click)="downloadReport(selectedReport()!)">
+              Descargar PDF Oficial
+            </button>
           </div>
         </div>
       </div>

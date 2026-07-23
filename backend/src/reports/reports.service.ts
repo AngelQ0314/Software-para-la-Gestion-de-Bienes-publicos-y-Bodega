@@ -341,30 +341,61 @@ export class ReportsService {
 
   // Generar un reporte consolidado de novedades histórico
   async generateNoveltyReport(adminId: string, periodId?: string): Promise<Report> {
-    const activeNovelties = await this.getActiveNovelties();
-
     let period: AcademicPeriod | null = null;
     if (periodId) {
       period = await this.userRepo.manager.getRepository(AcademicPeriod).findOne({ where: { id: periodId } });
     }
 
-    // Calcular estadísticas reales de incidentes
     const incidentRepo = this.userRepo.manager.getRepository(IncidentReport);
-    const incidentQuery = incidentRepo.createQueryBuilder('report');
-    if (periodId) {
-      incidentQuery.where('report.academicPeriodId = :periodId', { periodId });
-    }
-    const allIncidents = await incidentQuery.getMany();
     
+    // Consultar incidentes reales con sus relaciones (incluyendo artículos con soft-delete)
+    const allIncidents = await incidentRepo.createQueryBuilder('incident')
+      .leftJoinAndSelect('incident.teacher', 'teacher')
+      .leftJoinAndSelect('incident.academicPeriod', 'academicPeriod')
+      .leftJoinAndSelect('incident.space', 'space')
+      .leftJoinAndSelect('space.responsibleTeachers', 'responsibleTeachers')
+      .leftJoinAndSelect('incident.items', 'items')
+      .leftJoinAndSelect('items.item', 'item')
+      .withDeleted()
+      .where(periodId ? 'incident.academicPeriodId = :periodId' : '1=1', { periodId })
+      .orderBy('incident.created_at', 'DESC')
+      .getMany();
+
     const total = allIncidents.length;
     const resueltas = allIncidents.filter((i) => i.status === 'RESUELTO').length;
     const pendientes = allIncidents.filter((i) => i.status === 'PENDIENTE' || i.status === 'REVISADO').length;
+
+    // Mapear cada incidente con su lista de artículos afectados
+    const novelties = allIncidents.map((inc) => {
+      const firstItem = inc.items && inc.items.length > 0 ? inc.items[0].item : null;
+      const itemsListStr = inc.items?.map((it) => `${it.item?.name || 'Artículo Eliminado'} (Cant: ${it.cantidadAfectada})`).join(', ') || 'Sin artículos';
+      return {
+        id: inc.id,
+        jornada: inc.jornada,
+        estadoFisico: inc.estadoFisico,
+        novedades: inc.description || 'Sin descripción',
+        reportedAt: inc.createdAt,
+        teacher: inc.teacher ? `${inc.teacher.nombres} ${inc.teacher.apellidos}` : 'Docente',
+        itemsList: itemsListStr,
+        item: firstItem ? {
+          id: firstItem.id,
+          name: firstItem.name,
+          codeValue: firstItem.codeValue || 'S/C',
+        } : null,
+        space: {
+          id: inc.space?.id,
+          name: inc.space?.name,
+          roomNumber: inc.space?.roomNumber,
+          teachers: inc.space?.responsibleTeachers?.map((t) => `${t.nombres} ${t.apellidos}`) || [],
+        },
+      };
+    });
 
     const reportCode = `REP-NOV-${Date.now().toString().substring(4)}`;
     const reportData = {
       generatedAt: new Date(),
       periodInfo: period ? { id: period.id, name: period.name } : 'GENERAL / TODOS',
-      novelties: activeNovelties,
+      novelties,
       resumenNovedades: {
         total,
         resueltas,
@@ -390,13 +421,17 @@ export class ReportsService {
     const doc = new PDFDocument({ margin: 50, size: 'A4' });
 
     // --- ENCABEZADO COMÚN ---
-    doc.fillColor('#1a3a5c')
-       .fontSize(16)
-       .text('INSTITUTO SUPERIOR TECNOLÓGICO YAVIRAC', { align: 'center', underline: true })
-       .moveDown(0.2);
+    // Barra superior decorativa
+    doc.rect(50, 30, 500, 4).fill('#1e293b'); // Gris oscuro elegante
+
+    doc.fillColor('#0f172a') // Slate 900
+       .fontSize(14)
+       .font('Helvetica-Bold')
+       .text('INSTITUTO SUPERIOR TECNOLÓGICO YAVIRAC', 50, 42, { align: 'center' });
        
-    doc.fontSize(10)
-       .fillColor('#555555')
+    doc.fontSize(9)
+       .font('Helvetica')
+       .fillColor('#64748b') // Slate 500
        .text('Sistema de Gestión de Bienes Públicos y Bodega - Reportes Oficiales', { align: 'center' })
        .moveDown(1.5);
 
@@ -563,51 +598,88 @@ export class ReportsService {
       }
       case ReportType.NOVEDADES: {
         const data = report.reportData;
-        doc.fillColor('#2c3e50')
-           .fontSize(13)
+
+        // Título del Reporte
+        doc.fillColor('#e11d48') // Rosa oscuro/rojo coral
+           .fontSize(12)
            .font('Helvetica-Bold')
-           .text('REPORTE OFICIAL DE DAÑOS E INCIDENCIAS', { align: 'center' })
+           .text('REPORTE HISTÓRICO CONSOLIDADO DE NOVEDADES Y DAÑOS', { align: 'center' })
            .moveDown(0.2);
-        
-        doc.fontSize(11)
+
+        doc.fontSize(8.5)
            .font('Helvetica')
-           .text(`Código: ${report.code}`, { align: 'center' })
-           .moveDown(1.5);
+           .fillColor('#64748b')
+           .text(`Código de Registro: ${report.code}  |  Emisión: ${generatedAtStr}`, { align: 'center' })
+           .moveDown(1.2);
 
-        doc.fillColor('#1a3a5c').fontSize(11).text('Datos de Emisión', { underline: true }).moveDown(0.3);
-        doc.fillColor('#333333').fontSize(9)
-           .text(`Filtro Período: ${typeof data.periodInfo === 'string' ? data.periodInfo : data.periodInfo.name}`)
-           .text(`Fecha de Emisión: ${generatedAtStr}`)
-           .text(`Emitido por: ${generatedByStr}`)
-           .moveDown(1.5);
+        // Caja de Datos de Emisión (Fondo gris claro, borde sutil)
+        const boxY = doc.y;
+        doc.rect(50, boxY, 500, 42).fillAndStroke('#f8fafc', '#e2e8f0');
+        doc.fillColor('#334155').fontSize(8.5);
+        doc.font('Helvetica-Bold').text('Datos del Reporte', 65, boxY + 8).font('Helvetica');
+        
+        const periodStr = typeof data.periodInfo === 'string' ? data.periodInfo : data.periodInfo.name;
+        doc.text(`Período Académico: ${periodStr}`, 65, boxY + 22)
+           .text(`Generado Por: ${generatedByStr}`, 300, boxY + 22);
+        
+        doc.y = boxY + 54;
 
-        doc.fillColor('#1a3a5c').fontSize(11).text('Detalle de Novedades y Daños', { underline: true }).moveDown(0.5);
-        doc.fillColor('#333333').fontSize(9);
+        // Sección Detalle
+        doc.fillColor('#1e293b').fontSize(10.5).font('Helvetica-Bold').text('Detalle de Novedades Registradas').font('Helvetica').moveDown(0.5);
 
         if (!data.novelties || data.novelties.length === 0) {
-          doc.text('No hay novedades ni daños reportados en el sistema.').moveDown(1);
+          doc.fillColor('#64748b').fontSize(9).text('No se han registrado novedades ni daños en el período seleccionado.').moveDown(1);
         } else {
-          let novY = doc.y;
-          doc.font('Helvetica-Bold')
-             .text('Espacio', 50, novY, { width: 80 })
-             .text('Artículo', 130, novY, { width: 130 })
-             .text('Jornada', 270, novY, { width: 60 })
-             .text('Estado', 340, novY, { width: 50 })
-             .text('Detalles Novedad', 400, novY, { width: 150 })
+          // --- TABLA ---
+          let curY = doc.y;
+          
+          // Cabecera de la tabla
+          doc.rect(50, curY, 500, 22).fill('#1e293b');
+          doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold')
+             .text('Espacio / Aula', 55, curY + 6, { width: 95 })
+             .text('Artículo Afectado', 155, curY + 6, { width: 125 })
+             .text('Jornada', 285, curY + 6, { width: 55 })
+             .text('Estado', 345, curY + 6, { width: 45 })
+             .text('Detalles / Novedad', 395, curY + 6, { width: 150 })
              .font('Helvetica');
-          doc.moveTo(50, novY + 12).lineTo(550, novY + 12).stroke('#1a3a5c');
-          novY += 18;
+          
+          curY += 22;
 
+          let rowIndex = 0;
           for (const nov of data.novelties) {
-            doc.text(`${nov.space.name} (${nov.space.roomNumber})`, 50, novY, { width: 80 })
-               .text(`${nov.item.name}`, 130, novY, { width: 130 })
-               .text(`${nov.jornada}`, 270, novY, { width: 60 })
-               .text(`${nov.estadoFisico}`, 340, novY, { width: 50 })
-               .text(`${nov.novedades || nov.observacion || 'Sin detalle de texto'}`, 400, novY, { width: 150 });
-            novY += 30;
-            if (novY > 700) { doc.addPage(); novY = 50; }
+            // Validar salto de página antes de dibujar
+            if (curY > 720) {
+              doc.addPage();
+              // Volver a dibujar cabecera en la nueva página
+              curY = 50;
+              doc.rect(50, curY, 500, 22).fill('#1e293b');
+              doc.fillColor('#ffffff').fontSize(8.5).font('Helvetica-Bold')
+                 .text('Espacio / Aula', 55, curY + 6, { width: 95 })
+                 .text('Artículo Afectado', 155, curY + 6, { width: 125 })
+                 .text('Jornada', 285, curY + 6, { width: 55 })
+                 .text('Estado', 345, curY + 6, { width: 45 })
+                 .text('Detalles / Novedad', 395, curY + 6, { width: 150 })
+                 .font('Helvetica');
+              curY += 22;
+            }
+
+            // Fondo cebra alterno
+            const isAlternate = rowIndex % 2 === 1;
+            const rowHeight = 28; // altura fija para evitar desalineaciones
+            doc.rect(50, curY, 500, rowHeight).fillAndStroke(isAlternate ? '#f8fafc' : '#ffffff', '#f1f5f9');
+
+            // Textos de las celdas
+            doc.fillColor('#334155').fontSize(8)
+               .text(`${nov.space?.name || 'S/E'} (${nov.space?.roomNumber || 'S/N'})`, 55, curY + 8, { width: 95 })
+               .text(`${nov.itemsList || nov.item?.name || 'S/A'}`, 155, curY + 8, { width: 125 })
+               .text(`${nov.jornada || 'N/A'}`, 285, curY + 8, { width: 55 })
+               .text(`${nov.estadoFisico || 'N/A'}`, 345, curY + 8, { width: 45 })
+               .text(`${nov.novedades || nov.observacion || 'Sin detalle'}`, 395, curY + 8, { width: 150, height: 16, ellipsis: true });
+
+            curY += rowHeight;
+            rowIndex++;
           }
-          doc.y = novY;
+          doc.y = curY;
         }
         break;
       }

@@ -9,6 +9,7 @@ import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { PhysicalSpace } from '../spaces/entities/physical-space.entity';
 import { InventoryItemShift } from '../spaces/entities/inventory-item-shift.entity';
 import { User, UserRole, UserStatus } from '../users/entities/user.entity';
+import { IncidentReportItem } from '../incidents/entities/incident-report-item.entity';
 import { MailService } from '../mail/mail.service';
 import { ConfigService } from '@nestjs/config';
 import { CreateRequestDto } from './dto/create-request.dto';
@@ -38,6 +39,8 @@ export class RequestsService {
     private readonly shiftRepo: Repository<InventoryItemShift>,
     @InjectRepository(User)
     private readonly userRepo: Repository<User>,
+    @InjectRepository(IncidentReportItem)
+    private readonly reportItemRepo: Repository<IncidentReportItem>,
     private readonly mailService: MailService,
     private readonly configService: ConfigService,
     private readonly pdfGeneratorService: PdfGeneratorService,
@@ -51,7 +54,7 @@ export class RequestsService {
       throw new BadRequestException('No se pueden registrar solicitudes de inventario porque no hay un período académico activo.');
     }
 
-    // Validar que el espacio físico exista y esté bajo la responsabilidad del docente
+    // Validar que el espacio físico exista
     const space = await this.spaceRepo.findOne({
       where: { id: dto.spaceId },
       relations: { responsibleTeachers: true },
@@ -71,10 +74,11 @@ export class RequestsService {
 
     const type = dto.type || 'NUEVO_INVENTARIO';
 
-    // Validar responsabilidades de espacios según el tipo de solicitud
-    if (type === 'SOLICITUD_TRASPASO') {
+    // 1. Validar responsabilidades de espacios según tipo de solicitud
+    if (type === 'SOLICITUD_EXTERNA') {
+      // Pedir de aula ajena: El solicitante debe ser responsable del aula de destino
       if (!dto.destinationSpaceId) {
-        throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes de traspaso.');
+        throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes externas.');
       }
       if (dto.destinationSpaceId === dto.spaceId) {
         throw new BadRequestException('El espacio físico de destino no puede ser igual al de origen.');
@@ -86,30 +90,71 @@ export class RequestsService {
       if (!destSpace) {
         throw new NotFoundException('El espacio físico de destino no existe.');
       }
-
-      // El solicitante debe ser responsable del destino (su propia aula)
       const isResponsibleDest = destSpace.responsibleTeachers.some((t) => t.id === teacherId);
       if (!isResponsibleDest) {
         throw new BadRequestException('El espacio físico de destino (tu aula) debe estar bajo tu responsabilidad.');
       }
-    } else {
-      // Para NUEVO_INVENTARIO, TRANSFERENCIA y TRASPASO_DOCENTE: el solicitante debe ser responsable del origen
+    } else if (type === 'TRASPASO_DOCENTE') {
+      // Traspasar a otro docente: El solicitante debe ser responsable del origen
       const isResponsible = space.responsibleTeachers.some((t) => t.id === teacherId);
       if (!isResponsible) {
         throw new BadRequestException('El espacio físico de origen (tu aula) debe estar bajo tu responsabilidad.');
       }
 
-      if (type === 'TRANSFERENCIA' || type === 'TRASPASO_DOCENTE') {
-        if (!dto.destinationSpaceId) {
-          throw new BadRequestException('El espacio físico de destino es obligatorio para solicitudes de transferencia.');
-        }
-        if (dto.destinationSpaceId === dto.spaceId) {
-          throw new BadRequestException('El espacio físico de destino no puede ser igual al de origen.');
-        }
-        const destSpace = await this.spaceRepo.findOne({ where: { id: dto.destinationSpaceId } });
-        if (!destSpace) {
-          throw new NotFoundException('El espacio físico de destino no existe.');
-        }
+      if (!dto.destinationTeacherId) {
+        throw new BadRequestException('El docente de destino es obligatorio para traspasos entre docentes.');
+      }
+      if (dto.destinationTeacherId === teacherId) {
+        throw new BadRequestException('No puedes traspasarte artículos a ti mismo.');
+      }
+      const destTeacher = await this.userRepo.findOne({ where: { id: dto.destinationTeacherId, rol: UserRole.DOCENTE, estado: UserStatus.ACTIVO } });
+      if (!destTeacher) {
+        throw new NotFoundException('El docente de destino no existe o se encuentra inactivo.');
+      }
+
+      if (!dto.destinationSpaceId) {
+        throw new BadRequestException('El espacio físico de destino es obligatorio.');
+      }
+      const destSpace = await this.spaceRepo.findOne({
+        where: { id: dto.destinationSpaceId },
+        relations: { responsibleTeachers: true },
+      });
+      if (!destSpace) {
+        throw new NotFoundException('El espacio físico de destino no existe.');
+      }
+      const isResponsibleDest = destSpace.responsibleTeachers.some((t) => t.id === dto.destinationTeacherId);
+      if (!isResponsibleDest) {
+        throw new BadRequestException('El espacio físico de destino debe estar bajo la responsabilidad del docente destinatario.');
+      }
+    } else if (type === 'TRANSFERENCIA_AULAS') {
+      // Mover entre tus aulas: El solicitante debe ser responsable de origen y destino
+      const isResponsible = space.responsibleTeachers.some((t) => t.id === teacherId);
+      if (!isResponsible) {
+        throw new BadRequestException('El espacio físico de origen (tu aula) debe estar bajo tu responsabilidad.');
+      }
+
+      if (!dto.destinationSpaceId) {
+        throw new BadRequestException('El espacio físico de destino es obligatorio.');
+      }
+      if (dto.destinationSpaceId === dto.spaceId) {
+        throw new BadRequestException('El espacio de destino no puede ser igual al de origen.');
+      }
+      const destSpace = await this.spaceRepo.findOne({
+        where: { id: dto.destinationSpaceId },
+        relations: { responsibleTeachers: true },
+      });
+      if (!destSpace) {
+        throw new NotFoundException('El espacio físico de destino no existe.');
+      }
+      const isResponsibleDest = destSpace.responsibleTeachers.some((t) => t.id === teacherId);
+      if (!isResponsibleDest) {
+        throw new BadRequestException('El espacio físico de destino debe estar bajo tu responsabilidad.');
+      }
+    } else {
+      // NUEVO_INVENTARIO, DEVOLUCION_BODEGA, BAJA_DEFINITIVA, MANTENIMIENTO: El solicitante debe ser responsable del origen
+      const isResponsible = space.responsibleTeachers.some((t) => t.id === teacherId);
+      if (!isResponsible) {
+        throw new BadRequestException('El espacio físico de origen (tu aula) debe estar bajo tu responsabilidad.');
       }
     }
 
@@ -125,12 +170,13 @@ export class RequestsService {
       status: 'EN_PROCESO',
       motive: dto.motive?.trim() || null,
       type,
-      destinationSpaceId: (type === 'TRANSFERENCIA' || type === 'TRASPASO_DOCENTE' || type === 'SOLICITUD_TRASPASO') ? dto.destinationSpaceId : null,
+      destinationSpaceId: (type === 'TRANSFERENCIA_AULAS' || type === 'TRASPASO_DOCENTE' || type === 'SOLICITUD_EXTERNA') ? dto.destinationSpaceId : null,
+      destinationTeacherId: type === 'TRASPASO_DOCENTE' ? dto.destinationTeacherId : null,
     });
 
     const savedRequest = await this.requestRepo.save(request);
 
-    // Crear detalles e ítems
+    // Crear detalles e ítems con validación de stock libre (restando novedades activas)
     const itemsToSave: RequestItem[] = [];
     for (const itemDto of dto.items) {
       let item: InventoryItem | null = null;
@@ -139,24 +185,56 @@ export class RequestsService {
         // En nuevo inventario: deben estar en bodega (physicalSpaceId es nulo)
         item = await this.itemRepo.findOne({
           where: { id: itemDto.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
+          relations: { subcategory: { category: { inventoryView: true } } },
         });
         if (!item) {
           throw new NotFoundException(`El artículo con ID '${itemDto.itemId}' no existe en bodega o no está activo.`);
         }
       } else {
-        // En transferencia: deben estar asignados al espacio de origen del docente (spaceId)
+        // En cualquier otra solicitud: deben estar asignados al espacio de origen (spaceId)
         item = await this.itemRepo.findOne({
           where: { id: itemDto.itemId, physicalSpaceId: dto.spaceId, status: 'ACTIVO' },
+          relations: { subcategory: { category: { inventoryView: true } } },
         });
         if (!item) {
           throw new NotFoundException(`El artículo con ID '${itemDto.itemId}' no está asignado al espacio de origen o no está activo.`);
         }
       }
 
-      if (item.cantidad < itemDto.cantidad) {
-        throw new BadRequestException(
-          `Cantidad insuficiente para '${item.name}'. Solicitado: ${itemDto.cantidad}, Disponible: ${item.cantidad}.`,
-        );
+      const isInsumo = item.subcategory?.category?.inventoryView?.code === 'INSUMOS';
+
+      if (!isInsumo) {
+        // Para Bienes Públicos / Biblioteca: Debe estar en estado BUENO y no tener novedades activas
+        if (item.estadoFisico && item.estadoFisico !== 'BUENO') {
+          throw new BadRequestException(`El artículo '${item.name}' se encuentra en estado '${item.estadoFisico}' y no puede ser transferido.`);
+        }
+        const activeReportItems = await this.reportItemRepo
+          .createQueryBuilder('reportItem')
+          .innerJoin('reportItem.incidentReport', 'report')
+          .where('reportItem.itemId = :itemId', { itemId: item.id })
+          .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+          .getMany();
+
+        if (activeReportItems.length > 0) {
+          throw new BadRequestException(`El artículo '${item.name}' tiene un reporte de novedad activo y no puede ser solicitado.`);
+        }
+      } else {
+        // Para Insumos: Restar las cantidades de reportes activos
+        const activeReportItems = await this.reportItemRepo
+          .createQueryBuilder('reportItem')
+          .innerJoin('reportItem.incidentReport', 'report')
+          .where('reportItem.itemId = :itemId', { itemId: item.id })
+          .andWhere('report.status IN (:...statuses)', { statuses: ['PENDIENTE', 'REVISADO'] })
+          .getMany();
+
+        const cantidadNovedad = activeReportItems.reduce((acc, ri) => acc + (ri.cantidadAfectada || 1), 0);
+        const cantidadBuenEstado = Math.max(0, Number(item.cantidad || 0) - cantidadNovedad);
+
+        if (cantidadBuenEstado < itemDto.cantidad) {
+          throw new BadRequestException(
+            `Cantidad insuficiente en buen estado para '${item.name}'. Solicitado: ${itemDto.cantidad}, Disponible: ${cantidadBuenEstado} (de ${item.cantidad} asignados con ${cantidadNovedad} en novedad).`,
+          );
+        }
       }
 
       const requestItem = this.requestItemRepo.create({
@@ -187,6 +265,8 @@ export class RequestsService {
     const query = this.requestRepo.createQueryBuilder('request')
       .leftJoinAndSelect('request.teacher', 'teacher')
       .leftJoinAndSelect('request.space', 'space')
+      .leftJoinAndSelect('request.destinationSpace', 'destinationSpace')
+      .leftJoinAndSelect('request.destinationTeacher', 'destinationTeacher')
       .leftJoinAndSelect('request.academicPeriod', 'academicPeriod')
       .leftJoinAndSelect('request.resolvedBy', 'resolvedBy')
       .leftJoinAndSelect('request.items', 'items')
@@ -226,6 +306,7 @@ export class RequestsService {
       where: { id },
       relations: {
         teacher: true,
+        destinationTeacher: true,
         space: true,
         destinationSpace: true,
         academicPeriod: true,
@@ -272,21 +353,9 @@ export class RequestsService {
       throw new BadRequestException('El usuario administrador responsable no es válido.');
     }
 
-    // Validar disponibilidad de stock en el origen correspondiente (bodega o espacio de origen)
+    // 1. Validar disponibilidad física de stock en el origen correspondiente
     for (const reqItem of request.items) {
-      if (request.type === 'TRANSFERENCIA' || request.type === 'TRASPASO_DOCENTE' || request.type === 'SOLICITUD_TRASPASO') {
-        const itemInOrigin = await this.itemRepo.findOne({
-          where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
-        });
-        if (!itemInOrigin) {
-          throw new BadRequestException(`El artículo '${reqItem.item?.name || 'N/A'}' ya no se encuentra asignado al espacio de origen.`);
-        }
-        if (itemInOrigin.cantidad < reqItem.cantidad) {
-          throw new BadRequestException(
-            `Stock insuficiente para '${itemInOrigin.name}' en el espacio de origen. Disponible: ${itemInOrigin.cantidad}, Solicitado: ${reqItem.cantidad}.`,
-          );
-        }
-      } else {
+      if (request.type === 'NUEVO_INVENTARIO') {
         const itemInBodega = await this.itemRepo.findOne({
           where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
         });
@@ -298,57 +367,141 @@ export class RequestsService {
             `Stock insuficiente para '${itemInBodega.name}' en bodega. Disponible: ${itemInBodega.cantidad}, Solicitado: ${reqItem.cantidad}.`,
           );
         }
+      } else {
+        const itemInOrigin = await this.itemRepo.findOne({
+          where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
+        });
+        if (!itemInOrigin) {
+          throw new BadRequestException(`El artículo '${reqItem.item?.name || 'N/A'}' ya no se encuentra asignado al espacio de origen.`);
+        }
+        if (itemInOrigin.cantidad < reqItem.cantidad) {
+          throw new BadRequestException(
+            `Stock insuficiente para '${itemInOrigin.name}' en el espacio de origen. Disponible: ${itemInOrigin.cantidad}, Solicitado: ${reqItem.cantidad}.`,
+          );
+        }
       }
     }
 
-    // Procesar transferencia / asignación física de ítems al aula destino
+    // 2. Procesar transferencia / asignación física de ítems
     for (const reqItem of request.items) {
-      if (request.type === 'TRANSFERENCIA' || request.type === 'TRASPASO_DOCENTE' || request.type === 'SOLICITUD_TRASPASO') {
-        const itemInOrigin = await this.itemRepo.findOne({
+      let itemSource: InventoryItem | null = null;
+      let isBodegaSource = false;
+
+      if (request.type === 'NUEVO_INVENTARIO') {
+        itemSource = await this.itemRepo.findOne({
+          where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
+          relations: { subcategory: { category: { inventoryView: true } } },
+        });
+        isBodegaSource = true;
+      } else {
+        itemSource = await this.itemRepo.findOne({
           where: { id: reqItem.itemId, physicalSpaceId: request.spaceId, status: 'ACTIVO' },
           relations: { subcategory: { category: { inventoryView: true } } },
         });
+      }
 
-        const destSpace = await this.spaceRepo.findOne({
-          where: { id: request.destinationSpaceId! },
-        });
+      if (!itemSource) continue;
 
-        const isInsumo = itemInOrigin!.subcategory?.category?.inventoryView?.code === 'INSUMOS';
+      const isInsumo = itemSource.subcategory?.category?.inventoryView?.code === 'INSUMOS';
 
-        if (!isInsumo) {
-          // BIENES PÚBLICOS / BIBLIOTECA: Transferir completo asignándole el new destinationSpaceId
-          itemInOrigin!.physicalSpaceId = request.destinationSpaceId!;
-          await this.itemRepo.save(itemInOrigin!);
+      if (!isInsumo) {
+        // --- PROCESAR BIEN ÚNICO / BIBLIOTECA ---
+        if (request.type === 'NUEVO_INVENTARIO') {
+          // Asignar al espacio de destino
+          itemSource.physicalSpaceId = request.spaceId;
+          await this.itemRepo.save(itemSource);
 
-          // Eliminar históricos previos en jornada para este item en el origen
-          await this.shiftRepo.delete({ itemId: itemInOrigin!.id });
-
-          // Inicializar jornadas para el espacio destino
-          for (const jornada of destSpace!.jornadas) {
+          // Inicializar jornadas para el aula
+          await this.shiftRepo.delete({ itemId: itemSource.id });
+          for (const jornada of request.space.jornadas) {
             const shift = this.shiftRepo.create({
-              spaceId: request.destinationSpaceId!,
-              itemId: itemInOrigin!.id,
+              spaceId: request.spaceId,
+              itemId: itemSource.id,
               jornada,
               estadoFisico: 'BUENO',
             });
             await this.shiftRepo.save(shift);
           }
-        } else {
-          // INSUMOS: Restar del origen y clonar/añadir al destino
-          itemInOrigin!.cantidad -= reqItem.cantidad;
-          if (itemInOrigin!.cantidad <= 0) {
-            // Eliminar fila en origen si cantidad llega a 0
-            await this.itemRepo.remove(itemInOrigin!);
-            await this.shiftRepo.delete({ itemId: itemInOrigin!.id });
-          } else {
-            await this.itemRepo.save(itemInOrigin!);
-          }
+        } else if (request.type === 'TRASPASO_DOCENTE') {
+          // Cambiar de aula y reasignar al docente destino
+          itemSource.physicalSpaceId = request.destinationSpaceId!;
+          await this.itemRepo.save(itemSource);
 
-          // Buscar si ya existe un clon de este insumo en el destino
+          // Inicializar jornadas para el nuevo aula
+          await this.shiftRepo.delete({ itemId: itemSource.id });
+          const destSpace = await this.spaceRepo.findOne({ where: { id: request.destinationSpaceId! } });
+          if (destSpace) {
+            for (const jornada of destSpace.jornadas) {
+              const shift = this.shiftRepo.create({
+                spaceId: request.destinationSpaceId!,
+                itemId: itemSource.id,
+                jornada,
+                estadoFisico: 'BUENO',
+              });
+              await this.shiftRepo.save(shift);
+            }
+          }
+        } else if (request.type === 'TRANSFERENCIA_AULAS' || request.type === 'SOLICITUD_EXTERNA') {
+          // Cambiar de aula
+          itemSource.physicalSpaceId = request.destinationSpaceId!;
+          await this.itemRepo.save(itemSource);
+
+          // Inicializar jornadas para el nuevo aula
+          await this.shiftRepo.delete({ itemId: itemSource.id });
+          const destSpace = await this.spaceRepo.findOne({ where: { id: request.destinationSpaceId! } });
+          if (destSpace) {
+            for (const jornada of destSpace.jornadas) {
+              const shift = this.shiftRepo.create({
+                spaceId: request.destinationSpaceId!,
+                itemId: itemSource.id,
+                jornada,
+                estadoFisico: 'BUENO',
+              });
+              await this.shiftRepo.save(shift);
+            }
+          }
+        } else if (request.type === 'DEVOLUCION_BODEGA') {
+          // Devolver a bodega general
+          itemSource.physicalSpaceId = null;
+          await this.itemRepo.save(itemSource);
+          await this.shiftRepo.delete({ itemId: itemSource.id });
+        } else if (request.type === 'BAJA_DEFINITIVA') {
+          // Baja física del bien
+          itemSource.physicalSpaceId = null;
+          itemSource.status = 'INACTIVO';
+          await this.itemRepo.save(itemSource);
+          await this.shiftRepo.delete({ itemId: itemSource.id });
+        } else if (request.type === 'MANTENIMIENTO') {
+          // Marcar en mantenimiento
+          itemSource.estadoFisico = 'EN_MANTENIMIENTO';
+          await this.itemRepo.save(itemSource);
+        }
+      } else {
+        // --- PROCESAR INSUMOS (FRACCIONAMIENTO) ---
+        // Restar del origen
+        itemSource.cantidad -= reqItem.cantidad;
+        if (!isBodegaSource && itemSource.cantidad <= 0) {
+          // Borrar clon origen si llega a 0
+          await this.itemRepo.remove(itemSource);
+          await this.shiftRepo.delete({ itemId: itemSource.id });
+        } else {
+          await this.itemRepo.save(itemSource);
+        }
+
+        // Definir espacio de destino según tipo de solicitud
+        let targetSpaceId: string | null = null;
+        if (request.type === 'NUEVO_INVENTARIO') {
+          targetSpaceId = request.spaceId;
+        } else if (request.type === 'TRASPASO_DOCENTE' || request.type === 'TRANSFERENCIA_AULAS' || request.type === 'SOLICITUD_EXTERNA') {
+          targetSpaceId = request.destinationSpaceId;
+        }
+
+        if (targetSpaceId) {
+          // Buscar si existe clon en destino
           let cloneInDest = await this.itemRepo.findOne({
             where: {
-              physicalSpaceId: request.destinationSpaceId!,
-              codeValue: itemInOrigin!.codeValue === null ? IsNull() : itemInOrigin!.codeValue,
+              physicalSpaceId: targetSpaceId,
+              codeValue: itemSource.codeValue === null ? IsNull() : itemSource.codeValue,
               status: 'ACTIVO',
             },
           });
@@ -358,96 +511,57 @@ export class RequestsService {
             await this.itemRepo.save(cloneInDest);
           } else {
             cloneInDest = this.itemRepo.create({
-              ...itemInOrigin,
+              ...itemSource,
               id: undefined,
               createdAt: undefined,
               updatedAt: undefined,
               cantidad: reqItem.cantidad,
-              physicalSpaceId: request.destinationSpaceId!,
+              physicalSpaceId: targetSpaceId,
             });
             const savedClone = await this.itemRepo.save(cloneInDest);
 
-            // Inicializar jornadas para el clon nuevo
-            for (const jornada of destSpace!.jornadas) {
-              const shift = this.shiftRepo.create({
-                spaceId: request.destinationSpaceId!,
-                itemId: savedClone.id,
-                jornada,
-                estadoFisico: 'BUENO',
-              });
-              await this.shiftRepo.save(shift);
+            // Inicializar jornadas para el clon de destino
+            const destSpace = await this.spaceRepo.findOne({ where: { id: targetSpaceId } });
+            if (destSpace) {
+              for (const jornada of destSpace.jornadas) {
+                const shift = this.shiftRepo.create({
+                  spaceId: targetSpaceId,
+                  itemId: savedClone.id,
+                  jornada,
+                  estadoFisico: 'BUENO',
+                });
+                await this.shiftRepo.save(shift);
+              }
             }
           }
-        }
-      } else {
-        // NUEVO_INVENTARIO: Procesar normalmente
-        const itemInBodega = await this.itemRepo.findOne({
-          where: { id: reqItem.itemId, physicalSpaceId: IsNull(), status: 'ACTIVO' },
-          relations: { inventoryView: true },
-        });
-
-        const isInsumo = itemInBodega!.inventoryView?.code === 'INSUMOS';
-
-        if (!isInsumo) {
-          // BIENES PÚBLICOS / BIBLIOTECA: Transferir completo asignándole el physicalSpaceId
-          itemInBodega!.physicalSpaceId = request.spaceId;
-          await this.itemRepo.save(itemInBodega!);
-
-          // Eliminar históricos previos en jornada para este item en otras aulas
-          await this.shiftRepo.delete({ itemId: itemInBodega!.id });
-
-          // Inicializar jornadas para este aula
-          for (const jornada of request.space.jornadas) {
-            const shift = this.shiftRepo.create({
-              spaceId: request.spaceId,
-              itemId: itemInBodega!.id,
-              jornada,
-              estadoFisico: 'BUENO',
-            });
-            await this.shiftRepo.save(shift);
-          }
-        } else {
-          // INSUMOS: Restar de bodega y clonar/añadir al laboratorio
-          itemInBodega!.cantidad -= reqItem.cantidad;
-          await this.itemRepo.save(itemInBodega!);
-
-          // Buscar si ya existe un clon de este insumo en esa aula específica
-          let cloneInSpace = await this.itemRepo.findOne({
+        } else if (request.type === 'DEVOLUCION_BODEGA') {
+          // Devolver a bodega general (registro padre con physicalSpaceId en null)
+          const parentInBodega = await this.itemRepo.findOne({
             where: {
-              physicalSpaceId: request.spaceId,
-              codeValue: itemInBodega!.codeValue === null ? IsNull() : itemInBodega!.codeValue,
+              physicalSpaceId: IsNull(),
+              codeValue: itemSource.codeValue === null ? IsNull() : itemSource.codeValue,
               status: 'ACTIVO',
             },
           });
-
-          if (cloneInSpace) {
-            cloneInSpace.cantidad += reqItem.cantidad;
-            await this.itemRepo.save(cloneInSpace);
+          if (parentInBodega) {
+            parentInBodega.cantidad += reqItem.cantidad;
+            await this.itemRepo.save(parentInBodega);
           } else {
-            cloneInSpace = this.itemRepo.create({
-              ...itemInBodega,
+            // Si el padre no existe, recrearlo en bodega
+            const newParent = this.itemRepo.create({
+              ...itemSource,
               id: undefined,
               createdAt: undefined,
               updatedAt: undefined,
               cantidad: reqItem.cantidad,
-              physicalSpaceId: request.spaceId,
+              physicalSpaceId: null,
             });
-            const savedClone = await this.itemRepo.save(cloneInSpace);
-
-            // Inicializar jornadas para el clon nuevo
-            for (const jornada of request.space.jornadas) {
-              const shift = this.shiftRepo.create({
-                spaceId: request.spaceId,
-                itemId: savedClone.id,
-                jornada,
-                estadoFisico: 'BUENO',
-              });
-              await this.shiftRepo.save(shift);
-            }
+            await this.itemRepo.save(newParent);
           }
         }
+        // Para BAJA_DEFINITIVA y MANTENIMIENTO, los insumos simplemente se restan y no se añaden a ningún destino
       }
-    }
+    };
 
     // Cambiar estado de solicitud y registrar fecha/responsable
     request.status = 'APROBADA';
@@ -555,6 +669,61 @@ export class RequestsService {
       const logoUrl = this.configService.get<string>('LOGO_URL') || `${backendUrl}/public/logo.jpg`;
       const anio = new Date().getFullYear();
 
+      let destinationTeacherName = '';
+      let destinationSpaceName = '';
+
+      if (request.destinationTeacherId) {
+        const destTeacher = await this.userRepo.findOne({ where: { id: request.destinationTeacherId } });
+        if (destTeacher) {
+          destinationTeacherName = `${destTeacher.nombres || ''} ${destTeacher.apellidos || ''}`.trim();
+        }
+      }
+      if (request.destinationSpaceId) {
+        const destSpace = await this.spaceRepo.findOne({ where: { id: request.destinationSpaceId } });
+        if (destSpace) {
+          destinationSpaceName = `${destSpace.roomNumber || ''} - ${destSpace.name || ''}`.trim();
+        }
+      }
+
+      let subject = `Nueva Solicitud de Inventario — Docente ${teacher.apellidos || ''}`;
+      let title = 'Nueva Solicitud de Inventario';
+      let description = 'Se ha registrado una nueva solicitud de asignación de bienes/insumos en el sistema que requiere tu revisión y atención.';
+      
+      const type = request.type || 'NUEVO_INVENTARIO';
+      const isTraspasoDocente = type === 'TRASPASO_DOCENTE';
+      const isTransferenciaAulas = type === 'TRANSFERENCIA_AULAS';
+      const isBajaDefinitiva = type === 'BAJA_DEFINITIVA';
+      const isMantenimiento = type === 'MANTENIMIENTO';
+      const isDevolucionBodega = type === 'DEVOLUCION_BODEGA';
+      const isSolicitudExterna = type === 'SOLICITUD_EXTERNA';
+      const isNuevoInventario = type === 'NUEVO_INVENTARIO';
+
+      if (isTraspasoDocente) {
+        subject = `Solicitud de Traspaso a otro Docente — Docente ${teacher.apellidos || ''}`;
+        title = 'Solicitud de Traspaso a otro Docente';
+        description = 'Se ha registrado una nueva solicitud para traspasar bienes de tu aula asignada a otro docente. Por favor revisa y aprueba este movimiento.';
+      } else if (isTransferenciaAulas) {
+        subject = `Solicitud de Transferencia entre Aulas — Docente ${teacher.apellidos || ''}`;
+        title = 'Solicitud de Transferencia entre Aulas';
+        description = 'Se ha registrado una nueva solicitud de transferencia de bienes entre las aulas a cargo del docente.';
+      } else if (isBajaDefinitiva) {
+        subject = `Solicitud de Baja Definitiva — Docente ${teacher.apellidos || ''}`;
+        title = 'Solicitud de Baja Definitiva';
+        description = 'Se ha registrado una nueva solicitud para dar de baja definitiva del inventario a bienes inservibles o dañados.';
+      } else if (isMantenimiento) {
+        subject = `Solicitud de Mantenimiento Técnico — Docente ${teacher.apellidos || ''}`;
+        title = 'Solicitud de Mantenimiento Técnico';
+        description = 'Se ha registrado una nueva solicitud para enviar a mantenimiento técnico o reparación de bienes públicos o de biblioteca.';
+      } else if (isDevolucionBodega) {
+        subject = `Solicitud de Devolución a Bodega — Docente ${teacher.apellidos || ''}`;
+        title = 'Solicitud de Devolución a Bodega';
+        description = 'Se ha registrado una nueva solicitud para devolver bienes o insumos sobrantes a la bodega central.';
+      } else if (isSolicitudExterna) {
+        subject = `Solicitud Externa (Aula Ajena) — Docente ${teacher.apellidos || ''}`;
+        title = 'Solicitud Externa (Aula Ajena)';
+        description = 'Se ha registrado una nueva solicitud externa donde un docente solicita traspasar bienes de un aula a cargo de otro docente.';
+      }
+
       for (const admin of admins) {
         const nombres = `${admin.nombres || ''} ${admin.apellidos || ''}`.trim() || 'Administrador';
         
@@ -568,12 +737,23 @@ export class RequestsService {
           requestsUrl,
           logoUrl,
           anio,
+          title,
+          description,
+          destinationTeacherName,
+          destinationSpaceName,
+          isTraspasoDocente,
+          isTransferenciaAulas,
+          isBajaDefinitiva,
+          isMantenimiento,
+          isDevolucionBodega,
+          isSolicitudExterna,
+          isNuevoInventario,
         });
 
         await (this.mailService as any).transporter.sendMail({
           from: (this.mailService as any).fromAddress,
           to: admin.correoInstitucional,
-          subject: `Nueva Solicitud de Inventario — Docente ${teacher.apellidos || ''}`,
+          subject,
           html,
         });
       }

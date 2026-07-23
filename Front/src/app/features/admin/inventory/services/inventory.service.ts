@@ -38,7 +38,7 @@ export interface InventoryItem {
   codigoYavirac: string;
   subcategoriaId: string;
   subcategoria?: Subcategory;
-  estadoFisico: 'BUENO' | 'REGULAR' | 'MALO';
+  estadoFisico: 'BUENO' | 'REGULAR' | 'MALO' | 'EN_MANTENIMIENTO';
   dynamicValues: Record<string, any>;
   resolvedValues?: Array<{
     fieldId: string;

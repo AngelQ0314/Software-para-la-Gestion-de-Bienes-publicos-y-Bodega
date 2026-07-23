@@ -9,43 +9,48 @@
 
   <!-- Barra de Filtros -->
   <div class="glass-panel filter-bar">
-    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
-      <div class="filter-group">
-        <label class="form-label">Estado</label>
-        <select class="form-select" formControlName="status">
-          <option value="">Todos</option>
+    <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Docente</label>
+        <input type="text" class="form-input" formControlName="teacherName" placeholder="Buscar por docente..." style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+      </div>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Tipo de Solicitud</label>
+        <select class="form-select" formControlName="type" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los tipos</option>
+          <option value="NUEVO_INVENTARIO">Nuevo Inventario</option>
+          <option value="TRASPASO_DOCENTE">Traspaso a Docente</option>
+          <option value="TRANSFERENCIA_AULAS">Transferencia entre Aulas</option>
+          <option value="SOLICITUD_EXTERNA">Solicitud Externa (Aula Ajena)</option>
+          <option value="DEVOLUCION_BODEGA">Devolución a Bodega</option>
+          <option value="BAJA_DEFINITIVA">Baja Definitiva</option>
+          <option value="MANTENIMIENTO">Mantenimiento / Reparación</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Estado</label>
+        <select class="form-select" formControlName="status" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los estados</option>
           <option value="EN_PROCESO">En Proceso</option>
           <option value="APROBADA">Aprobada</option>
           <option value="RECHAZADA">Rechazada</option>
         </select>
       </div>
 
-      <div class="filter-group">
-        <label class="form-label">Período Académico</label>
-        <select class="form-select" formControlName="academicPeriodId">
-          <option value="">Todos</option>
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Período Académico</label>
+        <select class="form-select" formControlName="academicPeriodId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los períodos</option>
           @for (p of periods(); track p.id) {
             <option [value]="p.id">{{ p.name }}</option>
           }
         </select>
       </div>
 
-      <div class="filter-group">
-        <label class="form-label">Desde</label>
-        <input type="date" class="form-input" formControlName="startDate" />
-      </div>
-
-      <div class="filter-group">
-        <label class="form-label">Hasta</label>
-        <input type="date" class="form-input" formControlName="endDate" />
-      </div>
-
-      <div class="filter-actions">
-        <button type="submit" class="btn btn-primary btn-filter">
-          <span class="material-icons-round" style="font-size:1.1rem">search</span>
-          Filtrar
-        </button>
-        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+      <div class="filter-actions" style="margin-bottom: 2px;">
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
           <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
           Limpiar
         </button>
@@ -63,16 +68,16 @@
         <p>Cargando bitácora de solicitudes...</p>
       </div>
     } @else {
-      @if (requests().length > 0) {
+      @if (filteredRequests().length > 0) {
         <div class="users-grid">
-          @for (req of requests(); track req.id) {
+          @for (req of filteredRequests(); track req.id) {
             <div class="glass-card user-profile-card">
               <div class="user-card-header">
                 <div class="user-card-avatar" 
-                     [style.background]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.15)' : (req.type === 'TRASPASO_DOCENTE' ? 'rgba(16, 185, 129, 0.15)' : 'rgba(244, 63, 94, 0.15)')"
-                     [style.border-color]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.3)' : (req.type === 'TRASPASO_DOCENTE' ? 'rgba(16, 185, 129, 0.3)' : 'rgba(244, 63, 94, 0.3)')">
-                  <span class="material-icons-round" [style.color]="req.type === 'TRANSFERENCIA' ? '#0284c7' : (req.type === 'TRASPASO_DOCENTE' ? '#059669' : '#e11d48')" style="font-size: 1.3rem;">
-                    {{ req.type === 'TRANSFERENCIA' ? 'swap_horiz' : (req.type === 'TRASPASO_DOCENTE' ? 'forward' : 'add_shopping_cart') }}
+                     [style.background]="getIconBg(req.type)"
+                     [style.border-color]="getIconColor(req.type)">
+                  <span class="material-icons-round" [style.color]="getIconColor(req.type)" style="font-size: 1.3rem;">
+                    {{ getIcon(req.type) }}
                   </span>
                 </div>
                 <div class="user-card-title-group">
@@ -117,7 +122,7 @@
                 </button>
                 @if (req.status === 'APROBADA') {
                   <button class="btn btn-primary btn-block" (click)="downloadActa(req)" style="display: flex; align-items: center; justify-content: center; gap: 6px;">
-                    <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
+                     <span class="material-icons-round" style="font-size: 1.1rem;">description</span>
                     Descargar Acta
                   </button>
                 }
@@ -127,7 +132,7 @@
         </div>
       } @else {
         <div class="empty-state glass-panel">
-          <p>No se encontraron solicitudes registradas.</p>
+          <p>No se encontraron solicitudes registradas que coincidan con los filtros aplicados.</p>
         </div>
       }
     }
@@ -168,14 +173,83 @@
               </span>
             </div>
           </div>
-          <div class="info-row">
-            <span class="info-label">Espacio Físico de Origen:</span>
-            <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
-          </div>
-          @if (selectedRequest()!.type === 'TRANSFERENCIA' || selectedRequest()!.type === 'TRASPASO_DOCENTE' || selectedRequest()!.type === 'SOLICITUD_TRASPASO') {
+          <!-- Lógica de campos dinámicos según tipo de solicitud -->
+          @if (selectedRequest()!.type === 'NUEVO_INVENTARIO') {
             <div class="info-row">
-              <span class="info-label">Espacio Físico de Destino:</span>
+              <span class="info-label">Aula a Asignar (Destino):</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+          }
+          
+          @if (selectedRequest()!.type === 'TRASPASO_DOCENTE') {
+            <div class="info-row">
+              <span class="info-label">Docente Destinatario:</span>
+              <span class="info-value font-bold" style="color: #fb7185;">
+                {{ selectedRequest()!.destinationTeacher?.nombres }} {{ selectedRequest()!.destinationTeacher?.apellidos }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Aula de Origen:</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Aula de Destino:</span>
               <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'TRANSFERENCIA_AULAS') {
+            <div class="info-row">
+              <span class="info-label">Aula de Origen:</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Aula de Destino:</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'SOLICITUD_EXTERNA') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Ajena):</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Mi Aula Destino:</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'DEVOLUCION_BODEGA') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Devolución):</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Destino:</span>
+              <span class="info-value text-success font-bold" style="color: #10b981;">Bodega General (Stock Libre)</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'BAJA_DEFINITIVA') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Retiro):</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Acción:</span>
+              <span class="info-value font-bold" style="color: #f43f5e;">Baja Definitiva del Inventario</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'MANTENIMIENTO') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Envío):</span>
+              <span class="info-value font-mono" style="color: var(--text-primary);">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Destino:</span>
+              <span class="info-value font-bold" style="color: #fb923c;">Taller de Mantenimiento / Reparación</span>
             </div>
           }
           <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -186,31 +260,26 @@
           </div>
 
           <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Artículos Solicitados</h4>
-          <div class="assigned-items-table-container" style="margin-bottom: 15px;">
-            <table class="assigned-items-table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Artículo</th>
-                  <th>Cantidad</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of selectedRequest()!.items; track item.id) {
-                  <tr>
-                    <td class="font-mono" style="font-weight: 600;">
-                      {{ item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue || 'S/C' }}
-                    </td>
-                    <td style="font-weight: 500;">
-                      {{ item.item?.name || item.item?.dynamicValues?.['nombre'] || item.inventoryItem?.name || item.inventoryItem?.dynamicValues?.['nombre'] || 'Artículo' }}
-                    </td>
-                    <td class="font-mono" style="font-weight: 600;">
-                      {{ item.cantidad }}
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <!-- Artículos Solicitados como Tarjetas -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; max-height: 220px; overflow-y: auto; padding: 4px; margin-bottom: 15px;">
+            @for (item of selectedRequest()!.items; track item.id) {
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; justify-content: space-between;">
+                <div>
+                  <h5 style="margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">
+                    {{ item.item?.name || item.item?.dynamicValues?.['nombre'] || item.inventoryItem?.name || item.inventoryItem?.dynamicValues?.['nombre'] || 'Artículo' }}
+                  </h5>
+                  @if (item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue) {
+                    <span class="font-mono" style="font-size: 0.72rem; color: #e11d48; font-weight: 700;">
+                      [{{ item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue }}]
+                    </span>
+                  }
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 6px; margin-top: 4px;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Cantidad:</span>
+                  <strong style="font-size: 0.8rem; color: var(--text-primary); font-family: monospace;">{{ item.cantidad }} ud</strong>
+                </div>
+              </div>
+            }
           </div>
 
           @if (selectedRequest()!.status === 'RECHAZADA' && selectedRequest()!.rejectionReason) {

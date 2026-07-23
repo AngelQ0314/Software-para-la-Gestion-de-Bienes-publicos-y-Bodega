@@ -27,13 +27,40 @@
       <p>Sistema de Gestión de Bienes Públicos y Bodega</p>
     </div>
     <div class="body">
-      <h2>Notificación: Nueva Solicitud de Inventario Pendiente</h2>
+      <h2>Notificación: {{title}} Pendiente</h2>
       <p>Hola <strong>{{nombres}}</strong>,</p>
-      <p>Se ha registrado una nueva solicitud de asignación de bienes/insumos en el sistema que requiere tu revisión y atención.</p>
+      <p>{{description}}</p>
 
       <div class="details">
-        <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
-        <p><strong>Aula/Espacio Destino:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+        {{#if isTraspasoDocente}}
+          <p><strong>Docente de Origen:</strong> {{teacherName}}</p>
+          <p><strong>Aula de Origen:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+          <p><strong>Docente Destinatario:</strong> {{destinationTeacherName}}</p>
+          <p><strong>Aula de Destino:</strong> {{destinationSpaceName}}</p>
+        {{else if isTransferenciaAulas}}
+          <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
+          <p><strong>Aula de Origen:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+          <p><strong>Aula de Destino:</strong> {{destinationSpaceName}}</p>
+        {{else if isSolicitudExterna}}
+          <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
+          <p><strong>Aula de Origen (Ajena):</strong> {{spaceName}} (Número {{roomNumber}})</p>
+          <p><strong>Aula de Destino:</strong> {{destinationSpaceName}}</p>
+        {{else if isDevolucionBodega}}
+          <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
+          <p><strong>Aula de Origen:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+          <p><strong>Destino:</strong> Bodega Central</p>
+        {{else if isBajaDefinitiva}}
+          <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
+          <p><strong>Aula de Origen:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+          <p><strong>Tipo de Baja:</strong> Definitiva (Egreso del sistema)</p>
+        {{else if isMantenimiento}}
+          <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
+          <p><strong>Aula de Origen:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+          <p><strong>Tipo de Solicitud:</strong> Mantenimiento Técnico / Reparación</p>
+        {{else}}
+          <p><strong>Docente Solicitante:</strong> {{teacherName}}</p>
+          <p><strong>Aula/Espacio Destino:</strong> {{spaceName}} (Número {{roomNumber}})</p>
+        {{/if}}
         <p><strong>Motivo/Justificación:</strong> {{motive}}</p>
         <p><strong>Fecha de Creación:</strong> {{createdAt}}</p>
       </div>

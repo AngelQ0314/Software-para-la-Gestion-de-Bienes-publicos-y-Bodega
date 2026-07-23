@@ -13,85 +13,51 @@
     </div>
   </div>
 
-  <!-- Barra de Filtros Reestructurada y Moderna -->
-  <div class="glass-panel filter-bar-modern" style="padding: 20px; border-radius: 16px; margin-bottom: 25px; background: var(--bg-card); border: 1px solid var(--border-color); box-shadow: 0 4px 20px -2px rgba(0, 0, 0, 0.04);">
-    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" style="display: flex; flex-direction: column; gap: 15px;">
-      
-      <!-- Fila 1: Buscador de texto completo (Código o Nombre) -->
-      <div style="display: flex; gap: 12px; width: 100%; align-items: center;">
-        <div style="position: relative; flex: 1;">
-          <span class="material-icons-round" style="position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-secondary); opacity: 0.7; font-size: 1.2rem;">search</span>
-          <input type="text" 
-                 style="width: 100%; padding: 12px 16px 12px 42px; border-radius: 30px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.05); color: var(--text-primary); font-size: 0.9rem; outline: none; transition: all 0.2s ease;" 
-                 placeholder="Buscar por código, número o nombre del espacio físico..." 
-                 formControlName="search"
-                 (input)="applyFilters()" />
-        </div>
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar" style="margin-bottom: 25px;">
+    <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Buscar Espacio</label>
+        <input type="text" class="form-input" placeholder="Nombre o número..." formControlName="search" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
       </div>
 
-      <!-- Fila 2: Selects de Filtros y Botones -->
-      <div style="display: flex; flex-wrap: wrap; gap: 15px; align-items: flex-end; justify-content: space-between;">
-        
-        <div style="display: flex; flex-wrap: wrap; gap: 15px; flex: 1;">
-          <!-- Tipo de Espacio -->
-          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 160px;">
-            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Tipo de Espacio</label>
-            <select style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none; cursor: pointer;" 
-                    formControlName="type"
-                    (change)="applyFilters()">
-              <option value="" style="background: var(--bg-card); color: var(--text-primary);">Todos los tipos</option>
-              <option value="AULA" style="background: var(--bg-card); color: var(--text-primary);">Aula</option>
-              <option value="LABORATORIO" style="background: var(--bg-card); color: var(--text-primary);">Laboratorio</option>
-              <option value="TALLER" style="background: var(--bg-card); color: var(--text-primary);">Taller</option>
-              <option value="OFICINA" style="background: var(--bg-card); color: var(--text-primary);">Oficina</option>
-              <option value="BODEGA" style="background: var(--bg-card); color: var(--text-primary);">Bodega</option>
-            </select>
-          </div>
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Tipo de Espacio</label>
+        <select class="form-select" formControlName="type" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los tipos</option>
+          <option value="AULA">Aula</option>
+          <option value="LABORATORIO">Laboratorio</option>
+          <option value="TALLER">Taller</option>
+          <option value="OFICINA">Oficina</option>
+          <option value="BODEGA">Bodega</option>
+        </select>
+      </div>
 
-          <!-- Jornada -->
-          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 160px;">
-            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Jornada</label>
-            <select style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none; cursor: pointer;" 
-                    formControlName="jornada"
-                    (change)="applyFilters()">
-              <option value="" style="background: var(--bg-card); color: var(--text-primary);">Todas las jornadas</option>
-              <option value="MATUTINA" style="background: var(--bg-card); color: var(--text-primary);">Matutina</option>
-              <option value="VESPERTINA" style="background: var(--bg-card); color: var(--text-primary);">Vespertina</option>
-              <option value="NOCTURNA" style="background: var(--bg-card); color: var(--text-primary);">Nocturna</option>
-            </select>
-          </div>
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Jornada</label>
+        <select class="form-select" formControlName="jornada" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todas las jornadas</option>
+          <option value="MATUTINA">Matutina</option>
+          <option value="VESPERTINA">Vespertina</option>
+          <option value="NOCTURNA">Nocturna</option>
+        </select>
+      </div>
 
-          <!-- Ubicación -->
-          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
-            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Ubicación / Piso</label>
-            <input type="text" 
-                   style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none;" 
-                   placeholder="Ej: Piso 1, Bloque B..." 
-                   formControlName="location"
-                   (input)="applyFilters()" />
-          </div>
- 
-          <!-- Docente Responsable -->
-          <div style="display: flex; flex-direction: column; gap: 6px; min-width: 180px;">
-            <label style="font-size: 0.76rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em;">Docente Responsable</label>
-            <input type="text" 
-                   style="padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); font-size: 0.85rem; outline: none;" 
-                   placeholder="Ej: Ángel Quihpe..." 
-                   formControlName="teacherName"
-                   (input)="applyFilters()" />
-          </div>
-        </div>
- 
-        <!-- Botón Limpiar Filtros -->
-        <div style="display: flex; align-items: center; gap: 10px;">
-          <button type="button" 
-                  style="display: flex; align-items: center; gap: 6px; padding: 10px 18px; border-radius: 12px; font-size: 0.85rem; font-weight: 600; cursor: pointer; border: 1px solid var(--border-color); background: rgba(0, 0, 0, 0.03); color: var(--text-primary); transition: all 0.2s ease;"
-                  (click)="resetFilters()">
-            <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
-            Limpiar Filtros
-          </button>
-        </div>
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Ubicación</label>
+        <input type="text" class="form-input" placeholder="Ej: Piso 1..." formControlName="location" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+      </div>
 
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Docente Responsable</label>
+        <input type="text" class="form-input" placeholder="Ej: Ángel..." formControlName="teacherName" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+      </div>
+
+      <div class="filter-actions" style="margin-bottom: 2px;">
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
       </div>
     </form>
   </div>
@@ -622,9 +588,10 @@
                             <span class="badge" [ngClass]="{
                               'badge-bueno': (item.estadoFisico || 'BUENO') === 'BUENO',
                               'badge-regular': (item.estadoFisico || 'BUENO') === 'REGULAR',
-                              'badge-malo': (item.estadoFisico || 'BUENO') === 'MALO' || (item.estadoFisico || 'BUENO') === 'DANADO'
+                              'badge-malo': (item.estadoFisico || 'BUENO') === 'MALO' || (item.estadoFisico || 'BUENO') === 'DANADO',
+                              'badge-mantenimiento': (item.estadoFisico || 'BUENO') === 'EN_MANTENIMIENTO'
                             }" style="font-size: 0.65rem; padding: 2px 7px; border-radius: 10px; font-weight: 700;">
-                              {{ item.estadoFisico || 'BUENO' }}
+                              {{ (item.estadoFisico || 'BUENO').replace('_', ' ') }}
                             </span>
                           }
                         </div>
@@ -635,7 +602,7 @@
                         </div>
                         <!-- Subcategoría + cantidad -->
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                          <span style="font-size: 0.71rem; color: var(--text-muted);">{{ item.subcategoria?.nombre || 'Sin categoría' }}</span>
+                          <span style="font-size: 0.71rem; color: var(--text-muted);">{{ item.subcategoria?.nombre || item.subcategory?.name || 'Sin categoría' }}</span>
                           @if (item.inventoryView?.code === 'INSUMOS') {
                             <span style="font-size: 0.72rem; color: var(--text-secondary);">
                               Cant: <strong style="color: var(--text-primary);">{{ item.cantidad }} ud</strong>

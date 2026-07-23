@@ -16,7 +16,10 @@ export interface InventoryRequest {
   teacherId: string;
   spaceId: string;
   destinationSpaceId: string | null;
-  type: 'NUEVO_INVENTARIO' | 'TRANSFERENCIA' | 'TRASPASO_DOCENTE' | 'SOLICITUD_TRASPASO';
+  destinationTeacherId?: string | null;
+  academicPeriodId?: string | null;
+  academicPeriod?: any;
+  type: string;
   status: 'EN_PROCESO' | 'APROBADA' | 'RECHAZADA';
   motive: string;
   rejectionReason: string | null;
@@ -27,6 +30,7 @@ export interface InventoryRequest {
   teacher?: any;
   space?: any;
   destinationSpace?: any;
+  destinationTeacher?: any;
   items?: RequestItem[];
 }
 

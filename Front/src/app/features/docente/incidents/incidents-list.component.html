@@ -13,6 +13,38 @@
     </div>
   </div>
 
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar" style="margin-bottom: 20px;">
+    <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Estado</label>
+        <select class="form-select" formControlName="status" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los estados</option>
+          <option value="PENDIENTE">Pendiente</option>
+          <option value="REVISADO">Revisado</option>
+          <option value="RESUELTO">Resuelto</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Período Académico</label>
+        <select class="form-select" formControlName="academicPeriodId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los períodos</option>
+          @for (p of periods(); track p.id) {
+            <option [value]="p.id">{{ p.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-actions" style="margin-bottom: 2px;">
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+
   <!-- Rejilla de Reportes -->
   <div class="cards-layout-panel">
     @if (isLoading()) {
@@ -88,7 +120,7 @@
   <!-- MODAL: REGISTRAR REPORTE -->
   @if (showCreateModal()) {
     <div class="modal-overlay animate-fade">
-      <div class="glass-panel modal-card animate-slide modal-card-lg">
+      <div class="glass-panel modal-card animate-slide modal-card-xl">
         <div class="modal-header">
           <h3>Reportar Novedad / Incidencia</h3>
           <button class="close-btn" (click)="closeCreateModal()">×</button>
@@ -188,12 +220,11 @@
                 </div>
               } @else {
                 <!-- Grid de Tarjetas de Artículos Afectados -->
-                <div class="checkboxes-list" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; max-height: 280px; overflow-y: auto; padding: 6px; background: rgba(0,0,0,0.02); border-radius: 8px; border: 1px solid var(--border-color);">
+                <div class="checkboxes-list">
                   @for (item of filteredAvailableItems(); track item.id) {
                     <div class="checkbox-card" 
                          [class.selected]="selectedItemIds().includes(item.id)" 
                          [class.disabled-item]="hasActiveReport(item)"
-                         style="display: flex; flex-direction: column; justify-content: space-between; gap: 6px; cursor: pointer; padding: 10px; border-radius: 8px; transition: all 0.2s ease; min-height: 90px; position: relative;" 
                          (click)="toggleItemSelection(item.id)">
                       
                       <!-- Header de la Tarjeta: Tag + Checkbox / Badge -->

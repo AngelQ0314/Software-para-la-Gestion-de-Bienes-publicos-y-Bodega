@@ -100,18 +100,22 @@ export class ItemsListComponent implements OnInit {
     'BIBLIOTECA': '6b6a2f93-023e-47b2-b0fd-a214a887b74a'
   };
 
+  // Señales reactivas para los filtros locales de inventario
+  selectedCodigoYavirac = signal<string>('');
+  selectedEstadoFisico = signal<string>('');
+
   // Filtrado local reactivo de ítems
   filteredItems = computed(() => {
     let list = this.items();
 
     // 1. Filtro por Código Yavirac
-    const codeFilter = this.filterForm.get('codigoYavirac')?.value?.trim().toLowerCase();
+    const codeFilter = this.selectedCodigoYavirac().trim().toLowerCase();
     if (codeFilter) {
       list = list.filter(item => item.codigoYavirac?.toLowerCase().includes(codeFilter));
     }
 
     // 2. Filtro por Estado Físico
-    const physicalFilter = this.filterForm.get('estadoFisico')?.value;
+    const physicalFilter = this.selectedEstadoFisico();
     if (physicalFilter) {
       list = list.filter(item => item.estadoFisico === physicalFilter);
     }
@@ -119,7 +123,7 @@ export class ItemsListComponent implements OnInit {
     // 3. Filtros dinámicos basados en campos personalizados
     const dynFilters = this.dynamicFilters();
     Object.keys(dynFilters).forEach((fieldId) => {
-      const searchVal = dynFilters[fieldId];
+      const searchVal = dynFilters[fieldId].toLowerCase().trim();
       list = list.filter((item) => {
         const resolved = item.resolvedValues?.find(rv => rv.fieldId === fieldId);
         return resolved && String(resolved.value).toLowerCase().includes(searchVal);
@@ -143,6 +147,12 @@ export class ItemsListComponent implements OnInit {
       estadoFisico: [''],
       categoryId: [''],
       subcategoryId: [''],
+    });
+
+    // Suscripción reactiva para auto-búsqueda instantánea
+    this.filterForm.valueChanges.subscribe((val) => {
+      this.selectedCodigoYavirac.set(val.codigoYavirac || '');
+      this.selectedEstadoFisico.set(val.estadoFisico || '');
     });
 
     this.itemForm = this.fb.group({
@@ -358,19 +368,12 @@ export class ItemsListComponent implements OnInit {
     });
   }
 
-  applyFilters(): void {
-    this.currentPage.set(1);
-    this.loadItems();
-  }
-
   resetFilters(): void {
-    this.filterForm.reset({
+    this.filterForm.patchValue({
       codigoYavirac: '',
       estadoFisico: '',
     });
     this.dynamicFilters.set({});
-    this.currentPage.set(1);
-    this.loadItems();
   }
 
   setPage(page: number): void {

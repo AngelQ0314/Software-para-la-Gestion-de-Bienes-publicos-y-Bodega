@@ -39,6 +39,7 @@ export class UsersController {
   }
 
   @Get()
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   findAll(@Query() filters: FilterUsersDto, @Request() req) {
     const requesterId = req.user?.id;
     return this.usersService.findAll(filters, requesterId);

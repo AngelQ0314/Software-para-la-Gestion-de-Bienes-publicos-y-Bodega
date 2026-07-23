@@ -729,8 +729,8 @@ export class InventoryService {
 
     if (dto.estadoFisico !== undefined) {
       const raw = dto.estadoFisico.toUpperCase().trim();
-      if (raw !== 'BUENO' && raw !== 'REGULAR' && raw !== 'MALO') {
-        throw new BadRequestException('El estado físico debe ser BUENO, REGULAR o MALO.');
+      if (raw !== 'BUENO' && raw !== 'REGULAR' && raw !== 'MALO' && raw !== 'EN_MANTENIMIENTO') {
+        throw new BadRequestException('El estado físico debe ser BUENO, REGULAR, MALO o EN_MANTENIMIENTO.');
       }
       item.estadoFisico = raw;
     }
@@ -891,6 +891,7 @@ export class InventoryService {
     limit?: number;
     onlyOrphans?: boolean;
     showOrphansAndDeleted?: boolean;
+    onlyInWarehouse?: boolean;
   }): Promise<{ data: InventoryItem[]; total: number; page: number; lastPage: number }> {
     const page = filters.page || 1;
     const limit = filters.limit || 10;
@@ -912,6 +913,10 @@ export class InventoryService {
 
     // Para insumos, en el listado general solo mostrar el lote principal de bodega
     query.andWhere("(inventoryView.code != 'INSUMOS' OR item.physicalSpaceId IS NULL)");
+
+    if (filters.onlyInWarehouse) {
+      query.andWhere('item.physicalSpaceId IS NULL');
+    }
 
     if (filters.inventoryViewId) {
       query.andWhere('item.inventoryViewId = :inventoryViewId', { inventoryViewId: filters.inventoryViewId });

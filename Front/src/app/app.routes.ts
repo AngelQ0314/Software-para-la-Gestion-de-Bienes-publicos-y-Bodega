@@ -107,13 +107,6 @@ export const routes: Routes = [
             (m) => m.IncidentsListComponent
           ),
       },
-      {
-        path: 'reports',
-        loadComponent: () =>
-          import('./features/admin/reports/reports-list.component').then(
-            (m) => m.ReportsListComponent
-          ),
-      },
     ],
   },
 

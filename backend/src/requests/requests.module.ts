@@ -8,6 +8,7 @@ import { InventoryItem } from '../inventory/entities/inventory-item.entity';
 import { PhysicalSpace } from '../spaces/entities/physical-space.entity';
 import { InventoryItemShift } from '../spaces/entities/inventory-item-shift.entity';
 import { User } from '../users/entities/user.entity';
+import { IncidentReportItem } from '../incidents/entities/incident-report-item.entity';
 
 import { RequestsService } from './requests.service';
 import { PdfGeneratorService } from './pdf-generator.service';
@@ -26,6 +27,7 @@ import { ConfigModule } from '@nestjs/config';
       PhysicalSpace,
       InventoryItemShift,
       User,
+      IncidentReportItem,
     ]),
     MailModule,
     ConfigModule,

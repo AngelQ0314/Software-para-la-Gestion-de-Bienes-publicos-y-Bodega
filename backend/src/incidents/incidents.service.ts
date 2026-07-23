@@ -205,6 +205,12 @@ export class IncidentsService {
 
     if (userRol === UserRole.DOCENTE) {
       query.andWhere('report.teacherId = :userId', { userId });
+      if (filters.status) {
+        query.andWhere('report.status = :status', { status: filters.status });
+      }
+      if (filters.academicPeriodId) {
+        query.andWhere('report.academicPeriodId = :academicPeriodId', { academicPeriodId: filters.academicPeriodId });
+      }
     } else {
       if (filters.teacherId) {
         query.andWhere('report.teacherId = :teacherId', { teacherId: filters.teacherId });

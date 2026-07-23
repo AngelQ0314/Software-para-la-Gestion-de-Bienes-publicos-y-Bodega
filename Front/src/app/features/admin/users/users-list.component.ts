@@ -93,6 +93,12 @@ export class UsersListComponent implements OnInit {
       area: [''],
       jornada: ['']
     });
+
+    // Filtros reactivos instantáneos
+    this.filterForm.valueChanges.subscribe(() => {
+      this.currentPage.set(1);
+      this.loadUsers();
+    });
     this.createUserForm = this.fb.group({
       cedula: ['', [Validators.required, Validators.pattern(/^[0-9]{10}$/)]],
       correoInstitucional: ['', [Validators.required, Validators.email, Validators.pattern(/^[a-zA-Z0-9._%+-]+@yavirac\.edu\.ec$/)]],
@@ -128,7 +134,6 @@ export class UsersListComponent implements OnInit {
       jornada: ''
     });
     this.currentPage.set(1);
-    this.loadUsers();
   }
   setPage(p: number): void { this.currentPage.set(p); this.loadUsers(); }
 

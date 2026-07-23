@@ -63,13 +63,13 @@
 }
 
 .modal-card-lg {
-  max-width: 1100px;
+  max-width: 1250px;
   width: 95%;
 }
 
 .modal-grid-2 {
   display: grid;
-  grid-template-columns: 360px 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 25px;
   margin-top: 15px;
 }
@@ -183,30 +183,35 @@
   color: #fbbf24;
 }
 
-/* Lista de Tarjetas de Artículos Afectados */
+/* Lista de Tarjetas de Artículos Afectados (Grid multilinea) */
 .checkboxes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 12px;
+  padding: 10px;
   border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
   border-radius: var(--border-radius-md, 12px);
   background: var(--card-bg, #ffffff);
-  max-height: 270px;
+  max-height: 380px;
   overflow-y: auto;
   box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
 }
 
 .checkbox-card {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.05));
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.01);
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.06));
+  border-radius: 10px;
+  background: var(--bg-primary, #ffffff);
   cursor: pointer;
   transition: all var(--transition-fast, 0.2s);
+  min-height: 110px;
+  height: auto;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
 }
 
 .checkbox-card:hover {
@@ -217,6 +222,7 @@
 .checkbox-card.selected {
   background: rgba(249, 115, 22, 0.08);
   border-color: var(--color-primary, #f97316);
+  min-height: 155px; /* Más espacio para que quepa el selector de cantidad sin cortes */
 }
 
 .checkbox-card input[type="checkbox"] {
@@ -286,4 +292,9 @@
 
 .assigned-items-table tbody tr:hover {
   background: rgba(249, 115, 22, 0.02);
+}
+
+.modal-card-xl {
+  max-width: 1250px !important;
+  width: 95% !important;
 }

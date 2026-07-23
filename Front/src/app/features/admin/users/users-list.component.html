@@ -14,28 +14,28 @@
   </div>
 
   <!-- Barra de Filtros -->
-  <div class="glass-panel filter-bar">
-    <form [formGroup]="filterForm" (ngSubmit)="applyFilters()" class="filter-form">
-      <div class="filter-group">
-        <label class="form-label">Cédula</label>
-        <input type="text" class="form-input" placeholder="Cédula..." formControlName="cedula" />
+  <div class="glass-panel filter-bar" style="margin-bottom: 20px;">
+    <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Cédula</label>
+        <input type="text" class="form-input" placeholder="Cédula..." formControlName="cedula" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
       </div>
-      <div class="filter-group">
-        <label class="form-label">Correo</label>
-        <input type="text" class="form-input" placeholder="Correo..." formControlName="correoInstitucional" />
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Correo</label>
+        <input type="text" class="form-input" placeholder="Correo..." formControlName="correoInstitucional" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
       </div>
-      <div class="filter-group">
-        <label class="form-label">Rol</label>
-        <select class="form-select" formControlName="rol">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Rol</label>
+        <select class="form-select" formControlName="rol" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
           <option value="">Todos los roles</option>
           <option value="ADMINISTRADOR">Administrador</option>
           <option value="DOCENTE">Docente</option>
           <option value="RESPONSABLE_DE_BIENES">Responsable de Bienes</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label class="form-label">Estado</label>
-        <select class="form-select" formControlName="estado">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Estado</label>
+        <select class="form-select" formControlName="estado" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
           <option value="">Todos los estados</option>
           <option value="PENDIENTE">Pendiente</option>
           <option value="ACTIVO">Activo</option>
@@ -43,9 +43,9 @@
           <option value="DADO_DE_BAJA">Dado de Baja</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label class="form-label">Carrera/Área</label>
-        <select class="form-select" formControlName="area">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Carrera/Área</label>
+        <select class="form-select" formControlName="area" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
           <option value="">Todas las áreas</option>
           <option value="DESARROLLO DE SOFTWARE">Desarrollo de Software</option>
           <option value="DISEÑO DE MODAS">Diseño de Modas</option>
@@ -55,21 +55,17 @@
           <option value="INGLES">Inglés</option>
         </select>
       </div>
-      <div class="filter-group">
-        <label class="form-label">Jornada</label>
-        <select class="form-select" formControlName="jornada">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Jornada</label>
+        <select class="form-select" formControlName="jornada" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
           <option value="">Todas las jornadas</option>
           <option value="MATUTINA">Matutina</option>
           <option value="VESPERTINA">Vespertina</option>
           <option value="NOCTURNA">Nocturna</option>
         </select>
       </div>
-      <div class="filter-actions">
-        <button type="submit" class="btn btn-primary btn-filter">
-          <span class="material-icons-round" style="font-size:1.1rem">search</span>
-          Filtrar
-        </button>
-        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()">
+      <div class="filter-actions" style="margin-bottom: 2px;">
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
           <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
           Limpiar
         </button>

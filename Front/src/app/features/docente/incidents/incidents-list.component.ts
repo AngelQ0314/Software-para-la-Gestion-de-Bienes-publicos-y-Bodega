@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { IncidentsService, IncidentReport } from '../../../core/services/incidents.service';
 import { SpacesService, PhysicalSpace } from '../../../core/services/spaces.service';
+import { PeriodsService } from '../../../core/services/periods.service';
 
 @Component({
   selector: 'app-docente-incidents',
@@ -14,6 +15,7 @@ import { SpacesService, PhysicalSpace } from '../../../core/services/spaces.serv
 export class DocenteIncidentsComponent implements OnInit {
   incidents = signal<IncidentReport[]>([]);
   mySpaces = signal<PhysicalSpace[]>([]);
+  periods = signal<any[]>([]);
   
   // Señal reactiva para vincular la reevaluación de jornadas
   selectedSpaceId = signal<string>('');
@@ -41,12 +43,24 @@ export class DocenteIncidentsComponent implements OnInit {
 
   // Formularios
   incidentForm: FormGroup;
+  filterForm: FormGroup;
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly incidentsService: IncidentsService,
-    private readonly spacesService: SpacesService
+    private readonly spacesService: SpacesService,
+    private readonly periodsService: PeriodsService
   ) {
+    this.filterForm = this.fb.group({
+      status: [''],
+      academicPeriodId: ['']
+    });
+
+    // Filtros reactivos instantáneos
+    this.filterForm.valueChanges.subscribe(() => {
+      this.loadMyIncidents();
+    });
+
     this.incidentForm = this.fb.group({
       spaceId: ['', [Validators.required]],
       jornada: ['', [Validators.required]],
@@ -77,11 +91,32 @@ export class DocenteIncidentsComponent implements OnInit {
   ngOnInit(): void {
     this.loadMyIncidents();
     this.loadMySpaces();
+    this.loadPeriods();
+  }
+
+  loadPeriods(): void {
+    this.periodsService.getAllPeriods().subscribe({
+      next: (res: any[]) => {
+        this.periods.set(res);
+      }
+    });
+  }
+
+  applyFilters(): void {
+    this.loadMyIncidents();
+  }
+
+  resetFilters(): void {
+    this.filterForm.reset({
+      status: '',
+      academicPeriodId: ''
+    });
   }
 
   loadMyIncidents(): void {
     this.isLoading.set(true);
-    this.incidentsService.getAllIncidents().subscribe({
+    const filters = this.filterForm.value;
+    this.incidentsService.getAllIncidents(filters).subscribe({
       next: (res: IncidentReport[]) => {
         this.incidents.set(res.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         this.isLoading.set(false);

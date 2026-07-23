@@ -94,6 +94,8 @@ export class AdminLayoutComponent {
       this.activeRouteTitle.set('Períodos Académicos');
     } else if (url.includes('/admin/requests')) {
       this.activeRouteTitle.set('Solicitudes y Actas');
+    } else if (url.includes('/admin/incidents')) {
+      this.activeRouteTitle.set('Novedades e Incidencias');
     } else if (url.includes('/admin/reports')) {
       this.activeRouteTitle.set('Reportes e Inventario');
     } else {

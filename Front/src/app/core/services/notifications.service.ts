@@ -1,6 +1,7 @@
 import { Injectable, signal, computed } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Subject } from 'rxjs';
+import { Subject, forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 import { RequestsService } from './requests.service';
 import { IncidentsService } from './incidents.service';
 import { Router } from '@angular/router';
@@ -45,30 +46,29 @@ export class NotificationsService {
 
   // Refresca jalando datos reales de solicitudes, novedades y alertas de stock del servidor
   refreshSystemNotifications(): void {
-    const list: SystemNotification[] = [];
+    forkJoin({
+      requests: this.requestsService.getAllRequests({ status: 'EN_PROCESO' }).pipe(catchError(() => of([]))),
+      incidents: this.incidentsService.getAllIncidents({ status: 'PENDIENTE' }).pipe(catchError(() => of([]))),
+      inventory: this.inventoryService.getItems(1, 100, { inventoryViewCode: 'INSUMOS' }).pipe(catchError(() => of({ data: [] })))
+    }).subscribe({
+      next: ({ requests, incidents, inventory }) => {
+        const list: SystemNotification[] = [];
 
-    // 1. Obtener solicitudes pendientes
-    this.requestsService.getAllRequests({ status: 'EN_PROCESO' }).subscribe({
-      next: (requests) => {
+        // 1. Obtener solicitudes pendientes
         requests.forEach((req) => {
+          const readableType = this.formatRequestType(req.type);
           list.push({
             id: `req-${req.id}`,
-            message: `Nueva solicitud de ${req.type === 'TRANSFERENCIA' ? 'Traspaso' : 'Bodega'} por ${req.teacher?.nombres || 'Docente'}`,
+            message: `Nueva solicitud de ${readableType} por ${req.teacher?.nombres || 'Docente'}`,
             time: new Date(req.createdAt),
             read: false,
-            icon: req.type === 'TRANSFERENCIA' ? '🔄' : '➕',
+            icon: this.getRequestIcon(req.type),
             type: 'REQUEST',
             route: '/admin/requests'
           });
         });
-        this.updateList(list);
-      },
-      error: () => {}
-    });
 
-    // 2. Obtener novedades pendientes
-    this.incidentsService.getAllIncidents({ status: 'PENDIENTE' }).subscribe({
-      next: (incidents) => {
+        // 2. Obtener novedades pendientes
         incidents.forEach((inc) => {
           list.push({
             id: `inc-${inc.id}`,
@@ -80,16 +80,10 @@ export class NotificationsService {
             route: '/admin/incidents'
           });
         });
-        this.updateList(list);
-      },
-      error: () => {}
-    });
 
-    // 3. Obtener suministros/insumos con stock 0
-    this.inventoryService.getItems(1, 100, { inventoryViewCode: 'INSUMOS' }).subscribe({
-      next: (res) => {
-        const items = res.data || [];
-        items.forEach((item) => {
+        // 3. Obtener suministros/insumos con stock 0
+        const items = inventory.data || [];
+        items.forEach((item: any) => {
           if ((item.cantidad ?? 0) <= 0) {
             list.push({
               id: `stock-${item.id}`,
@@ -104,10 +98,31 @@ export class NotificationsService {
             });
           }
         });
+
         this.updateList(list);
       },
       error: () => {}
     });
+  }
+
+  private formatRequestType(type: string): string {
+    if (type === 'NUEVO_INVENTARIO') return 'Nuevo Inventario';
+    if (type === 'TRASPASO_DOCENTE') return 'Traspaso a Docente';
+    if (type === 'TRANSFERENCIA_AULAS') return 'Transferencia entre Aulas';
+    if (type === 'SOLICITUD_EXTERNA') return 'Solicitud de Aula Ajena';
+    if (type === 'DEVOLUCION_BODEGA') return 'Devolución a Bodega';
+    if (type === 'BAJA_DEFINITIVA') return 'Baja Definitiva';
+    if (type === 'MANTENIMIENTO') return 'Mantenimiento';
+    return type;
+  }
+
+  private getRequestIcon(type: string): string {
+    if (type === 'NUEVO_INVENTARIO') return '➕';
+    if (type === 'TRASPASO_DOCENTE' || type === 'TRANSFERENCIA_AULAS' || type === 'SOLICITUD_EXTERNA') return '🔄';
+    if (type === 'DEVOLUCION_BODEGA') return '⏪';
+    if (type === 'BAJA_DEFINITIVA') return '🗑️';
+    if (type === 'MANTENIMIENTO') return '🛠️';
+    return '📋';
   }
 
 

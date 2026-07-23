@@ -37,8 +37,12 @@ export class SpacesService {
   }
 
   // Obtener detalle de un espacio
-  getSpaceById(id: string): Observable<PhysicalSpace> {
-    return this.http.get<PhysicalSpace>(`${this.apiUrl}/${id}`);
+  getSpaceById(id: string, allowExternal?: boolean): Observable<PhysicalSpace> {
+    let params = new HttpParams();
+    if (allowExternal) {
+      params = params.set('allowExternal', 'true');
+    }
+    return this.http.get<PhysicalSpace>(`${this.apiUrl}/${id}`, { params });
   }
 
   // Crear espacio físico

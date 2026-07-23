@@ -27,6 +27,11 @@ export class DocenteInventoryComponent implements OnInit {
       jornada: [''],
       search: ['']
     });
+
+    // Filtros reactivos instantáneos
+    this.filterForm.valueChanges.subscribe(() => {
+      this.loadInventory();
+    });
   }
 
   ngOnInit(): void {
@@ -36,7 +41,7 @@ export class DocenteInventoryComponent implements OnInit {
     // Escuchar cambios de spaceId reactivamente
     this.filterForm.get('spaceId')?.valueChanges.subscribe((val) => {
       this.selectedSpaceId.set(val || '');
-      this.filterForm.get('jornada')?.setValue('');
+      this.filterForm.get('jornada')?.setValue('', { emitEvent: false });
     });
   }
 
@@ -72,7 +77,6 @@ export class DocenteInventoryComponent implements OnInit {
       jornada: '',
       search: ''
     });
-    this.loadInventory();
   }
 
   // Filtrar jornadas basadas en el espacio seleccionado para las opciones de búsqueda

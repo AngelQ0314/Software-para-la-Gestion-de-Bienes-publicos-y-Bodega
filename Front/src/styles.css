@@ -208,6 +208,11 @@ body {
   background: rgba(255, 255, 255, 0.01);
 }
 
+select option {
+  background-color: #1e1f2b !important;
+  color: #ffffff !important;
+}
+
 /* Contenedores Glassmorphism */
 .glass-panel {
   background: var(--panel-bg);
@@ -268,6 +273,33 @@ body {
   background: rgba(107, 114, 128, 0.15);
   color: var(--text-secondary);
   border: 1px solid rgba(107, 114, 128, 0.3);
+}
+
+.badge-mantenimiento {
+  background: rgba(59, 130, 246, 0.15) !important;
+  color: #3b82f6 !important;
+  border: 1px solid rgba(59, 130, 246, 0.3) !important;
+}
+
+.badge-bueno {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #10b981 !important;
+  border: 1px solid rgba(16, 185, 129, 0.25) !important;
+  font-weight: 700 !important;
+}
+
+.badge-regular {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #f59e0b !important;
+  border: 1px solid rgba(245, 158, 11, 0.25) !important;
+  font-weight: 700 !important;
+}
+
+.badge-malo {
+  background: rgba(244, 63, 94, 0.15) !important;
+  color: #f43f5e !important;
+  border: 1px solid rgba(244, 63, 94, 0.25) !important;
+  font-weight: 700 !important;
 }
 
 /* Tablas Dinámicas Premium */

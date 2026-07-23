@@ -13,6 +13,52 @@
     </div>
   </div>
 
+  <!-- Barra de Filtros del Docente -->
+  <div class="glass-panel filter-bar" style="margin-bottom: 20px;">
+    <form [formGroup]="docenteFilterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Aula de Origen</label>
+        <select class="form-select" formControlName="spaceId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todas las aulas</option>
+          @for (s of allSpacesList(); track s.id) {
+            <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }}</option>
+          }
+        </select>
+      </div>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Tipo de Solicitud</label>
+        <select class="form-select" formControlName="type" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los tipos</option>
+          <option value="NUEVO_INVENTARIO">Nuevo Inventario</option>
+          <option value="TRASPASO_DOCENTE">Traspaso a Docente</option>
+          <option value="TRANSFERENCIA_AULAS">Transferencia entre Aulas</option>
+          <option value="SOLICITUD_EXTERNA">Solicitud Externa (Aula Ajena)</option>
+          <option value="DEVOLUCION_BODEGA">Devolución a Bodega</option>
+          <option value="BAJA_DEFINITIVA">Baja Definitiva</option>
+          <option value="MANTENIMIENTO">Mantenimiento / Reparación</option>
+        </select>
+      </div>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Estado</label>
+        <select class="form-select" formControlName="status" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los estados</option>
+          <option value="EN_PROCESO">En Proceso</option>
+          <option value="APROBADA">Aprobada</option>
+          <option value="RECHAZADA">Rechazada</option>
+        </select>
+      </div>
+
+      <div class="filter-actions" style="margin-bottom: 2px;">
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetDocenteFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+
   <!-- Listado de Solicitudes -->
   <div class="cards-layout-panel">
     @if (isLoading()) {
@@ -23,17 +69,17 @@
         <p>Cargando tus solicitudes...</p>
       </div>
     } @else {
-      @if (requests().length > 0) {
+      @if (filteredDocenteRequests().length > 0) {
         <div class="users-grid">
-          @for (req of requests(); track req.id) {
+          @for (req of filteredDocenteRequests(); track req.id) {
             <div class="glass-card user-profile-card">
               <div class="user-card-header">
                 <div class="user-card-avatar" 
-                     [style.background]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.15)' : 'rgba(244, 63, 94, 0.15)'"
-                     [style.border-color]="req.type === 'TRANSFERENCIA' ? 'rgba(56, 189, 248, 0.3)' : 'rgba(244, 63, 94, 0.3)'">
+                     [style.background]="getIconBg(req.type)"
+                     [style.border-color]="getIconColor(req.type)">
                   <span class="material-icons-round"
-                    [style.color]="req.type === 'TRANSFERENCIA' ? '#38bdf8' : '#f43f5e'">
-                    {{ req.type === 'TRANSFERENCIA' ? 'swap_horiz' : 'add_circle_outline' }}
+                    [style.color]="getIconColor(req.type)">
+                    {{ getIcon(req.type) }}
                   </span>
                 </div>
                 <div class="user-card-title-group">
@@ -96,56 +142,83 @@
         </div>
       } @else {
         <div class="empty-state glass-panel">
-          <p>No has realizado ninguna solicitud de inventario todavía.</p>
+          <p>No se encontraron solicitudes que coincidan con los filtros aplicados.</p>
         </div>
       }
     }
-  </div>
-
-  <!-- MODAL: CREAR SOLICITUD -->
+  </div>  <!-- MODAL: CREAR SOLICITUD -->
   @if (showCreateModal()) {
     <div class="modal-overlay animate-fade">
-      <div class="glass-panel modal-card animate-slide modal-card-lg" style="max-width: 900px; padding: 25px; border-radius: 16px; background: var(--card-bg, #ffffff); box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(0,0,0,0.1));">
+      <div class="glass-panel modal-card animate-slide modal-card-xl" style="padding: 25px; border-radius: 16px; background: var(--card-bg, #ffffff); box-shadow: 0 20px 40px rgba(0,0,0,0.15); border: 1px solid var(--border-color, rgba(0,0,0,0.1));">
         <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border-color); padding-bottom: 15px; margin-bottom: 20px;">
           <h3 style="font-size: 1.25rem; font-weight: 800; color: var(--text-primary); margin: 0;">Crear Solicitud de Inventario</h3>
           <button class="close-btn" (click)="closeCreateModal()" style="background: transparent; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-muted);">&times;</button>
         </div>
 
         <form [formGroup]="requestForm" (ngSubmit)="onSubmitRequest()" class="modal-form">
-          <div class="modal-grid-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 25px;">
+          <div class="modal-grid-2">
             <!-- Columna Izquierda: Información Solicitud -->
             <div class="modal-column">
               <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Datos de la Solicitud</h4>
               
-              <div class="form-group" style="margin-top: 15px; margin-bottom: 15px;">
+              <!-- Tipo de Movimiento -->
+              <div class="form-group" style="margin-bottom: 15px;">
                 <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">Tipo de Movimiento*</label>
                 <select class="form-select" formControlName="type" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
                   <option value="NUEVO_INVENTARIO">Nuevo Inventario (desde Bodega)</option>
-                  <option value="TRANSFERENCIA">Transferencia entre mis Espacios (Aulas/Laboratorios)</option>
-                  <option value="TRASPASO_DOCENTE">Traspaso a otro Espacio (Otro Docente)</option>
-                  <option value="SOLICITUD_TRASPASO">Solicitar traspaso desde otro Espacio (Otro Docente / Biblioteca)</option>
+                  <option value="TRASPASO_DOCENTE">Traspaso a otro Docente</option>
+                  <option value="TRANSFERENCIA_AULAS">Transferencia entre mis Aulas</option>
+                  <option value="SOLICITUD_EXTERNA">Solicitud Externa (Aula Ajena)</option>
+                  <option value="DEVOLUCION_BODEGA">Devolución a Bodega</option>
+                  <option value="BAJA_DEFINITIVA">Solicitud de Baja Definitiva</option>
+                  <option value="MANTENIMIENTO">Solicitud de Mantenimiento / Reparación</option>
                 </select>
               </div>
 
+              <!-- Docente de Destino (Solo para TRASPASO_DOCENTE) -->
+              @if (requestForm.value.type === 'TRASPASO_DOCENTE') {
+                <div class="form-group animate-fade" style="margin-bottom: 15px;">
+                  <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">Docente Destinatario*</label>
+                  <select class="form-select" formControlName="destinationTeacherId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+                    <option value="">-- Seleccionar Docente --</option>
+                    @for (t of teachersList(); track t.id) {
+                      <option [value]="t.id">{{ t.nombres }} {{ t.apellidos }}</option>
+                    }
+                  </select>
+                </div>
+              }
+
+              <!-- Aula de Origen / Asignada -->
               <div class="form-group" style="margin-bottom: 15px;">
                 <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">
-                  {{ (requestForm.value.type === 'SOLICITUD_TRASPASO') ? 'Espacio Físico Origen (Otro Docente / Biblioteca)*' : ((requestForm.value.type === 'TRANSFERENCIA' || requestForm.value.type === 'TRASPASO_DOCENTE') ? 'Espacio Físico Origen*' : 'Espacio Físico Asignado*') }}
+                  @if (requestForm.value.type === 'SOLICITUD_EXTERNA') {
+                    Aula Origen (Ajena)*
+                  } @else if (requestForm.value.type === 'NUEVO_INVENTARIO') {
+                    Aula a asignar (Destino)*
+                  } @else {
+                    Aula Origen*
+                  }
                 </label>
                 <select class="form-select" formControlName="spaceId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
-                  <option value="">-- Seleccionar Espacio --</option>
+                  <option value="">-- Seleccionar Aula --</option>
                   @for (s of sourceSpacesList(); track s.id) {
-                    <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }} ({{ s.type }})</option>
+                    <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }}</option>
                   }
                 </select>
               </div>
 
-              @if (requestForm.value.type === 'TRANSFERENCIA' || requestForm.value.type === 'TRASPASO_DOCENTE' || requestForm.value.type === 'SOLICITUD_TRASPASO') {
+              <!-- Aula de Destino (Para transferencias/traspasos/solicitud externa) -->
+              @if (requestForm.value.type === 'TRANSFERENCIA_AULAS' || requestForm.value.type === 'TRASPASO_DOCENTE' || requestForm.value.type === 'SOLICITUD_EXTERNA') {
                 <div class="form-group animate-fade" style="margin-bottom: 15px;">
                   <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">
-                    {{ (requestForm.value.type === 'SOLICITUD_TRASPASO') ? 'Mi Espacio Físico de Destino*' : 'Espacio Físico de Destino*' }}
+                    @if (requestForm.value.type === 'SOLICITUD_EXTERNA') {
+                      Mi Aula de Destino*
+                    } @else {
+                      Aula de Destino*
+                    }
                   </label>
                   <select class="form-select" formControlName="destinationSpaceId" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
-                    <option value="">-- Seleccionar Espacio Destino --</option>
+                    <option value="">-- Seleccionar Aula Destino --</option>
                     @for (s of filteredDestinationSpaces(); track s.id) {
                       <option [value]="s.id">{{ s.roomNumber }} - {{ s.name }} (Resp: {{ formatResponsibles(s) }})</option>
                     }
@@ -153,9 +226,10 @@
                 </div>
               }
 
+              <!-- Justificación -->
               <div class="form-group" style="margin-bottom: 15px;">
                 <label class="form-label" for="motive" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); display: block; margin-bottom: 6px;">Justificación / Motivo*</label>
-                <textarea id="motive" class="form-input" rows="3" placeholder="Describe brevemente la necesidad..." formControlName="motive" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); resize: none;"></textarea>
+                <textarea id="motive" class="form-input" rows="4" placeholder="Describe detalladamente el motivo de la solicitud..." formControlName="motive" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); resize: none;"></textarea>
                 @if (requestForm.get('motive')?.touched && requestForm.get('motive')?.invalid) {
                   <span class="error-text" style="display: block; margin-top: 4px; font-size: 0.72rem; color: var(--color-danger, #f43f5e);">
                     La justificación es obligatoria (mínimo 10 caracteres).
@@ -164,74 +238,104 @@
               </div>
             </div>
 
-            <!-- Columna Derecha: Selección de Artículos -->
-            <div class="modal-column">
-              <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Artículos Solicitados</h4>
+            <!-- Columna Derecha: Listado de Artículos Interactivo -->
+            <div class="modal-column" style="display: flex; flex-direction: column;">
+              <h4 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 15px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Selecciona los Artículos</h4>
 
-              <div class="item-selection-box" style="margin-top: 15px; background: rgba(0,0,0,0.02); padding: 15px; border-radius: 12px; border: 1px solid var(--border-color);" [formGroup]="itemForm">
-                
-                <!-- Buscador de Artículos (Nombre o Código) -->
-                <div class="form-group" style="margin-bottom: 12px;">
-                  <label class="form-label" style="font-weight: 600; font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 4px;">Buscar Artículo (Nombre o Código)</label>
-                  <input type="text" class="form-input" placeholder="Escribe nombre o código..." [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+              @if (!requestForm.value.spaceId && requestForm.value.type !== 'NUEVO_INVENTARIO') {
+                <div style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.01); border: 2px dashed var(--border-color); border-radius: 12px; padding: 40px; text-align: center; color: var(--text-muted);">
+                  <span class="material-icons-round" style="font-size: 3rem; margin-bottom: 10px; color: var(--text-muted);">meeting_room</span>
+                  <p style="margin: 0; font-weight: 500;">Selecciona primero el aula de origen para listar los artículos correspondientes.</p>
                 </div>
-
-                <div class="form-row" style="display: flex; gap: 15px;">
-                  <div class="form-group" style="flex: 2;">
-                    <label class="form-label" style="font-weight: 600; font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 4px;">Artículo*</label>
-                    <select class="form-select" formControlName="selectedItemId" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
-                      <option value="">-- Elige un artículo --</option>
-                      @for (i of filteredAvailableItems(); track i.id) {
-                        <option [value]="i.id">
-                          [{{ i.codigoYavirac || i.codeValue }}] {{ i.name || i.dynamicValues?.['nombre'] }} 
-                          ({{ (requestForm.value.type === 'TRANSFERENCIA' || requestForm.value.type === 'TRASPASO_DOCENTE' || requestForm.value.type === 'SOLICITUD_TRASPASO') ? 'Stock: ' + i.stockDisponible : 'Bodega' }})
-                        </option>
-                      }
-                    </select>
+              } @else {
+                <!-- Buscador e Pestañas -->
+                <div class="search-and-tabs" style="margin-bottom: 15px;">
+                  <!-- Buscador -->
+                  <div style="position: relative; margin-bottom: 12px;">
+                    <span class="material-icons-round" style="position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 1.2rem;">search</span>
+                    <input type="text" placeholder="Buscar por código, nombre del artículo..." [value]="searchQuery()" (input)="searchQuery.set($any($event.target).value)"
+                           style="width: 100%; padding: 10px 12px 10px 38px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-size: 0.85rem;" />
                   </div>
-                  <div class="form-group" style="flex: 1;">
-                    <label class="form-label" style="font-weight: 600; font-size: 0.72rem; text-transform: uppercase; color: var(--text-secondary); display: block; margin-bottom: 4px;">Cantidad*</label>
-                    <input type="number" class="form-input" min="1" step="1" formControlName="cantidad" style="width: 100%; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
-                  </div>
-                </div>
-                <button type="button" class="btn btn-secondary btn-block" style="margin-top: 12px; width: 100%; display: flex; justify-content: center; align-items: center; gap: 8px;"
-                        [disabled]="itemForm.invalid || !requestForm.value.spaceId" (click)="addTempItem()">
-                  <span class="material-icons-round" style="font-size: 1.1rem;">add</span>
-                  Añadir Artículo
-                </button>
-              </div>
 
-              <!-- Lista temporal de seleccionados (Tabla Rediseñada Premium) -->
-              <div class="table-container" style="margin-top: 15px; max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px;">
-                <table class="data-table" style="width: 100%; border-collapse: collapse; font-size: 0.8rem;">
-                  <thead>
-                    <tr style="background: var(--table-header-bg, #1e293b); color: #ffffff;">
-                      <th style="padding: 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">Código</th>
-                      <th style="padding: 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">Nombre</th>
-                      <th style="padding: 10px; text-align: left; font-weight: 700; text-transform: uppercase; font-size: 0.7rem;">Cantidad</th>
-                      <th style="width: 40px; padding: 10px;"></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    @for (item of selectedItemsTemp(); track $index) {
-                      <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td class="font-mono" style="padding: 10px; font-weight: 600; color: var(--text-primary);">{{ item.codeValue }}</td>
-                        <td style="padding: 10px; color: var(--text-primary);">{{ item.name }}</td>
-                        <td class="font-mono" style="padding: 10px; font-weight: 600; color: var(--text-primary);">{{ item.cantidad }}</td>
-                        <td style="padding: 10px; text-align: center;">
-                          <button type="button" class="btn-delete-row" (click)="removeTempItem($index)" style="background: transparent; border: none; color: #f43f5e; font-size: 1.25rem; cursor: pointer; padding: 0;">&times;</button>
-                        </td>
-                      </tr>
-                    } @empty {
-                      <tr>
-                        <td colspan="4" class="empty-table-cell" style="text-align: center; padding: 25px; color: var(--text-muted); font-style: italic; background: rgba(0,0,0,0.01);">
-                          Agrega artículos a la solicitud.
-                        </td>
-                      </tr>
+                  <!-- Pestañas de Vistas -->
+                  <div style="display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px;">
+                    <button type="button" class="btn" [ngClass]="activeTab() === 'TODOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('TODOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
+                      Todos
+                    </button>
+                    <button type="button" class="btn" [ngClass]="activeTab() === 'BIENES_PUBLICOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('BIENES_PUBLICOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
+                      Bienes Públicos
+                    </button>
+                    @if (requestForm.value.type !== 'MANTENIMIENTO' && requestForm.value.type !== 'BAJA_DEFINITIVA') {
+                      <button type="button" class="btn" [ngClass]="activeTab() === 'INSUMOS' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('INSUMOS')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
+                        Insumos
+                      </button>
                     }
-                  </tbody>
-                </table>
-              </div>
+                    <button type="button" class="btn" [ngClass]="activeTab() === 'BIBLIOTECA' ? 'btn-primary' : 'btn-secondary'" (click)="activeTab.set('BIBLIOTECA')" style="padding: 6px 12px; font-size: 0.75rem; border-radius: 20px;">
+                      Biblioteca
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Lista de Tarjetas (Scrollable) -->
+                <div class="checkboxes-list">
+                  @for (item of filteredAvailableItems(); track item.id) {
+                    <div class="checkbox-card"
+                         [class.selected]="isItemSelected(item.id)"
+                         (click)="toggleItem(item)">
+                       <!-- Header de la Tarjeta: Tag + Checkbox -->
+                       <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                         <span class="item-view-tag" [ngClass]="{
+                           'tag-bienes': item.viewCode === 'BIENES_PUBLICOS',
+                           'tag-insumos': item.viewCode === 'INSUMOS',
+                           'tag-biblioteca': item.viewCode === 'BIBLIOTECA'
+                         }" style="font-size: 0.62rem; padding: 1px 6px; border-radius: 4px;">
+                           {{ item.viewCode === 'BIENES_PUBLICOS' ? 'Bienes Públicos' : (item.viewCode === 'INSUMOS' ? 'Insumos' : 'Biblioteca') }}
+                         </span>
+
+                         <div style="width: 18px; height: 18px; border: 1.5px solid var(--border-color); border-radius: 4px; display: flex; align-items: center; justify-content: center; background: var(--bg-primary);">
+                           @if (isItemSelected(item.id)) {
+                             <span class="material-icons-round" style="font-size: 0.95rem; color: #10b981;">check</span>
+                           }
+                         </div>
+                       </div>
+
+                       <!-- Nombre + Código + Cantidad -->
+                       <div style="display: flex; flex-direction: column; gap: 2px;">
+                         <h5 style="margin: 0; font-size: 0.82rem; font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">{{ item.name }}</h5>
+                         @if (item.codeValue) {
+                           <span style="font-size: 0.7rem; color: #e11d48; font-family: monospace; font-weight: 700;">[{{ item.codeValue }}]</span>
+                         }
+                         
+                         @if (item.viewCode === 'INSUMOS') {
+                           <span style="font-size: 0.71rem; color: #10b981; font-weight: 700;">Stock utilizable: {{ item.maxAvailable }} ud</span>
+                         } @else {
+                           <span style="font-size: 0.71rem; color: var(--text-muted);">Stock utilizable: {{ item.maxAvailable }} ud</span>
+                         }
+                       </div>
+
+                      <!-- Control de Cantidad si es Insumo y está seleccionado -->
+                      @if (isItemSelected(item.id) && item.viewCode === 'INSUMOS') {
+                        <div (click)="$event.stopPropagation()" style="margin-top: 10px; padding-top: 8px; border-top: 1px dashed var(--border-color); display: flex; align-items: center; justify-content: space-between; gap: 15px;">
+                          <span style="font-size: 0.75rem; font-weight: 500; color: var(--text-secondary);">Cantidad a solicitar:</span>
+                          <div style="display: flex; align-items: center; gap: 6px;">
+                            <button type="button" class="btn" (click)="updateItemQuantity(item.id, getSelectedItemQuantity(item.id) - 1)" style="padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);">-</button>
+                            <input type="number" min="1" [max]="item.maxAvailable" [value]="getSelectedItemQuantity(item.id)" (keydown)="preventNegativeSign($event)" (input)="onQuantityInput(item.id, $event)"
+                                   style="width: 50px; text-align: center; font-size: 0.75rem; padding: 4px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--bg-primary); color: var(--text-primary); font-weight: 700; -moz-appearance: textfield;" />
+                            <button type="button" class="btn" (click)="updateItemQuantity(item.id, getSelectedItemQuantity(item.id) + 1)" style="padding: 4px 8px; font-size: 0.75rem; border-radius: 4px; background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-color);">+</button>
+                          </div>
+                        </div>
+                      }
+                    </div>
+                  } @empty {
+                    <div style="text-align: center; padding: 30px; color: var(--text-muted); font-style: italic; background: rgba(0,0,0,0.01); border: 1px dashed var(--border-color); border-radius: 8px;">
+                      No se encontraron artículos que coincidan.
+                    </div>
+                  }
+                </div>
+                <div style="margin-top: 10px; font-size: 0.75rem; font-weight: 600; color: var(--text-secondary); display: flex; justify-content: space-between;">
+                  <span>Seleccionados para Solicitar: {{ selectedItemsTemp().length }}</span>
+                </div>
+              }
             </div>
           </div>
 
@@ -282,14 +386,83 @@
               {{ formatStatus(selectedRequest()!.status) }}
             </span>
           </div>
-          <div class="info-row">
-            <span class="info-label">Espacio Físico de Origen:</span>
-            <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
-          </div>
-          @if (selectedRequest()!.type === 'TRANSFERENCIA' || selectedRequest()!.type === 'TRASPASO_DOCENTE' || selectedRequest()!.type === 'SOLICITUD_TRASPASO') {
+          <!-- Lógica de campos dinámicos según tipo de solicitud -->
+          @if (selectedRequest()!.type === 'NUEVO_INVENTARIO') {
             <div class="info-row">
-              <span class="info-label">Espacio Físico de Destino:</span>
+              <span class="info-label">Aula a Asignar (Destino):</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+          }
+          
+          @if (selectedRequest()!.type === 'TRASPASO_DOCENTE') {
+            <div class="info-row">
+              <span class="info-label">Docente Destinatario:</span>
+              <span class="info-value font-bold" style="color: #fb7185;">
+                {{ selectedRequest()!.destinationTeacher?.nombres }} {{ selectedRequest()!.destinationTeacher?.apellidos }}
+              </span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Aula de Origen:</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Aula de Destino:</span>
               <span class="info-value font-mono">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'TRANSFERENCIA_AULAS') {
+            <div class="info-row">
+              <span class="info-label">Aula de Origen:</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Aula de Destino:</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'SOLICITUD_EXTERNA') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Ajena):</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Mi Aula Destino:</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.destinationSpace?.roomNumber }} - {{ selectedRequest()!.destinationSpace?.name }} ({{ selectedRequest()!.destinationSpace?.type }})</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'DEVOLUCION_BODEGA') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Devolución):</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Destino:</span>
+              <span class="info-value text-success font-bold" style="color: #10b981;">Bodega General (Stock Libre)</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'BAJA_DEFINITIVA') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Retiro):</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Acción:</span>
+              <span class="info-value font-bold" style="color: #f43f5e;">Baja Definitiva del Inventario</span>
+            </div>
+          }
+
+          @if (selectedRequest()!.type === 'MANTENIMIENTO') {
+            <div class="info-row">
+              <span class="info-label">Aula Origen (Envío):</span>
+              <span class="info-value font-mono">{{ selectedRequest()!.space?.roomNumber }} - {{ selectedRequest()!.space?.name }} ({{ selectedRequest()!.space?.type }})</span>
+            </div>
+            <div class="info-row">
+              <span class="info-label">Destino:</span>
+              <span class="info-value font-bold" style="color: #fb923c;">Taller de Mantenimiento / Reparación</span>
             </div>
           }
           <div class="info-row" style="flex-direction: column; align-items: flex-start; gap: 4px;">
@@ -300,31 +473,26 @@
           </div>
           
           <h4 style="font-size: 0.95rem; font-weight: 700; margin-top: 20px; margin-bottom: 10px; color: var(--text-primary); border-left: 3px solid var(--color-primary); padding-left: 8px;">Artículos Solicitados</h4>
-          <div class="assigned-items-table-container">
-            <table class="assigned-items-table">
-              <thead>
-                <tr>
-                  <th>Código</th>
-                  <th>Artículo</th>
-                  <th>Cantidad</th>
-                </tr>
-              </thead>
-              <tbody>
-                @for (item of selectedRequest()!.items; track item.id) {
-                  <tr>
-                    <td class="font-mono" style="font-weight: 600;">
-                      {{ item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue || 'S/C' }}
-                    </td>
-                    <td style="font-weight: 500;">
-                      {{ item.item?.name || item.item?.dynamicValues?.['nombre'] || item.inventoryItem?.name || item.inventoryItem?.dynamicValues?.['nombre'] || 'Artículo' }}
-                    </td>
-                    <td class="font-mono" style="font-weight: 600;">
-                      {{ item.cantidad }}
-                    </td>
-                  </tr>
-                }
-              </tbody>
-            </table>
+          <!-- Artículos Solicitados como Tarjetas -->
+          <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; margin-top: 10px; max-height: 220px; overflow-y: auto; padding: 4px;">
+            @for (item of selectedRequest()!.items; track item.id) {
+              <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--border-color); border-radius: 10px; padding: 12px; display: flex; flex-direction: column; gap: 6px; justify-content: space-between;">
+                <div>
+                  <h5 style="margin: 0; font-size: 0.85rem; font-weight: 700; color: var(--text-primary);">
+                    {{ item.item?.name || item.item?.dynamicValues?.['nombre'] || item.inventoryItem?.name || item.inventoryItem?.dynamicValues?.['nombre'] || 'Artículo' }}
+                  </h5>
+                  @if (item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue) {
+                    <span class="font-mono" style="font-size: 0.72rem; color: #e11d48; font-weight: 700;">
+                      [{{ item.item?.codigoYavirac || item.item?.codeValue || item.inventoryItem?.codigoYavirac || item.inventoryItem?.codeValue }}]
+                    </span>
+                  }
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.04); padding-top: 6px; margin-top: 4px;">
+                  <span style="font-size: 0.72rem; color: var(--text-muted);">Cantidad:</span>
+                  <strong style="font-size: 0.8rem; color: var(--text-primary); font-family: monospace;">{{ item.cantidad }} ud</strong>
+                </div>
+              </div>
+            }
           </div>
 
           @if (selectedRequest()!.status === 'RECHAZADA' && selectedRequest()!.rejectionReason) {

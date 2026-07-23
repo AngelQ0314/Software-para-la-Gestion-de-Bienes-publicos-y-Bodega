@@ -59,8 +59,17 @@ export class SpacesController {
   // OBTENER DETALLE DE UN ESPACIO
   @Get(':id')
   @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
-  async getSpaceById(@Param('id', ParseUUIDPipe) id: string, @Request() req) {
-    return this.spacesService.findOneSpace(id, req.user.id, req.user.rol);
+  async getSpaceById(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Request() req,
+    @Query('allowExternal') allowExternal?: string
+  ) {
+    const skipCheck = allowExternal === 'true';
+    return this.spacesService.findOneSpace(
+      id,
+      skipCheck ? undefined : req.user.id,
+      skipCheck ? undefined : req.user.rol
+    );
   }
 
   // CREAR UN ESPACIO FÍSICO

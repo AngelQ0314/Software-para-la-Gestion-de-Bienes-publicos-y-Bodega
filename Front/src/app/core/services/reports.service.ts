@@ -5,6 +5,7 @@ import { environment } from '../../../environments/environment';
 
 export interface ReportItem {
   id: string;
+  code: string;
   type: 'CIERRE_PERIODO' | 'NOVEDADES_CONSOLIDADO' | 'AUDITORIA_INVENTARIO' | 'PERIODO_ACADEMICO' | 'NOVEDADES';
   academicPeriodId: string;
   generatedById: string;
@@ -12,6 +13,7 @@ export interface ReportItem {
   academicPeriod?: any;
   generatedBy?: any;
   filePath?: string;
+  reportData?: any;
 }
 
 @Injectable({

@@ -169,6 +169,7 @@ export class InventoryController {
     @Query('limit') limit?: string,
     @Query('onlyOrphans') onlyOrphans?: string,
     @Query('showOrphansAndDeleted') showOrphansAndDeleted?: string,
+    @Query('searchOnlyInWarehouse') searchOnlyInWarehouse?: string,
   ) {
     return this.inventoryService.findItems({
       inventoryViewId,
@@ -181,6 +182,7 @@ export class InventoryController {
       limit: limit ? parseInt(limit, 10) : undefined,
       onlyOrphans: onlyOrphans === 'true',
       showOrphansAndDeleted: showOrphansAndDeleted === 'true',
+      onlyInWarehouse: searchOnlyInWarehouse === 'true',
     });
   }
 

@@ -26,7 +26,7 @@ export class PeriodsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES)
+  @Roles(UserRole.ADMINISTRADOR, UserRole.RESPONSABLE_DE_BIENES, UserRole.DOCENTE)
   async getAllPeriods() {
     return this.periodsService.findAllPeriods();
   }

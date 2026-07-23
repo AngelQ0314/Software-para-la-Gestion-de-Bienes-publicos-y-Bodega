@@ -74,14 +74,14 @@
 }
 
 /* Estilos de Selección e Interfaces del Modal */
-.modal-card-lg {
-  max-width: 850px;
-  width: 90%;
+.modal-card-xl {
+  max-width: 1250px !important;
+  width: 95% !important;
 }
 
 .modal-grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 380px 1fr;
   gap: 25px;
   margin-top: 15px;
 }
@@ -159,3 +159,93 @@
 .btn-delete-row:hover {
   color: var(--color-danger);
 }
+
+/* Selección interactiva de tarjetas en Solicitud */
+.card-selected {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.04) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08);
+  transform: translateY(-1px);
+}
+
+.card-selected:hover {
+  background: rgba(16, 185, 129, 0.07) !important;
+}
+
+/* Rejilla de tarjetas para Selección de Artículos */
+.checkboxes-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  gap: 12px;
+  padding: 10px;
+  border: 1px solid var(--border-color, rgba(0, 0, 0, 0.08));
+  border-radius: var(--border-radius-md, 12px);
+  background: var(--card-bg, #ffffff);
+  max-height: 380px;
+  overflow-y: auto;
+  box-shadow: inset 0 2px 4px 0 rgba(0, 0, 0, 0.02);
+}
+
+.checkbox-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--border-color, rgba(255, 255, 255, 0.08));
+  border-radius: 10px;
+  background: var(--card-bg, #1e1f2b);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-height: 110px;
+  height: auto;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+}
+
+.checkbox-card:hover {
+  background: rgba(16, 185, 129, 0.02) !important;
+  border-color: rgba(16, 185, 129, 0.15) !important;
+}
+
+.checkbox-card.selected {
+  border-color: #10b981 !important;
+  background: rgba(16, 185, 129, 0.04) !important;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.08);
+  transform: translateY(-1px);
+  min-height: 155px; /* Altura ampliada cuando está seleccionada para el input */
+}
+
+/* Inputs numéricos estilizados en tarjetas */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+  -webkit-appearance: none; 
+  margin: 0; 
+}
+
+/* Tags de vistas en tarjetas */
+.item-view-tag {
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  display: inline-block;
+}
+
+.tag-bienes {
+  background: rgba(99, 102, 241, 0.15) !important;
+  color: #818cf8 !important;
+}
+
+.tag-insumos {
+  background: rgba(16, 185, 129, 0.15) !important;
+  color: #34d399 !important;
+}
+
+.tag-biblioteca {
+  background: rgba(245, 158, 11, 0.15) !important;
+  color: #fbbf24 !important;
+}
+

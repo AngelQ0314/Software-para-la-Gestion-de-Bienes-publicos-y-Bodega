@@ -13,6 +13,33 @@
     </div>
   </div>
 
+  <!-- Barra de Filtros -->
+  <div class="glass-panel filter-bar" style="margin-bottom: 25px;">
+    <form [formGroup]="filterForm" class="filter-form" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)) 120px; gap: 15px; width: 100%; align-items: end;">
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Buscar Período</label>
+        <input type="text" class="form-input" placeholder="Buscar por nombre..." formControlName="name" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);" />
+      </div>
+
+      <div class="filter-group" style="display: flex; flex-direction: column; gap: 6px;">
+        <label class="form-label" style="font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary);">Estado</label>
+        <select class="form-select" formControlName="status" style="width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);">
+          <option value="">Todos los estados</option>
+          <option value="CONFIGURADO">Configurado</option>
+          <option value="ACTIVO">Activo</option>
+          <option value="CERRADO">Cerrado</option>
+        </select>
+      </div>
+
+      <div class="filter-actions" style="margin-bottom: 2px;">
+        <button type="button" class="btn btn-secondary btn-filter" (click)="resetFilters()" style="width: 100%; height: 42px; display: flex; align-items: center; justify-content: center; gap: 6px; border-radius: 8px;">
+          <span class="material-icons-round" style="font-size:1.1rem">refresh</span>
+          Limpiar
+        </button>
+      </div>
+    </form>
+  </div>
+
   <!-- Rejilla de Períodos -->
   <div class="cards-layout-panel">
     @if (isLoading()) {
@@ -23,9 +50,9 @@
         <p>Cargando períodos académicos...</p>
       </div>
     } @else {
-      @if (periods().length > 0) {
+      @if (filteredPeriods().length > 0) {
         <div class="users-grid">
-          @for (period of periods(); track period.id) {
+          @for (period of filteredPeriods(); track period.id) {
             <div class="glass-card user-profile-card" [class.active-period-card]="period.status === 'ACTIVO'">
               <div class="user-card-header">
                 <div class="user-card-avatar" 
@@ -90,7 +117,8 @@
         </div>
       } @else {
         <div class="empty-state glass-panel">
-          <p>No se encontraron períodos académicos registrados.</p>
+          <span class="material-icons-round" style="font-size: 3rem; color: var(--text-muted); margin-bottom: 12px;">search_off</span>
+          <p>No se encontraron períodos académicos que coincidan con la búsqueda.</p>
         </div>
       }
     }

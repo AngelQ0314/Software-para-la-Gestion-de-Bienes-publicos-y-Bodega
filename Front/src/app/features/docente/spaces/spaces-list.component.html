@@ -150,9 +150,10 @@
                         <span class="badge" [ngClass]="{
                           'badge-bueno': (row.estadoFisico || 'BUENO') === 'BUENO',
                           'badge-regular': (row.estadoFisico || 'BUENO') === 'REGULAR',
-                          'badge-malo': (row.estadoFisico || 'BUENO') === 'MALO' || (row.estadoFisico || 'BUENO') === 'DANADO'
+                          'badge-malo': (row.estadoFisico || 'BUENO') === 'MALO' || (row.estadoFisico || 'BUENO') === 'DANADO',
+                          'badge-mantenimiento': (row.estadoFisico || 'BUENO') === 'EN_MANTENIMIENTO'
                         }">
-                          {{ row.estadoFisico || 'BUENO' }}
+                          {{ (row.estadoFisico || 'BUENO').replace('_', ' ') }}
                         </span>
                       }
                     </div>

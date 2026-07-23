@@ -1,4 +1,4 @@
-import { Component, signal, OnInit } from '@angular/core';
+import { Component, signal, computed, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { RequestsService, InventoryRequest } from '../../../core/services/requests.service';
@@ -21,6 +21,12 @@ export class RequestsListComponent implements OnInit {
   errorMessage = signal<string | null>(null);
   successMessage = signal<string | null>(null);
 
+  // Señales reactivas para los filtros locales instantáneos
+  selectedStatus = signal<string>('');
+  selectedPeriodId = signal<string>('');
+  selectedType = signal<string>('');
+  teacherSearch = signal<string>('');
+
   // Modales
   showDetailModal = signal(false);
   showRejectModal = signal(false);
@@ -30,6 +36,32 @@ export class RequestsListComponent implements OnInit {
   filterForm: FormGroup;
   rejectForm: FormGroup;
 
+  // Lista filtrada de solicitudes calculada de forma instantánea
+  filteredRequests = computed(() => {
+    let list = this.requests();
+    const status = this.selectedStatus();
+    const periodId = this.selectedPeriodId();
+    const type = this.selectedType();
+    const search = this.teacherSearch().toLowerCase().trim();
+
+    if (status) {
+      list = list.filter((r) => r.status === status);
+    }
+    if (periodId) {
+      list = list.filter((r) => r.academicPeriodId === periodId);
+    }
+    if (type) {
+      list = list.filter((r) => r.type === type);
+    }
+    if (search) {
+      list = list.filter((r) => {
+        const teacherName = `${r.teacher?.nombres || ''} ${r.teacher?.apellidos || ''}`.toLowerCase();
+        return teacherName.includes(search);
+      });
+    }
+    return list;
+  });
+
   constructor(
     private readonly fb: FormBuilder,
     private readonly requestsService: RequestsService,
@@ -38,8 +70,16 @@ export class RequestsListComponent implements OnInit {
     this.filterForm = this.fb.group({
       status: [''],
       academicPeriodId: [''],
-      startDate: [''],
-      endDate: ['']
+      type: [''],
+      teacherName: ['']
+    });
+
+    // Escuchar cambios reactivos en el formulario de filtros para auto-búsqueda inmediata
+    this.filterForm.valueChanges.subscribe((val) => {
+      this.selectedStatus.set(val.status || '');
+      this.selectedPeriodId.set(val.academicPeriodId || '');
+      this.selectedType.set(val.type || '');
+      this.teacherSearch.set(val.teacherName || '');
     });
 
     this.rejectForm = this.fb.group({
@@ -54,14 +94,7 @@ export class RequestsListComponent implements OnInit {
 
   loadRequests(): void {
     this.isLoading.set(true);
-    const filters = this.filterForm.value;
-    
-    // Parse dates to ISO if selected
-    const parsedFilters = { ...filters };
-    if (filters.startDate) parsedFilters.startDate = new Date(filters.startDate).toISOString();
-    if (filters.endDate) parsedFilters.endDate = new Date(filters.endDate).toISOString();
-
-    this.requestsService.getAllRequests(parsedFilters).subscribe({
+    this.requestsService.getAllRequests().subscribe({
       next: (res: InventoryRequest[]) => {
         this.requests.set(res.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
         this.isLoading.set(false);
@@ -81,18 +114,13 @@ export class RequestsListComponent implements OnInit {
     });
   }
 
-  applyFilters(): void {
-    this.loadRequests();
-  }
-
   resetFilters(): void {
     this.filterForm.reset({
       status: '',
       academicPeriodId: '',
-      startDate: '',
-      endDate: ''
+      type: '',
+      teacherName: ''
     });
-    this.loadRequests();
   }
 
   openDetailModal(req: InventoryRequest): void {
@@ -232,7 +260,14 @@ export class RequestsListComponent implements OnInit {
   }
 
   formatType(type: string): string {
-    return type === 'TRANSFERENCIA' ? 'Transferencia' : 'Nuevo Inventario';
+    if (type === 'NUEVO_INVENTARIO') return 'Nuevo Inventario';
+    if (type === 'TRASPASO_DOCENTE') return 'Traspaso a otro Docente';
+    if (type === 'TRANSFERENCIA_AULAS') return 'Transferencia entre mis Aulas';
+    if (type === 'SOLICITUD_EXTERNA') return 'Solicitud Externa (Aula Ajena)';
+    if (type === 'DEVOLUCION_BODEGA') return 'Devolución a Bodega';
+    if (type === 'BAJA_DEFINITIVA') return 'Baja Definitiva';
+    if (type === 'MANTENIMIENTO') return 'Mantenimiento / Reparación';
+    return type;
   }
 
   formatStatus(status: string): string {
@@ -240,5 +275,38 @@ export class RequestsListComponent implements OnInit {
     if (status === 'APROBADA') return 'Aprobada';
     if (status === 'RECHAZADA') return 'Rechazada';
     return status;
+  }
+
+  getIcon(type: string): string {
+    if (type === 'NUEVO_INVENTARIO') return 'add_shopping_cart';
+    if (type === 'TRASPASO_DOCENTE') return 'assignment_ind';
+    if (type === 'TRANSFERENCIA_AULAS') return 'swap_horiz';
+    if (type === 'SOLICITUD_EXTERNA') return 'outbound';
+    if (type === 'DEVOLUCION_BODEGA') return 'keyboard_return';
+    if (type === 'BAJA_DEFINITIVA') return 'delete_forever';
+    if (type === 'MANTENIMIENTO') return 'build';
+    return 'add_circle_outline';
+  }
+
+  getIconColor(type: string): string {
+    if (type === 'NUEVO_INVENTARIO') return '#e11d48';
+    if (type === 'TRASPASO_DOCENTE') return '#059669';
+    if (type === 'TRANSFERENCIA_AULAS') return '#0284c7';
+    if (type === 'SOLICITUD_EXTERNA') return '#7c3aed';
+    if (type === 'DEVOLUCION_BODEGA') return '#ea580c';
+    if (type === 'BAJA_DEFINITIVA') return '#4b5563';
+    if (type === 'MANTENIMIENTO') return '#2563eb';
+    return '#fb7185';
+  }
+
+  getIconBg(type: string): string {
+    if (type === 'NUEVO_INVENTARIO') return 'rgba(244, 63, 94, 0.15)';
+    if (type === 'TRASPASO_DOCENTE') return 'rgba(16, 185, 129, 0.15)';
+    if (type === 'TRANSFERENCIA_AULAS') return 'rgba(56, 189, 248, 0.15)';
+    if (type === 'SOLICITUD_EXTERNA') return 'rgba(139, 92, 246, 0.15)';
+    if (type === 'DEVOLUCION_BODEGA') return 'rgba(251, 146, 60, 0.15)';
+    if (type === 'BAJA_DEFINITIVA') return 'rgba(107, 114, 128, 0.15)';
+    if (type === 'MANTENIMIENTO') return 'rgba(59, 130, 246, 0.15)';
+    return 'rgba(251, 113, 133, 0.15)';
   }
 }

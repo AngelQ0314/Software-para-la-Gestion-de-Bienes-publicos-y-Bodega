@@ -82,6 +82,11 @@ export class SpacesListComponent implements OnInit {
       teacherName: ['']
     });
 
+    // Filtros reactivos instantáneos
+    this.filterForm.valueChanges.subscribe(() => {
+      this.loadSpaces();
+    });
+
     this.spaceForm = this.fb.group({
       roomNumber: ['', [Validators.required, Validators.minLength(2)]],
       name: ['', [Validators.required, Validators.minLength(2)]],
@@ -149,10 +154,6 @@ export class SpacesListComponent implements OnInit {
     });
   }
 
-  applyFilters(): void {
-    this.loadSpaces();
-  }
-
   resetFilters(): void {
     this.filterForm.reset({
       search: '',
@@ -161,7 +162,6 @@ export class SpacesListComponent implements OnInit {
       jornada: '',
       teacherName: ''
     });
-    this.loadSpaces();
   }
 
   // Cargar Docentes (para vinculación)

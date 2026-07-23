@@ -31,11 +31,121 @@ export class PdfGeneratorService {
            .text('Sistema de Gestión de Bienes Públicos y Bodega', { align: 'center' })
            .moveDown(1.5);
 
-        // --- TÍTULO DEL DOCUMENTO ---
+        // --- TÍTULO DINÁMICO DEL DOCUMENTO ---
+        let tituloActa = 'ACTA DE ENTREGA - RECEPCIÓN DE BIENES E INSUMOS';
+        let entregadoPorLabel = 'Entregado por:';
+        let recibidoPorLabel = 'Recibido por (Docente):';
+
+        const resolvedBy = request.resolvedBy 
+          ? `${request.resolvedBy.nombres || ''} ${request.resolvedBy.apellidos || ''}`.trim()
+          : 'Administrador de Bodega';
+
+        const teacher = `${request.teacher.nombres || ''} ${request.teacher.apellidos || ''}`.trim();
+        const cedula = request.teacher.cedula || 'N/A';
+        const spaceName = request.space?.name || 'N/A';
+        const roomNumber = request.space?.roomNumber || 'N/A';
+        const periodName = request.academicPeriod?.name || 'N/A';
+        const resolvedAt = request.resolvedAt ? request.resolvedAt.toLocaleString('es-EC') : new Date().toLocaleString('es-EC');
+
+        let entregadoPorNombre = resolvedBy;
+        let recibidoPorNombre = `${teacher} (C.I. ${cedula})`;
+
+        let firmaEntregadoLabel = 'Entregado por (Firma)';
+        let firmaRecibidoLabel = 'Recibido por (Firma)';
+        let firmaEntregadoNombre = resolvedBy;
+        let firmaRecibidoNombre = teacher;
+
+        const type = request.type;
+
+        if (type === 'NUEVO_INVENTARIO') {
+          tituloActa = 'ACTA DE ENTREGA - RECEPCIÓN DE BIENES (BODEGA A AULA)';
+          entregadoPorLabel = 'Entregado por (Bodega):';
+          recibidoPorLabel = 'Recibido por (Docente):';
+        } else if (type === 'TRASPASO_DOCENTE') {
+          tituloActa = 'ACTA DE TRASPASO DE BIENES (ENTRE DOCENTES)';
+          const destTeacher = request.destinationTeacher 
+            ? `${request.destinationTeacher.nombres || ''} ${request.destinationTeacher.apellidos || ''}`.trim()
+            : 'Docente Destinatario';
+          const destCedula = request.destinationTeacher?.cedula || 'N/A';
+          
+          entregadoPorLabel = 'Entregado por (Docente Origen):';
+          recibidoPorLabel = 'Recibido por (Docente Destino):';
+          
+          entregadoPorNombre = `${teacher} (C.I. ${cedula})`;
+          recibidoPorNombre = `${destTeacher} (C.I. ${destCedula})`;
+          
+          firmaEntregadoLabel = 'Entregado por (Docente Origen)';
+          firmaRecibidoLabel = 'Recibido por (Docente Destino)';
+          firmaEntregadoNombre = teacher;
+          firmaRecibidoNombre = destTeacher;
+        } else if (type === 'TRANSFERENCIA_AULAS') {
+          tituloActa = 'ACTA DE TRANSFERENCIA DE BIENES (ENTRE AULAS)';
+          entregadoPorLabel = 'Responsable de la Transferencia:';
+          recibidoPorLabel = 'Docente Custodio:';
+          
+          entregadoPorNombre = `${teacher} (C.I. ${cedula})`;
+          recibidoPorNombre = `${teacher} (C.I. ${cedula})`;
+          
+          firmaEntregadoLabel = 'Docente Responsable (Origen)';
+          firmaRecibidoLabel = 'Docente Responsable (Destino)';
+          firmaEntregadoNombre = teacher;
+          firmaRecibidoNombre = teacher;
+        } else if (type === 'SOLICITUD_EXTERNA') {
+          tituloActa = 'ACTA DE TRANSFERENCIA EXTERNA (AULA AJENA A MI AULA)';
+          entregadoPorLabel = 'Entregado por (Aula Origen):';
+          recibidoPorLabel = 'Recibido por (Docente Solicitante):';
+          
+          entregadoPorNombre = `Aula Origen ${roomNumber} (A cargo de: ${request.space?.responsibleTeachers?.map((t: any) => `${t.nombres} ${t.apellidos || ''}`).join(', ') || 'Docente Origen'})`;
+          recibidoPorNombre = `${teacher} (C.I. ${cedula})`;
+          
+          firmaEntregadoLabel = 'Entregado por (Aula Origen)';
+          firmaRecibidoLabel = 'Recibido por (Docente Solicitante)';
+          firmaEntregadoNombre = request.space?.responsibleTeachers?.[0] 
+            ? `${request.space.responsibleTeachers[0].nombres} ${request.space.responsibleTeachers[0].apellidos || ''}`.trim()
+            : 'Responsable de Aula Origen';
+          firmaRecibidoNombre = teacher;
+        } else if (type === 'DEVOLUCION_BODEGA') {
+          tituloActa = 'ACTA DE DEVOLUCIÓN DE BIENES A BODEGA';
+          entregadoPorLabel = 'Entregado por (Docente):';
+          recibidoPorLabel = 'Recibido por (Bodega):';
+          
+          entregadoPorNombre = `${teacher} (C.I. ${cedula})`;
+          recibidoPorNombre = resolvedBy;
+          
+          firmaEntregadoLabel = 'Entregado por (Docente)';
+          firmaRecibidoLabel = 'Recibido por (Bodega)';
+          firmaEntregadoNombre = teacher;
+          firmaRecibidoNombre = resolvedBy;
+        } else if (type === 'BAJA_DEFINITIVA') {
+          tituloActa = 'ACTA DE BAJA DEFINITIVA DE BIENES';
+          entregadoPorLabel = 'Entregado por (Docente):';
+          recibidoPorLabel = 'Procesado por (Administrador):';
+          
+          entregadoPorNombre = `${teacher} (C.I. ${cedula})`;
+          recibidoPorNombre = resolvedBy;
+          
+          firmaEntregadoLabel = 'Entregado por (Docente)';
+          firmaRecibidoLabel = 'Recibido por (Administración)';
+          firmaEntregadoNombre = teacher;
+          firmaRecibidoNombre = resolvedBy;
+        } else if (type === 'MANTENIMIENTO') {
+          tituloActa = 'ACTA DE RETIRO PARA MANTENIMIENTO TÉCNICO';
+          entregadoPorLabel = 'Entregado por (Docente Custodio):';
+          recibidoPorLabel = 'Recibido por (Soporte/Bodega):';
+          
+          entregadoPorNombre = `${teacher} (C.I. ${cedula})`;
+          recibidoPorNombre = resolvedBy;
+          
+          firmaEntregadoLabel = 'Entregado por (Docente)';
+          firmaRecibidoLabel = 'Recibido por (Soporte/Bodega)';
+          firmaEntregadoNombre = teacher;
+          firmaRecibidoNombre = resolvedBy;
+        }
+
         doc.fillColor('#2c3e50')
-           .fontSize(14)
+           .fontSize(12)
            .font('Helvetica-Bold')
-           .text('ACTA DE ENTREGA - RECEPCIÓN DE BIENES E INSUMOS', { align: 'center' })
+           .text(tituloActa, { align: 'center' })
            .font('Helvetica')
            .moveDown(0.2);
            
@@ -52,27 +162,21 @@ export class PdfGeneratorService {
         doc.fillColor('#333333')
            .fontSize(10);
 
-        const resolvedBy = request.resolvedBy 
-          ? `${request.resolvedBy.nombres || ''} ${request.resolvedBy.apellidos || ''}`.trim()
-          : 'Administrador de Bodega';
+        doc.text(`${entregadoPorLabel} ${entregadoPorNombre}`)
+           .text(`${recibidoPorLabel} ${recibidoPorNombre}`);
 
-        const teacher = `${request.teacher.nombres || ''} ${request.teacher.apellidos || ''}`.trim();
-        const cedula = request.teacher.cedula || 'N/A';
-        const spaceName = request.space?.name || 'N/A';
-        const roomNumber = request.space?.roomNumber || 'N/A';
-        const periodName = request.academicPeriod?.name || 'N/A';
-        const resolvedAt = request.resolvedAt ? request.resolvedAt.toLocaleString('es-EC') : new Date().toLocaleString('es-EC');
-
-        doc.text(`Entregado por: ${resolvedBy}`)
-           .text(`Recibido por (Docente): ${teacher} (C.I. ${cedula})`);
-
-        if (request.type === 'TRANSFERENCIA' && request.destinationSpace) {
+        if (request.destinationSpace) {
           const destSpaceName = request.destinationSpace.name || 'N/A';
           const destRoomNumber = request.destinationSpace.roomNumber || 'N/A';
           doc.text(`Espacio Físico Origen: ${spaceName} (Número ${roomNumber})`)
              .text(`Espacio Físico Destino: ${destSpaceName} (Número ${destRoomNumber})`);
         } else {
-          doc.text(`Espacio Físico Destino: ${spaceName} (Número ${roomNumber})`);
+          if (type === 'DEVOLUCION_BODEGA' || type === 'BAJA_DEFINITIVA' || type === 'MANTENIMIENTO') {
+            doc.text(`Espacio Físico Origen: ${spaceName} (Número ${roomNumber})`)
+               .text(`Espacio Físico Destino: Bodega General / Stock Libre`);
+          } else {
+            doc.text(`Espacio Físico Destino: ${spaceName} (Número ${roomNumber})`);
+          }
         }
 
         doc.text(`Período Académico: ${periodName}`)
@@ -126,11 +230,11 @@ export class PdfGeneratorService {
 
         doc.fontSize(9)
            .fillColor('#555555')
-           .text('Entregado por (Firma)', 80, signaturesY + 8, { width: 160, align: 'center' })
-           .text(`${resolvedBy}`, 80, signaturesY + 20, { width: 160, align: 'center' })
+           .text(`${firmaEntregadoLabel}`, 80, signaturesY + 8, { width: 160, align: 'center' })
+           .text(`${firmaEntregadoNombre}`, 80, signaturesY + 20, { width: 160, align: 'center' })
            
-           .text('Recibido por (Firma)', 350, signaturesY + 8, { width: 160, align: 'center' })
-           .text(`${teacher}`, 350, signaturesY + 20, { width: 160, align: 'center' });
+           .text(`${firmaRecibidoLabel}`, 350, signaturesY + 8, { width: 160, align: 'center' })
+           .text(`${firmaRecibidoNombre}`, 350, signaturesY + 20, { width: 160, align: 'center' });
 
         doc.end();
 
